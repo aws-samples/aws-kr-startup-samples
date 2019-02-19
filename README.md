@@ -1,4 +1,4 @@
-## AWS Analytics Workshop Kr
+## AWS Analytics Workshop
 
 
 
