@@ -1,0 +1,3 @@
+{
+  "lambda_layer_lib_s3_path": "s3://<YOUR-S3-BUCKET>/pylambda-layer/cfnresponse-lib.zip"
+}
