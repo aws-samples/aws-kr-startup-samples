@@ -48,8 +48,8 @@ SageMaker Studio provides a convenient platform to host the Streamlit web applic
   * [Build a powerful question answering bot with Amazon SageMaker, Amazon OpenSearch Service, Streamlit, and LangChain (2023-05-25)](https://aws.amazon.com/blogs/machine-learning/build-a-powerful-question-answering-bot-with-amazon-sagemaker-amazon-opensearch-service-streamlit-and-langchain/)
   * [Use proprietary foundation models from Amazon SageMaker JumpStart in Amazon SageMaker Studio (2023-06-27)](https://aws.amazon.com/blogs/machine-learning/use-proprietary-foundation-models-from-amazon-sagemaker-jumpstart-in-amazon-sagemaker-studio/)
   * [Amazon Bedrock - Inference parameters for foundation models](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters.html)
-  * [LangChain](https://python.langchain.com/docs/get_started/introduction.html) - A framework for developing applications powered by language models.
-  * [LangChain Providers - AWS](https://python.langchain.com/docs/integrations/platforms/aws/) - The `LangChain` integrations related to `Amazon AWS` platform.
+  * [LangChain](https://python.langchain.com/v0.1/docs/get_started/introduction.html) - A framework for developing applications powered by language models.
+  * [LangChain Providers - AWS](https://python.langchain.com/v0.1/docs/get_started/introduction.html) - The `LangChain` integrations related to `Amazon AWS` platform.
   * [Streamlit](https://streamlit.io/) - A faster way to build and share data apps
 
 ## Troubleshooting
