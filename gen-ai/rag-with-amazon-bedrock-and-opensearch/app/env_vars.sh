@@ -1,0 +1,6 @@
+export AWS_REGION="us-east-1"
+export OPENSEARCH_SECRET="<YOUR-OPENSEARCH-SECRET>"
+export OPENSEARCH_DOMAIN_ENDPOINT="<YOUR-OPENSEARCH-URL (e.g., https://{domain-name}.{regon-name}.es.amazonaws.com)>"
+export OPENSEARCH_INDEX="llm_rag_embeddings"
+# export BEDROCK_MODEL_ID="anthropic.claude-v2:1"
+export BEDROCK_MODEL_ID="anthropic.claude-3-sonnet-20240229-v1:0"
