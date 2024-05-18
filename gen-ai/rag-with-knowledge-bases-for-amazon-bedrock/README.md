@@ -13,8 +13,8 @@ The overall architecture is like this:
 ### Overall Workflow
 
 1. Deploy the cdk stacks (For more information, see [here](./cdk_stacks/README.md)).
-   - An Knowledge Base for Amazon Bedrock to store embeddings.
-   - An SageMaker Studio for RAG application and data ingestion to Knowledge Base for Amazon Bedrock.
+   - A Knowledge Base for Amazon Bedrock to store embeddings.
+   - A SageMaker Studio for RAG application and data ingestion to Knowledge Base for Amazon Bedrock.
 2. Open SageMaker Studio and then open a new terminal.
 3. Run the following commands on the terminal to clone the code repository for this project:
    ```
