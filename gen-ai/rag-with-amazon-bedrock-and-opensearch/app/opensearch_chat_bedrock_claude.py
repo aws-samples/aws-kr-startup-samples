@@ -18,7 +18,8 @@ from langchain.chains import (
 )
 from langchain_core.prompts import (
   ChatPromptTemplate,
-  MessagesPlaceholder
+  MessagesPlaceholder,
+  PromptTemplate
 )
 from langchain_core.messages import (
     HumanMessage,
@@ -83,21 +84,17 @@ def build_chain():
     }
   )
 
-  contextualize_q_system_prompt = """Given a chat history and the latest user question \
-which might reference context in the chat history, formulate a standalone question \
-which can be understood without the chat history. Do NOT answer the question, \
-just reformulate it if needed and otherwise return it as is."""
+  condense_qa_template = """Given the following conversation and a follow up question, rephrase the follow up question
+to be a standalone question.
 
-  contextualize_q_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", contextualize_q_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ]
-  )
+Chat History:
+{chat_history}
+Follow Up Input: {input}
+Standalone question:"""
+  standalone_question_prompt = PromptTemplate.from_template(condense_qa_template)
 
   history_aware_retriever = create_history_aware_retriever(
-    llm, retriever, contextualize_q_prompt
+    llm, retriever, standalone_question_prompt
   )
 
   qa_system_prompt = """
