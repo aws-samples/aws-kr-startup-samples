@@ -1,0 +1,7 @@
+{
+  "knowledge_base_data_source_name": "kb-data-source",
+  "sagemaker_studio_domain_name": "qa-with-rag-using-kb",
+  "acknowledged-issue-numbers": [
+    30241
+  ]
+}
