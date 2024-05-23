@@ -1,0 +1,4 @@
+{
+  "ami_name": "ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20230517",
+  "vpc_name": "default"
+}
