@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
+# vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab
 
 import base64
 import boto3
@@ -49,7 +50,7 @@ def extract_text_from_image(bedrock_runtime_client, content_image):
 
   model_id = MODEL_ID
   response = bedrock_runtime_client.invoke_model(body=body,
-                           modelId=model_id)
+                                                 modelId=model_id)
   response_body = json.loads(response.get('body').read())
   if response_body['stop_reason'] == 'end_turn':
     text = response_body['content'][0]['text']

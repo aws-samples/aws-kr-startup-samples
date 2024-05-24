@@ -57,7 +57,7 @@ In order to gain access to a foundation model, select **Model access** at the bo
 The model access page lets you view a list of available models, the output modality of the model, whether you have been granted access to it, and the **End User License Agreement (EULA)**.
 You should review the EULA for terms and conditions of using a model before requesting access to it.
 
-:information_source: You can manage model access only through the console.
+:information_source: You can manage model access only through the Amazon Web console.
 
 ### Deploy
 
