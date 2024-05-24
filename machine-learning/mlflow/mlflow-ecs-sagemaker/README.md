@@ -1,5 +1,5 @@
 
-# MLflow on ECS Fargate with Amazon SageMaker
+# MLflow on Amazon ECS Fargate with Amazon SageMaker
 
 ![mlflow-ecs-sagemaker-arch](./mlflow-ecs-sagemaker-arch.svg)
 

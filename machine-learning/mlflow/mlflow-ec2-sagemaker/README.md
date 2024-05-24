@@ -1,5 +1,5 @@
 
-# MLflow with Amazon SageMaker
+# MLflow on Amazon EC2 with Amazon SageMaker
 
 ![mlflow-sagemaker-arch](./mlflow-sagemaker-arch.svg)
 
