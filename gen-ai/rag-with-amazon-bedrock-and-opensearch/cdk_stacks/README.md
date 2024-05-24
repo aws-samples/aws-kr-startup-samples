@@ -38,28 +38,6 @@ Once the virtualenv is activated, you can install the required dependencies.
 ```
 (.venv) $ pip install -r requirements.txt
 ```
-<!--
-### Upload Lambda Layer code
-
-Before deployment, you should uplad zipped code files to s3 like this example:
-
-> :warning: **Important**: Replace `lambda-layer-resources` with your s3 bucket name for lambda layer zipped code.
-> :warning: To create a bucket outside of the `us-east-1` region, `aws s3api create-bucket` command requires the appropriate **LocationConstraint** to be specified in order to create the bucket in the desired region. For more information, see these [examples](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3api/create-bucket.html#examples).
-
-> :warning: Make sure you have **Docker** installed.
-
-<pre>
-(.venv) $ aws s3api create-bucket --bucket lambda-layer-resources --region <i>us-east-1</i>
-(.venv) $ cat <<EOF>requirements-lambda_layer.txt
- > cfnresponse==1.1.2
- > urllib3<2
- > EOF
-(.venv) $ docker run -v "$PWD":/var/task "public.ecr.aws/sam/build-python3.10" /bin/sh -c "pip install -r requirements-lambda_layer.txt -t python/lib/python3.10/site-packages/; exit"
-(.venv) $ zip -r cfnresponse-lib.zip python > /dev/null
-(.venv) $ aws s3 cp cfnresponse-lib.zip s3://lambda-layer-resources/pylambda-layer/
-</pre>
-
-For more information about how to create a package for Amazon Lambda Layer, see [here](https://aws.amazon.com/premiumsupport/knowledge-center/lambda-layer-simulated-docker/). -->
 
 ### Deploy
 
