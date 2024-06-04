@@ -67,7 +67,7 @@ as well as metadata, such as version details, authorship, and any notes related 
    soundfile==0.12.1
    torch==2.1.0
    torchaudio==2.1.0
-   transformers==4.28.1
+   transformers==4.38.0
 
    (.venv) $ pip install -r requirements-dev.txt
    ```
