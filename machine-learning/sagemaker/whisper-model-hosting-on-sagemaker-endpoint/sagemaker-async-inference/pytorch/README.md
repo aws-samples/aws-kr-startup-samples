@@ -118,7 +118,7 @@ as well as metadata, such as version details, authorship, and any notes related 
    (.venv) aws s3 cp model.tar.gz ${MODEL_URI}
    </pre>
 
-   :warning: Replace `bucket_name` and `key_prefi` with yours.
+   :warning: Replace `bucket_name` and `key_prefix` with yours.
 
 3. Set up `cdk.context.json`
 
