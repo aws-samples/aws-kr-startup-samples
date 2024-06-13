@@ -50,7 +50,7 @@ sm_studio_stack = SageMakerStudioStack(app, 'RAGwithKendraSageMakerStudioStack',
 sm_studio_stack.add_dependency(vpc_stack)
 
 sm_llm_endpoint = LLMEndpointStack(app, 'RAGwithKendraLLMEndpointStack',
-  sm_studio_stack.sm_execution_role_arn,
+  sm_studio_stack.sm_execution_role,
   env=AWS_ENV)
 sm_llm_endpoint.add_dependency(sm_studio_stack)
 

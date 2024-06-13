@@ -207,7 +207,7 @@ class SageMakerStudioStack(Stack):
       user_settings=default_user_settings
     )
 
-    self.sm_execution_role_arn = sagemaker_execution_role.role_arn
+    self.sm_execution_role = sagemaker_execution_role
 
     cdk.CfnOutput(self, 'DomainUrl', value=sagemaker_studio_domain.attr_url,
       export_name=f'{self.stack_name}-DomainUrl')

@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+# vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab
+
 # Copyright 2016 Amazon Web Services, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0 License
 #
@@ -36,26 +40,27 @@ def build_chain():
   text2text_model_endpoint = os.environ["TEXT2TEXT_ENDPOINT_NAME"]
 
   class ContentHandler(LLMContentHandler):
-      content_type = "application/json"
-      accepts = "application/json"
+    content_type = "application/json"
+    accepts = "application/json"
 
-      def transform_input(self, prompt: str, model_kwargs: dict) -> bytes:
-          input_str = json.dumps({"text_inputs": prompt, **model_kwargs})
-          return input_str.encode('utf-8')
+    def transform_input(self, prompt: str, model_kwargs: dict) -> bytes:
+      input_str = json.dumps({"inputs": prompt, **model_kwargs})
+      return input_str.encode('utf-8')
 
-      def transform_output(self, output: bytes) -> str:
-          response_json = json.loads(output.read().decode("utf-8"))
-          return response_json["generated_texts"][0]
+    def transform_output(self, output: bytes) -> str:
+      decoded_output = output.read().decode("utf-8")
+      response_json = json.loads(decoded_output)
+      return response_json[0]["generated_text"]
 
   content_handler = ContentHandler()
 
   llm = SagemakerEndpoint(
             endpoint_name=text2text_model_endpoint,
             region_name=region,
-            model_kwargs={"temperature":1e-10, "max_length": 500},
+            model_kwargs={"temperature": 1e-10, "max_length": 500},
             content_handler=content_handler)
 
-  retriever = AmazonKendraRetriever(index_id=kendra_index_id,region_name=region)
+  retriever = AmazonKendraRetriever(index_id=kendra_index_id, region_name=region, top_k=2)
 
   prompt_template = """
   The following is a friendly conversation between a human and an AI.
@@ -85,12 +90,12 @@ def build_chain():
         retriever=retriever,
         condense_question_prompt=standalone_question_prompt,
         return_source_documents=True,
-        combine_docs_chain_kwargs={"prompt":PROMPT})
+        combine_docs_chain_kwargs={"prompt": PROMPT})
   return qa
 
 
 def run_chain(chain, prompt: str, history=[]):
-   return chain({"question": prompt, "chat_history": history})
+   return chain.invoke({"question": prompt, "chat_history": history})
 
 
 if __name__ == "__main__":

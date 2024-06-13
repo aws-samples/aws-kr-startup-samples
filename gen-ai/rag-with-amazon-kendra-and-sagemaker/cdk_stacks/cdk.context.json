@@ -1,3 +1,7 @@
 {
-  "lambda_layer_lib_s3_path": "s3://<YOUR-S3-BUCKET>/pylambda-layer/cfnresponse-lib.zip"
+  "lambda_layer_lib_s3_path": "s3://lambda-layer-resources-use1/pylambda-layer/cfnresponse-lib.zip",
+  "jumpstart_model_info": {
+    "model_id": "huggingface-text2text-flan-t5-xl",
+    "version": "2.1.0"
+  }
 }

@@ -46,7 +46,14 @@ Before deployment, you should uplad zipped code files to s3 like this example:
 > :warning: **Important**: Replace `lambda-layer-resources` with your s3 bucket name for lambda layer zipped code.
 > :warning: To create a bucket outside of the `us-east-1` region, `aws s3api create-bucket` command requires the appropriate **LocationConstraint** to be specified in order to create the bucket in the desired region. For more information, see these [examples](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3api/create-bucket.html#examples).
 
-> :warning: Make sure you have **Docker** installed.
+> :warning: **Important**: Make sure you need to make sure `docker daemon` is running.<br/>
+> Otherwise you will encounter the following errors:
+
+  ```
+  ERROR: Cannot connect to the Docker daemon at unix://$HOME/.docker/run/docker.sock. Is the docker daemon running?
+  jsii.errors.JavaScriptError:
+    Error: docker exited with status 1
+  ```
 
 <pre>
 (.venv) $ aws s3api create-bucket --bucket lambda-layer-resources --region <i>us-east-1</i>
@@ -69,9 +76,15 @@ In particular, you need to fill the s3 location of the previously created lambda
 For example,
 <pre>
 {
-  "lambda_layer_lib_s3_path": "s3://lambda-layer-resources/pylambda-layer/cfnresponse-lib.zip"
+  "lambda_layer_lib_s3_path": "s3://lambda-layer-resources/pylambda-layer/cfnresponse-lib.zip",
+  "jumpstart_model_info": {
+    "model_id": "huggingface-text2text-flan-t5-large",
+    "version": "2.1.0"
+  }
 }
 </pre>
+
+:information_source: The `model_id`, and `version` provided by SageMaker JumpStart can be found in [**SageMaker Built-in Algorithms with pre-trained Model Table**](https://sagemaker.readthedocs.io/en/stable/doc_utils/pretrainedmodels.html).
 
 Now you are ready to synthesize the CloudFormation template for this code.
 
@@ -159,6 +172,10 @@ Enjoy!
   * [Quickly build high-accuracy Generative AI applications on enterprise data using Amazon Kendra, LangChain, and large language models (2023-05-03)](https://aws.amazon.com/blogs/machine-learning/quickly-build-high-accuracy-generative-ai-applications-on-enterprise-data-using-amazon-kendra-langchain-and-large-language-models/)
     * [Amazon Kendra LangChain Extensions - Kendra Retriever Samples](https://github.com/aws-samples/amazon-kendra-langchain-extensions/tree/main/kendra_retriever_samples)
   * [Use proprietary foundation models from Amazon SageMaker JumpStart in Amazon SageMaker Studio (2023-06-27)](https://aws.amazon.com/blogs/machine-learning/use-proprietary-foundation-models-from-amazon-sagemaker-jumpstart-in-amazon-sagemaker-studio/)
+  * [SageMaker Built-in Algorithms with pre-trained Model Table](https://sagemaker.readthedocs.io/en/stable/doc_utils/pretrainedmodels.html)
+  * [sagemaker-huggingface-inference-toolkit](https://github.com/aws/sagemaker-huggingface-inference-toolkit) - SageMaker Hugging Face Inference Toolkit is an open-source library for serving 🤗 Transformers and Diffusers models on Amazon SageMaker.
+  * [AWS Generative AI CDK Constructs](https://awslabs.github.io/generative-ai-cdk-constructs/)
+  * [(AWS Blog) Announcing Generative AI CDK Constructs (2024-01-31)](https://aws.amazon.com/blogs/devops/
   * [AWS CDK TypeScript Example - Custom Resource](https://github.com/aws-samples/aws-cdk-examples/tree/master/typescript/custom-resource)
   * [How to create a Lambda layer using a simulated Lambda environment with Docker](https://aws.amazon.com/premiumsupport/knowledge-center/lambda-layer-simulated-docker/)
     ```
