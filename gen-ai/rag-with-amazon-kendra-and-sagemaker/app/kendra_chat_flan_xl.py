@@ -12,23 +12,29 @@ import sys
 import json
 import os
 
-from langchain_community.retrievers import AmazonKendraRetriever
-from langchain_community.llms import SagemakerEndpoint
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
-from langchain.llms.sagemaker_endpoint import LLMContentHandler
+
+from langchain.chains import ConversationalRetrievalChain
+from langchain.prompts import PromptTemplate
+
+from langchain_aws import (
+  AmazonKendraRetriever,
+  SagemakerEndpoint
+)
+from langchain_aws.llms.sagemaker_endpoint import LLMContentHandler
 
 
 class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+  HEADER = '\033[95m'
+  OKBLUE = '\033[94m'
+  OKCYAN = '\033[96m'
+  OKGREEN = '\033[92m'
+  WARNING = '\033[93m'
+  FAIL = '\033[91m'
+  ENDC = '\033[0m'
+  BOLD = '\033[1m'
+  UNDERLINE = '\033[4m'
 
 
 MAX_HISTORY_LENGTH = 5

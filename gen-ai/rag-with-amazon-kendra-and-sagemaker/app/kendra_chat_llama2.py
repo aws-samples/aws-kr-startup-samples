@@ -12,11 +12,14 @@ import sys
 import json
 import os
 
-from langchain_community.retrievers import AmazonKendraRetriever
-from langchain_community.llms import SagemakerEndpoint
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
-from langchain.llms.sagemaker_endpoint import LLMContentHandler
+
+from langchain_aws import (
+  AmazonKendraRetriever,
+  SagemakerEndpoint
+)
+from langchain_aws.llms.sagemaker_endpoint import LLMContentHandler
 
 
 class bcolors:
