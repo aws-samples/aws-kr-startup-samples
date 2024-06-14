@@ -73,7 +73,7 @@ def build_chain():
 
   # https://github.com/aws/amazon-sagemaker-examples/blob/main/introduction_to_amazon_algorithms/jumpstart-foundation-models/llama-2-text-completion.ipynb
   model_kwargs = {
-    "max_new_tokens": 500, #256
+    "max_new_tokens": 500,
     "top_p": 0.9,
     "temperature": 0.6,
     "return_full_text": False,
