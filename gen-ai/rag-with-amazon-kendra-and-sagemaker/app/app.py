@@ -2,17 +2,21 @@
 # -*- encoding: utf-8 -*-
 # vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab
 
+import os
 import streamlit as st
 import uuid
 
 import kendra_chat_flan_xl as flanxl
+import kendra_chat_llama2 as llama2
 
+PROVIDER_NAME = os.environ.get('PROVIDER_NAME', 'llama2')
 
 USER_ICON = "images/user-icon.png"
 AI_ICON = "images/ai-icon.png"
 MAX_HISTORY_LENGTH = 5
 PROVIDER_MAP = {
   'flanxl': 'Flan XL',
+  'llama2': 'Llama 2'
 }
 
 # Check if the user ID is already stored in the session state
@@ -26,8 +30,9 @@ else:
 
 
 if 'llm_chain' not in st.session_state:
-  st.session_state['llm_app'] = flanxl
-  st.session_state['llm_chain'] = flanxl.build_chain()
+  llm_app = llama2 if PROVIDER_NAME == 'llama2' else flanxl
+  st.session_state['llm_app'] = llama2 if PROVIDER_NAME == 'llama2' else flanxl
+  st.session_state['llm_chain'] = llm_app.build_chain()
 
 if 'chat_history' not in st.session_state:
   st.session_state['chat_history'] = []
@@ -52,22 +57,22 @@ if "input" not in st.session_state:
 
 
 st.markdown("""
-    <style>
-        .block-container {
-          padding-top: 32px;
-          padding-bottom: 32px;
-          padding-left: 0;
-          padding-right: 0;
-        }
-        .element-container img {
-          background-color: #000000;
-        }
+  <style>
+    .block-container {
+      padding-top: 32px;
+      padding-bottom: 32px;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .element-container img {
+      background-color: #000000;
+    }
 
-        .main-header {
-          font-size: 24px;
-        }
-    </style>
-    """, unsafe_allow_html=True)
+    .main-header {
+      font-size: 24px;
+    }
+  </style>
+  """, unsafe_allow_html=True)
 
 
 def write_logo():
@@ -81,7 +86,7 @@ def write_top_bar():
   with col1:
     st.image(AI_ICON, use_column_width='always')
   with col2:
-    selected_provider = 'flanxl'
+    selected_provider = PROVIDER_NAME
     if selected_provider in PROVIDER_MAP:
       provider = PROVIDER_MAP[selected_provider]
     else:

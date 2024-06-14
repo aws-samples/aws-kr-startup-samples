@@ -34,7 +34,7 @@ class LLMEndpointStack(Stack):
     super().__init__(scope, construct_id, **kwargs)
 
     jumpstart_model = self.node.try_get_context('jumpstart_model_info')
-    model_id, model_version = jumpstart_model.get('model_id', 'huggingface-text2text-flan-t5-xl'), jumpstart_model.get('version', '2.1.0')
+    model_id, model_version = jumpstart_model.get('model_id', 'meta-textgeneration-llama-2-7b-f'), jumpstart_model.get('version', '2.0.1')
     model_name = f"{model_id.upper().replace('-', '_')}_{model_version.replace('.', '_')}"
 
     sagemaker_endpoint_name = name_from_base(model_id.replace('/', '-').replace('.', '-'))

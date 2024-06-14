@@ -137,6 +137,7 @@ class SageMakerStudioStack(Stack):
       "effect": aws_iam.Effect.ALLOW,
       "resources": [f"arn:aws:kendra:{cdk.Aws.REGION}:{cdk.Aws.ACCOUNT_ID}:index/*"],
       "actions": [
+        "kendra:Query",
         "kendra:Retrieve"
       ]
     }))
