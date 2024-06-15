@@ -15,9 +15,6 @@ import os
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 
-from langchain.chains import ConversationalRetrievalChain
-from langchain.prompts import PromptTemplate
-
 from langchain_aws import (
   AmazonKendraRetriever,
   SagemakerEndpoint
