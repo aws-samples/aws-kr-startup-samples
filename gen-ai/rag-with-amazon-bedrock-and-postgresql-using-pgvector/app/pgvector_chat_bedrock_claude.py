@@ -9,7 +9,7 @@ import urllib
 
 import boto3
 
-from langchain_community.vectorstores import PGVector
+from langchain_postgres import PGVector
 from langchain_community.embeddings import BedrockEmbeddings
 from langchain_aws import ChatBedrock as BedrockChat
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -60,7 +60,7 @@ def build_chain():
   db_host = secret['host']
 
   CONNECTION_STRING = PGVector.connection_string_from_db_params(
-    driver = 'psycopg2',
+    driver = 'psycopg',
     user = db_username,
     password = db_password,
     host = db_host,
@@ -77,8 +77,8 @@ def build_chain():
 
   vectorstore = PGVector(
     collection_name=collection_name,
-    connection_string=CONNECTION_STRING,
-    embedding_function=embeddings
+    connection=CONNECTION_STRING,
+    embeddings=embeddings
   )
   retriever = vectorstore.as_retriever()
 
