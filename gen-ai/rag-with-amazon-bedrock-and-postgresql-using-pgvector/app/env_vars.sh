@@ -1,0 +1,5 @@
+export AWS_REGION="your-aws-region"
+export PGVECTOR_SECRET_ID="your-postgresql-secret"
+export COLLECTION_NAME="llm_rag_embeddings"
+# export BEDROCK_MODEL_ID="anthropic.claude-v2:1"
+export BEDROCK_MODEL_ID="anthropic.claude-3-sonnet-20240229-v1:0"
