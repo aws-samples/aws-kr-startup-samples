@@ -1,14 +1,13 @@
-
 # QnA with RAG using Knowledge Bases for Amazon Bedrock CDK Python project!
 
 ![rag_with_kb_for_amazon_bedrock_using_aurora_postgresql_arch](./rag_with_kb_for_amazon_bedrock_using_aurora_postgresql_arch.svg)
 
-This is a complete setup for automatic deployment of Knowledge Bases for Amazon Bedrock using Amazon OpenSearch Serverless as a vector store.
+This is a complete setup for automatic deployment of Knowledge Bases for Amazon Bedrock using Amazon Aurora Postgresql as a vector store.
 
 Following resources will get created and deployed:
 
 - AWS IAM role
-- Amazon Open Search Serverless Collection and Index
+- Amazon Aurora Postgresql
 - Set up Data Source and Knowledge Base for Amazon Bedrock
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
@@ -69,10 +68,13 @@ For example,
 <pre>
 {
   "db_cluster_name": "rag-pgvector-demo",
+  "aurora_vectorstore_database_name": "bedrock_vector_db",
   "knowledge_base_data_source_name": "kb-data-source",
   "sagemaker_studio_domain_name": "qa-with-rag-using-kb-aurora-pgvector"
 }
 </pre>
+
+:information_source: `aurora_vectorstore_database_name` will be used in [**Step 4: Prepare Aurora PostgreSQL to be used as a Knowledge Base for Amazon Bedrock**](../data_ingestion_to_vectordb/setup_aurora_postgresql.ipynb).
 
 ## Deploy
 
@@ -116,9 +118,9 @@ BedrockKnowledgeBaseStack
 2. Run the following commands on the terminal to clone the code repository for this project:
    ```
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
-   cd aws-kr-startup-samples/gen-ai/rag-with-knowledge-bases-for-amazon-bedrock-using-aurora-postgresql
+   cd aws-kr-startup-samples/gen-ai/rag-with-knowledge-bases-for-amazon-bedrock-using-aurora-postgresql/data_ingestion_to_vectordb
    ```
-3. Open `setup_aurora_postgresql.ipynb` notebook and Run it. (For more information, see [here](./data_ingestion_to_vectordb/setup_aurora_postgresql.ipynb))
+3. Open `setup_aurora_postgresql.ipynb` notebook and Run it. (For more information, see [here](../data_ingestion_to_vectordb/setup_aurora_postgresql.ipynb))
 4. Return to the terminal and deploy the remaining stacks.
 
 #### Step 5: Create Knowledge Bases for Amazon Bedrock

@@ -26,11 +26,11 @@ class BedrockKnowledgeBaseStack(Stack):
   def __init__(self, scope: Construct, construct_id: str, rds_credentials_secret_arn, rds_cluster_arn, **kwargs) -> None:
     super().__init__(scope, construct_id, **kwargs)
 
+    aurora_vectorstore_database_name = self.node.try_get_context('aurora_vectorstore_database_name') or 'postgres'
     aurora_postgresql = amazonaurora.AmazonAuroraVectorStore(
       credentials_secret_arn=rds_credentials_secret_arn,
       resource_arn=rds_cluster_arn,
-      # database_name='bedrock_vector_db', #XXX: What is used for? Can we change it?
-      database_name='postgres',
+      database_name=aurora_vectorstore_database_name,
       metadata_field='metadata',
       primary_key_field='id',
       table_name='bedrock_integration.bedrock_kb',
