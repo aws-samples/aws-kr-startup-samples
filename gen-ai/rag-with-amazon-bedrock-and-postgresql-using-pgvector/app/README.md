@@ -18,7 +18,7 @@ SageMaker Studio provides a convenient platform to host the Streamlit web applic
    ```
    export AWS_REGION="<YOUR-AWS-REGION>"
    export PGVECTOR_SECRET_ID="<YOUR-POSTGRESQL-SECRET>"
-   export OPENSEARCH_INDEX="llm_rag_embeddings"
+   export COLLECTION_NAME="llm_rag_embeddings"
    export BEDROCK_MODEL_ID="anthropic.claude-3-sonnet-20240229-v1:0"
    ```
    :information_source: `COLLECTION_NAME` can be found in [data ingestion to vectordb](../data_ingestion_to_vectordb/data_ingestion_to_pgvector.ipynb) step.
