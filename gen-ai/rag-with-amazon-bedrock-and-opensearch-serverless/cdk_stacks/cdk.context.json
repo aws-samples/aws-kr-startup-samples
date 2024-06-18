@@ -1,0 +1,4 @@
+{
+  "user_name": "<AWS_IAM_User_Name>",
+  "collection_name": "llm-rag-vectordb"
+}
