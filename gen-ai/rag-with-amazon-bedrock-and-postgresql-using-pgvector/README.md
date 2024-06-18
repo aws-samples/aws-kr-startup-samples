@@ -37,6 +37,7 @@ The overall architecture is like this:
   * [rag-with-amazon-postgresql-using-pgvector](https://github.com/aws-samples/rag-with-amazon-postgresql-using-pgvector) - Question Answering application with Large Language Models (LLMs) and Amazon Aurora Postgresql
   * [rag-with-amazon-opensearch-and-sagemaker](https://github.com/aws-samples/rag-with-amazon-opensearch-and-sagemaker) - Question Answering application with Large Language Models (LLMs) and Amazon OpenSearch Service
   * [rag-with-amazon-opensearch-serverless](https://github.com/aws-samples/rag-with-amazon-opensearch-serverless) - Question Answering application with Large Language Models (LLMs) and Amazon OpenSearch Serverless Service
+  * [hybrid-search-postgres-opensearch-bedrock](https://github.com/aws-samples/hybrid-search-postgres-opensearch-bedrock) - This repository demonstrates how to perform hybrid vector search by combining structured data from Amazon Aurora PostgreSQL, unstructured data from Amazon OpenSearch, and Langchain's EnsembleRetriever.
   * [Pgvector changelog](https://github.com/pgvector/pgvector/blob/master/CHANGELOG.md#040-2023-01-11)
     > Increased max dimensions for vector from 1024 to 16000<br/>
     > Increased max dimensions for index from 1024 to 2000
