@@ -22,7 +22,9 @@ The overall architecture is like this:
 3. Run the following commands on the terminal to clone the code repository for this project:
    ```
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
-   cd aws-kr-startup-samples/gen-ai/rag-with-amazon-kendra-and-sagemaker
+   cd aws-kr-startup-samples
+   git sparse-checkout init --cone
+   git sparse-checkout set gen-ai/rag-with-amazon-kendra-and-sagemaker
    ```
 4. Run Streamlit application. (For more information, see [here](./app/README.md))
 
