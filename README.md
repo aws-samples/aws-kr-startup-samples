@@ -4,14 +4,15 @@ Welcome. This reference has been prepared by Startup Solution Architects at AWS 
 
 We hope this proves useful as you navigate the various options available to you for maximizing the value you can get out of running on AWS. As always, should you have questions on anything, please don't hesitate to contact your local startup team. If you aren't already in contact with them, simply visit [https://www.awsstartup.io/](https://www.awsstartup.io/) and click on the [**MEET THE EXPERT for STARTUP**](https://pages.awscloud.com/office-hour-startup.html) button.
 
-## Getting specific source directories
+## How to use this repository
 
-This repository has so many files that it is a `monorepo`.
-So if you want to get a specific source directory, you better use the `git sparse-chekcout` command like this.
+This repository is massive, containing numerous files, which qualifies it as a `monorepo`.
+As a result, we strongly recommend that you selectively fetch specific source directories instead of downloading the entire repository.
+To accomplish this, you need to utilize the `git sparse-checkout` command.
 
-For example, suppose you want to clone the `rag-with-amazon-bedrock-and-opensearch` project.
+For instance, let's assume you want to clone the `rag-with-amazon-bedrock-and-opensearch` project.
 
-Run the following command from your terminal.
+In that case, open your terminal and execute the following command.
 
    ```
    git clone https://github.com/aws-kr-startup-samples.git
