@@ -2,14 +2,12 @@
 
 Welcome. This reference has been prepared by Startup Solution Architects at AWS Korea to help Startups easily find additional resources that provide sample codes or workshops.
 
-We hope this proves useful as you navigate the various options available to you for maximizing the value you can get out of running on AWS. As always, should you have questions on anything, please don't hesitate to contact your local startup team. If you aren't already in contact with them, simply visit [https://aws.amazon.com/startups/](https://aws.amazon.com/startups/) and click on the `Get In Touch` button.
-
+We hope this proves useful as you navigate the various options available to you for maximizing the value you can get out of running on AWS. As always, should you have questions on anything, please don't hesitate to contact your local startup team. If you aren't already in contact with them, simply visit [https://www.awsstartup.io/](https://www.awsstartup.io/) and click on the [**MEET THE EXPERT for STARTUP**](https://pages.awscloud.com/office-hour-startup.html) button.
 
 ## Resources
 
  * [AWS Startup](https://www.awsstartup.io/): AWS를 시작하는데 필요한 AWS 핵심 서비스의 특장점과 실제 활용 사례를 소개
  * [AWS Startup Bootcamp](https://www.awsbootcamp.io/): AWS에 익숙하지 않은 Startup 개발자 분들이, 보다 빠르게 AWS 위에서의 개발을 이해하고 개발을 시작하실 수 있게 보다 실용적인 내용을 소개
-
 
 ## Security
 
