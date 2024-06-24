@@ -15,7 +15,7 @@ For instance, let's assume you want to clone the `rag-with-amazon-bedrock-and-op
 In that case, open your terminal and execute the following command.
 
    ```
-   git clone https://github.com/aws-kr-startup-samples.git
+   git clone https://github.com/aws-samples/aws-kr-startup-samples.git
    cd aws-kr-startup-samples
    git sparse-checkout init --cone
    git sparse-checkout set gen-ai/rag-with-amazon-bedrock-and-opensearch
