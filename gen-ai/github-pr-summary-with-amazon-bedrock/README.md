@@ -47,7 +47,7 @@ To set up this project:
     aws configure
     ```
 
-5. Update the `cdk.json` file with your GitHub token, repository name, and other configuration details.
+5. Update the `cdk.context.json` file with your GitHub token, repository name, and other configuration details.
 
 ## Deployment
 

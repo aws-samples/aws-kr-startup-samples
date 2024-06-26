@@ -35,10 +35,6 @@
     "@aws-cdk/core:target-partitions": [
       "aws",
       "aws-cn"
-    ],
-    "region": "us-east-1",
-    "github_repo": "your-github-repo",
-    "github_token": "your-github-token",
-    "bedrock_model_id": "anthropic.claude-3-sonnet-20240229-v1:0"
+    ]
   }
 }
