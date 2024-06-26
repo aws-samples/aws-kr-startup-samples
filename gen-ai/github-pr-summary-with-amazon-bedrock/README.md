@@ -6,6 +6,8 @@ This is a GitHub Pull Request Summary application using Amazon Bedrock deployed 
 
 ## Overview
 
+![github-pr-summary-arch-arch](./images/sample.png)
+
 This application automatically generates summaries for GitHub Pull Requests using Amazon Bedrock's AI capabilities. When a new PR is created or updated, it triggers an AWS Step Functions workflow that processes the PR content and generates a concise summary, which is then posted as a comment on the GitHub PR.
 
 ## Prerequisites
@@ -64,6 +66,21 @@ To deploy the application:
 ## Usage
 
 Once deployed, the application will automatically process new Pull Requests in the specified GitHub repository. You can view the summaries as comments on each PR.
+
+To enable this functionality, you need to set up a webhook in your GitHub repository settings:
+
+1. Go to your GitHub repository.
+2. Click on "Settings" > "Webhooks" > "Add webhook".
+3. In the "Payload URL" field, enter the URL of your API Gateway endpoint.
+4. Set the "Content type" to "application/json".
+5. Under "Which events would you like to trigger this webhook?", select "Let me select individual events".
+6. Check only the "Pull requests" option.
+7. Make sure the webhook is set to "Active".
+8. Click "Add webhook" to save your settings.
+
+**Important Note**: The application is designed to respond only to Pull Request events. If you have configured other events in the webhook settings, these will be ignored by the application.
+
+After setting up the webhook, the application will automatically generate summaries for new Pull Requests or when existing PRs are reopened. These summaries will appear as comments on the respective Pull Requests.
 
 ## Clean Up
 
