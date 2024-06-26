@@ -71,7 +71,7 @@ class GitHubPRSummaryStack(Stack):
             self, id,
             runtime=lambda_.Runtime.PYTHON_3_9,
             code=lambda_.Code.from_asset(
-                path.join(os.getcwd(), 'python/lambda'),
+                path.join(os.getcwd(), 'cdk_stacks/lambda'),
                 bundling={
                     "image": lambda_.Runtime.PYTHON_3_9.bundling_image,
                     "command": [
