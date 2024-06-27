@@ -12,15 +12,18 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_community.embeddings import BedrockEmbeddings
 from langchain_aws import ChatBedrock as BedrockChat
 from langchain.chains.combine_documents import create_stuff_documents_chain
+
 from langchain.chains import (
   create_history_aware_retriever,
   create_retrieval_chain
 )
+
 from langchain_core.prompts import (
   ChatPromptTemplate,
   MessagesPlaceholder,
   PromptTemplate
 )
+
 from langchain_core.messages import (
     HumanMessage,
     AIMessage
@@ -41,7 +44,7 @@ class bcolors:
 
 MAX_HISTORY_LENGTH = 5
 
-def _get_credentials(secret_id: str, region_name: str) -> str:
+def _get_credentials(secret_id: str, region_name: str) -> dict:
   client = boto3.client('secretsmanager', region_name=region_name)
   response = client.get_secret_value(SecretId=secret_id)
   secrets_value = json.loads(response['SecretString'])
