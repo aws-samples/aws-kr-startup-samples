@@ -61,7 +61,7 @@ class OpenSearchIndexCreationLambdaStack(Stack):
     }
 
     lambda_fn = aws_lambda.Function(self, 'OpenSearchIndexCreationLambdaFn',
-      runtime=aws_lambda.Runtime.PYTHON_3_10,
+      runtime=aws_lambda.Runtime.PYTHON_3_12,
       function_name=f'{self.stack_name}-Function',
       handler='opensearch_index_creation_lambda_fn.lambda_handler',
       description='Create OpenSearch Vector Index for Amazon Bedrock Knowledge Base',

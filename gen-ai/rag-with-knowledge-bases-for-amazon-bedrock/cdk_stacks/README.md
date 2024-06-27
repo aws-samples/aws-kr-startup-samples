@@ -23,6 +23,12 @@ you can create the virtualenv manually.
 To manually create a virtualenv on MacOS and Linux:
 
 ```
+$ git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
+$ cd aws-kr-startup-samples
+$ git sparse-checkout init --cone
+$ git sparse-checkout set gen-ai/rag-with-knowledge-bases-for-amazon-bedrock
+$ cd gen-ai/rag-with-knowledge-bases-for-amazon-bedrock/cdk_stacks
+
 $ python3 -m venv .venv
 ```
 
@@ -159,7 +165,7 @@ Enjoy!
       $ cd opensearch-py-lib
       $ source bin/activate
       (opensearch-py-lib) $ mkdir -p python_modules
-      (opensearch-py-lib) $ pip install opensearch-py==2.3.1 cfnresponse==1.1.2 urllib3==1.26.18 -t python_modules
+      (opensearch-py-lib) $ pip install opensearch-py==2.3.1 cfnresponse==1.1.2 urllib3==1.26.19 -t python_modules
       (opensearch-py-lib) $ mv python_modules python
       (opensearch-py-lib) $ zip -r opensearch-py-lib.zip python/
       (opensearch-py-lib) $ aws s3 mb s3://my-bucket-for-lambda-layer-packages
@@ -171,9 +177,9 @@ Enjoy!
       $ cat <<EOF > requirements.txt
       > opensearch-py==2.3.1
       > cfnresponse==1.1.2
-      > urllib3==1.26.18
+      > urllib3==1.26.19
       > EOF
-      $ docker run -v "$PWD":/var/task "public.ecr.aws/sam/build-python3.10" /bin/sh -c "pip install -r requirements.txt -t python/lib/python3.10/site-packages/; exit"
+      $ docker run -v "$PWD":/var/task "public.ecr.aws/sam/build-python3.12" /bin/sh -c "pip install -r requirements.txt -t python/lib/python3.12/site-packages/; exit"
       $ zip -r opensearch-py-lib.zip python > /dev/null
       $ aws s3 mb s3://my-bucket-for-lambda-layer-packages
       $ aws s3 cp opensearch-py-lib.zip s3://my-bucket-for-lambda-layer-packages/var/

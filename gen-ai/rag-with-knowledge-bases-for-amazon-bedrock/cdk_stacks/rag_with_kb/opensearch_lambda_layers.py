@@ -27,7 +27,7 @@ class OpenSearchLambdaLayerStack(Stack):
 
     opensearch_py_sdk_lib = aws_lambda.LayerVersion(self, "OpenSearchPySDKLib",
       layer_version_name="opensearch-py-sdk-lib",
-      compatible_runtimes=[aws_lambda.Runtime.PYTHON_3_10],
+      compatible_runtimes=[aws_lambda.Runtime.PYTHON_3_12],
       code=aws_lambda.Code.from_bucket(lambda_layer_s3_bucket, lambda_layer_s3_object_key),
       removal_policy=cdk.RemovalPolicy.DESTROY
     )
