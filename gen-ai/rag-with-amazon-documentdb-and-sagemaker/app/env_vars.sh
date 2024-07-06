@@ -1,0 +1,6 @@
+export AWS_REGION="us-east-1"
+export DOCDB_SECRET_NAME="{DocumentDB-Secret-Name}"
+export DOCDB_HOST="{docdb-cluster-name}.cluster-{random-id}.{region}.docdb.amazonaws.com"
+export DB_NAME="ragdemo"
+export COLLECTION_NAME="rag"
+export TEXT2TEXT_ENDPOINT_NAME="{SageMakerEndpointName}"

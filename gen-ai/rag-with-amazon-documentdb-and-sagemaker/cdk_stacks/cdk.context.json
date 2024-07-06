@@ -1,0 +1,8 @@
+{
+  "docdb_cluster_name": "vectordb",
+  "sagemaker_studio_domain_name": "llm-app-rag-docdb",
+  "jumpstart_model_info": {
+    "model_id": "meta-textgeneration-llama-3-8b-instruct",
+    "version": "2.0.2"
+  }
+}
