@@ -1,0 +1,5 @@
+export AWS_REGION="us-east-1"
+export MEMORYDB_SECRET_NAME="your-aws-secrets-for-memorydb (e.g., MemoryDBSecret-XXXXXXXX)"
+export REDIS_HOST="your-amazon-memorydb-host"
+export INDEX_NAME="idx:vss-mm"
+export TEXT2TEXT_ENDPOINT_NAME="{SageMakerEndpointName}"
