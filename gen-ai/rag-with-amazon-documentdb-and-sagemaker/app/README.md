@@ -30,7 +30,7 @@ SageMaker Studio provides a convenient platform to host the Streamlit web applic
    export DOCDB_HOST="<i>{docdb-cluster-name}</i>.cluster-<i>{random-id}</i>.<i>{region}</i>.docdb.amazonaws.com"
    export DB_NAME="ragdemo"
    export COLLECTION_NAME="rag"
-   export TEXT2TEXT_ENDPOINT_NAME="<i>{SageMakerEndpointName}<i/>"
+   export TEXT2TEXT_ENDPOINT_NAME="<i>{SageMakerEndpointName}</i>"
    </pre>
    :information_source: `COLLECTION_NAME` can be found in [data ingestion to vectordb](../data_ingestion_to_vectordb/data_ingestion_to_documentdb.ipynb) step.
 5. When the application runs successfully, you’ll see an output similar to the following (the IP addresses you will see will be different from the ones shown in this example). Note the port number (typically `8501`) from the output to use as part of the URL for app in the next step.
