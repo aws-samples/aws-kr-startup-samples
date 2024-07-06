@@ -65,7 +65,7 @@ def _get_credentials(secret_id: str, region_name: str) -> str:
   return secrets_value
 
 
-def _get_llm(endpoint_name, region_name='us-east-1'):
+def _get_llm(endpoint_name: str, region_name: str='us-east-1'):
   # configure the properties for Llama3
   model_kwargs = {
     "top_p": 0.6,
