@@ -147,9 +147,12 @@ def build_chain():
 
 
 def run_chain(chain, prompt: str, history=[]):
+  PREAMBLE = "<|start_header_id|>assistant<|end_header_id|>"
+
   result = chain.invoke({"question": prompt, "chat_history": history})
   answer = result["answer"]
-  result["answer"] = answer[len("<|start_header_id|>assistant<|end_header_id|>"):]
+  if answer.startswith(PREAMBLE):
+    result["answer"] = answer[len(PREAMBLE):]
   return result
 
 
