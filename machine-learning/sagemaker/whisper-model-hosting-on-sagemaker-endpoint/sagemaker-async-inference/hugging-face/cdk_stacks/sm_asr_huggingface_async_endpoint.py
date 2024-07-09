@@ -122,6 +122,8 @@ class ASRHuggingFaceAsyncEndpointStack(Stack):
       }
     }
 
+    #XXX: For more information, see
+    # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sagemaker-endpointconfig.html
     self.sagemaker_endpoint.cfn_endpoint_config.add_override(
       'Properties.AsyncInferenceConfig', async_inference_config
     )
