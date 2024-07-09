@@ -87,7 +87,7 @@ RAGOpenSearchServerlessStack
 #### Step 3: Create OpenSearch cluster
 
 ```
-(.venv) $ cdk deploy --require-approval never RAGOpenSearchStack
+(.venv) $ cdk deploy --require-approval never RAGOpenSearchServerlessStack
 ```
 
 **Once all CDK stacks have been successfully created, proceed with the remaining steps of the [overall workflow](../README.md#overall-workflow).**
