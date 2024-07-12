@@ -105,8 +105,8 @@ class ASRHuggingFaceAsyncEndpointStack(Stack):
       }
     )
 
-    s3_failure_path = f"s3://{s3_output_bucket.bucket_name}/{self.stack_name.lower()}/error"
-    s3_output_path = f"s3://{s3_output_bucket.bucket_name}/{self.stack_name.lower()}/output"
+    s3_failure_path = f"s3://{s3_output_bucket.bucket_name}/{sagemaker_endpoint_name}/error"
+    s3_output_path = f"s3://{s3_output_bucket.bucket_name}/{sagemaker_endpoint_name}/output"
 
     async_inference_config = {
       'OutputConfig': {
