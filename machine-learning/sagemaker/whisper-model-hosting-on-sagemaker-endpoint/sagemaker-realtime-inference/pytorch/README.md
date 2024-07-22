@@ -59,17 +59,7 @@ as well as metadata, such as version details, authorship, and any notes related 
 
 1. Install required packages
    ```
-   (.venv) $ cat requirements-dev.txt
-   accelerate==0.30.1
-   datasets==2.16.1
-   librosa==0.10.2.post1
-   openai-whisper>=20230918
-   soundfile==0.12.1
-   torch==2.1.0
-   torchaudio==2.1.0
-   transformers==4.38.0
-
-   (.venv) $ pip install -r requirements-dev.txt
+   (.venv) $ pip install -U huggingface-hub==0.23.5
    ```
 
 2. Save model artifacts
@@ -83,34 +73,25 @@ as well as metadata, such as version details, authorship, and any notes related 
 
    (2) Run the following python code to download OpenAI Whisper model artifacts from Hugging Face model hub.
    ```python
-   from transformers import (
-       AutoModelForSpeechSeq2Seq,
-       WhisperProcessor,
-       WhisperTokenizer,
-   )
+   from huggingface_hub import snapshot_download
+   from pathlib import Path
 
-   # Define a directory where you want to save the model
-   save_directory = "./model"
+   model_dir = Path('model')
+   model_dir.mkdir(exist_ok=True)
 
    model_id = "openai/whisper-medium"
-   model = AutoModelForSpeechSeq2Seq.from_pretrained(model_id)
-   model.save_pretrained(save_directory)
-
-   tokenizer = WhisperTokenizer.from_pretrained(model_id)
-   tokenizer.save_pretrained(save_directory)
-
-   processor = WhisperProcessor.from_pretrained(model_id)
-   processor.save_pretrained(save_directory)
+   snapshot_download(model_id, local_dir=model_dir)
    ```
 
    (3) Create `model.tar.gz` with model artifacts including your custom [inference scripts](./src/code/).
    ```
-   (.venv) tar cvf model.tar --exclude=".ipynb_checkpoints" -C model/ .
-   (.venv) tar rvf model.tar --exclude=".ipynb_checkpoints" -C src/ code
-   (.venv) gzip model.tar
+   (.venv) cp -rp src/code model
+   (.venv) tar --exclude ".huggingface" -czf model.tar.gz --use-compress-program=pigz -C model/ .
    ```
 
    :information_source: For more information about the directory structure of `model.tar.gz`, see [**Model Directory Structure for Deploying Pre-trained PyTorch Models**](https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure)
+
+   :information_source: `pigz` is used to speed up the `tar` command. More information on how to install `pigz` can be found [here](#pigz-installation-guide).
 
    (4) Upload `model.tar.gz` file into `s3`
    <pre>
@@ -182,3 +163,18 @@ Enjoy!
  * [Docker Registry Paths and Example Code for Pre-built SageMaker Docker images](https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html)
  * [Model Directory Structure for Deploying Pre-trained PyTorch Models](https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure)
  * [Available Amazon Deep Learning Containers Images page](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
+
+## `pigz` Installation Guide
+
+[Pigz(PIGZ, Parallel Implementation of GZip)](https://zlib.net/pigz/) compresses using threads to make use of multiple processors and cores.
+
+Quick Install Instructions of `pigz` on
+
+* Ubuntu/Debian
+  ```
+  sudo apt-get install -y pigz
+  ```
+* macOS
+  ```
+  brew install pigz
+  ```
