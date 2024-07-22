@@ -90,7 +90,7 @@ class ASRPyTorchAsyncEndpointStack(Stack):
     )
 
     model_id = self.node.try_get_context('model_id') or 'openai/whisper-medium'
-    sagemaker_endpoint_name = name_from_base(model_id.replace('/', '-').replace('.', '-'))
+    sagemaker_endpoint_name = name_from_base(model_id.lower().replace('/', '-').replace('.', '-'))
 
     self.sagemaker_endpoint = CustomSageMakerEndpoint(self, 'PyTorchSageMakerEndpoint',
       model_id=model_id,

@@ -84,7 +84,7 @@ class ASRAsyncEndpointStack(Stack):
     model_id, model_version = jumpstart_model.get('model_id', 'huggingface-asr-whisper-medium'), jumpstart_model.get('version', '3.0.0')
     model_name = f"{model_id.upper().replace('-', '_')}_{model_version.replace('.', '_')}"
 
-    sagemaker_endpoint_name = name_from_base(model_id.replace('/', '-').replace('.', '-'))
+    sagemaker_endpoint_name = name_from_base(model_id.lower().replace('/', '-').replace('.', '-'))
 
     #XXX: Available JumStart Model List
     # https://github.com/awslabs/generative-ai-cdk-constructs/blob/main/src/patterns/gen-ai/aws-model-deployment-sagemaker/jumpstart-model.ts
