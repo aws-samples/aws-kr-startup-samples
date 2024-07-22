@@ -1,0 +1,11 @@
+{
+  "model_id": "llava-hf/LLaVA-NeXT-Video-7B-hf",
+  "model_data_source": {
+    "s3_bucket_name": "<s3-bucket-name>",
+    "s3_object_key_name": "<model-artifacts-path (e.g., `torch-model/model.tar.gz`, or `torch-model/` >"
+  },
+  "dlc_image_info": {
+    "repository_name": "pytorch-inference",
+    "tag": "2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker"
+  }
+}
