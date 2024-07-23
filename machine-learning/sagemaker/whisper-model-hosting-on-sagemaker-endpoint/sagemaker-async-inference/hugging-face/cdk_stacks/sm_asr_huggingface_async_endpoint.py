@@ -92,6 +92,7 @@ class ASRHuggingFaceAsyncEndpointStack(Stack):
       endpoint_name=sagemaker_endpoint_name,
       role=sagemaker_execution_role,
       environment={
+        'HF_MODEL_ID': model_id,
         #XXX: For more information about the task for a model, see:
         # https://github.com/aws/sagemaker-huggingface-inference-toolkit/blob/main/src/sagemaker_huggingface_inference_toolkit/transformers_utils.py#L272
         'HF_TASK': 'automatic-speech-recognition',
