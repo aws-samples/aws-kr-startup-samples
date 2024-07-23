@@ -10,6 +10,7 @@ import aws_cdk as cdk
 from aws_cdk import (
   Stack,
   aws_s3 as s3,
+  aws_logs
 )
 from constructs import Construct
 
@@ -46,11 +47,35 @@ class BedrockKnowledgeBaseStack(Stack):
       overlap_percentage=20
     )
 
+    kb_log_group = aws_logs.LogGroup(self, "KBApplicationLogGroup",
+      log_group_name=f"/aws/vendedlogs/bedrock/knowledge-base/APPLICATION_LOGS/{kb_for_bedrock.name}",
+      removal_policy=cdk.RemovalPolicy.DESTROY, #XXX: for testing
+      retention=aws_logs.RetentionDays.THREE_DAYS
+    )
+
+    cfn_delivery_source = aws_logs.CfnDeliverySource(self, "CfnDeliverySourceForKB",
+      name=f"{kb_for_bedrock.name}",
+      log_type="APPLICATION_LOGS",
+      resource_arn=kb_for_bedrock.knowledge_base_arn,
+    )
+
+    cfn_delivery_destination = aws_logs.CfnDeliveryDestination(self, "CfnDeliveryDestinationForKB",
+      name=f"{kb_for_bedrock.name}",
+      destination_resource_arn=kb_log_group.log_group_arn,
+    )
+
+    cfn_delivery = aws_logs.CfnDelivery(self, "CfnDeliveryForKB",
+      delivery_destination_arn=cfn_delivery_destination.attr_arn,
+      delivery_source_name=cfn_delivery_source.name,
+    )
+    cfn_delivery.add_dependency(cfn_delivery_source)
+
+
     cdk.CfnOutput(self, 'KnowledgeBaseId',
       value=kb_for_bedrock.knowledge_base_id,
       export_name=f'{self.stack_name}-KnowledgeBaseId')
     cdk.CfnOutput(self, 'KnowledgeBaseName',
-      value=kb_for_bedrock.knowledge_base_id,
+      value=kb_for_bedrock.name,
       export_name=f'{self.stack_name}-KnowledgeBaseName')
     cdk.CfnOutput(self, 'DataSourceId',
       value=kb_data_source.data_source_id,
