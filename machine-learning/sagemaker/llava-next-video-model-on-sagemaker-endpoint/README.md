@@ -12,8 +12,8 @@ You can deploy the model to SageMaker hosting services and get an endpoint that 
 
 | Inference Type | Deep Learning Container (DLC) | Example Notebook |
 |----------------|-------------------------------|------------------|
-| Asynchronous Inference | [PyTorch](https://github.com/aws/deep-learning-containers/blob/master/available_images.md#sagemaker-framework-containers-sm-support-only) | [notebook](./sagemaker-async-inference/src/notebook/llava_next_video_async_endpoint.ipynb) |
-| Real-time Inference | [PyTorch](https://github.com/aws/deep-learning-containers/blob/master/available_images.md#sagemaker-framework-containers-sm-support-only) | [notebook](./sagemaker-realtime-inference/src/notebook/llava_next_video_realtime_endpoint.ipynb) |
+| [Asynchronous Inference](./sagemaker-async-inference/) | [PyTorch](https://github.com/aws/deep-learning-containers/blob/master/available_images.md#sagemaker-framework-containers-sm-support-only) | [notebook](./sagemaker-async-inference/src/notebook/llava_next_video_async_endpoint.ipynb) |
+| [Real-time Inference](./sagemaker-realtime-inference/) | [PyTorch](https://github.com/aws/deep-learning-containers/blob/master/available_images.md#sagemaker-framework-containers-sm-support-only) | [notebook](./sagemaker-realtime-inference/src/notebook/llava_next_video_realtime_endpoint.ipynb) |
 
 Enjoy!
 
