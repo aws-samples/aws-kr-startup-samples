@@ -12,8 +12,8 @@ You can deploy the model to SageMaker hosting services and get an endpoint that 
 
 | Inference Type | Deep Learning Container (DLC) | Example Notebook |
 |----------------|-------------------------------|------------------|
-| Asynchronous Inference | [PyTorch](./sagemaker-async-inference/pytorch) | [notebook](./sagemaker-async-inference/src/notebook/llava_next_video_async_endpoint.ipynb) |
-| Real-time Inference | [PyTorch](./sagemaker-realtime-inference/pytorch) | [notebook](./sagemaker-realtime-inference/src/notebook/llava_next_video_realtime_endpoint.ipynb) |
+| Asynchronous Inference | [PyTorch](https://github.com/aws/deep-learning-containers/blob/master/available_images.md#sagemaker-framework-containers-sm-support-only) | [notebook](./sagemaker-async-inference/src/notebook/llava_next_video_async_endpoint.ipynb) |
+| Real-time Inference | [PyTorch](https://github.com/aws/deep-learning-containers/blob/master/available_images.md#sagemaker-framework-containers-sm-support-only) | [notebook](./sagemaker-realtime-inference/src/notebook/llava_next_video_realtime_endpoint.ipynb) |
 
 Enjoy!
 
@@ -22,3 +22,4 @@ Enjoy!
  * [Amazon SageMaker Deploy models for inference](https://docs.aws.amazon.com/sagemaker/latest/dg/deploy-model.html)
  * [LLaVa-NeXT-Video](https://llava-vl.github.io/blog/2024-04-30-llava-next-video/): A Strong Zero-shot Video Understanding Model
  * [LLaVA-NeXT-Video-7B-hf Model Card](https://huggingface.co/llava-hf/LLaVA-NeXT-Video-7B-hf)
+ * [Available Deep Learning Containers (DLC) images](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
