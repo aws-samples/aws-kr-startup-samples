@@ -21,7 +21,7 @@ The overall architecture is like this:
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
    cd aws-kr-startup-samples
    git sparse-checkout init --cone
-   git sparse-checkout set gen-ai/rag-with-knowledge-bases-for-amazon-bedrock-using-gen-ai-cdk-constructs
+   git sparse-checkout set gen-ai/rag-with-knowledge-bases-for-amazon-bedrock
    ```
 4. Open `kb_for_amazon_bedrock.ipynb` notebook and Run it. (For more information, see [here](./data_ingestion_to_vectordb/kb_for_amazon_bedrock.ipynb))
 5. Run Streamlit application. (For more information, see [here](./app/README.md))
