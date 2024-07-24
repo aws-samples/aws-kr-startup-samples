@@ -6,7 +6,8 @@ import aws_cdk as cdk
 
 from aws_cdk import (
   Stack,
-  aws_bedrock
+  aws_bedrock,
+  aws_logs
 )
 from constructs import Construct
 
@@ -43,6 +44,29 @@ class KnowledgeBaseforBedrockStack(Stack):
       ),
       description=bedrock_kb_configuration['description']
     )
+
+    kb_log_group = aws_logs.LogGroup(self, "KBApplicationLogGroup",
+      log_group_name=f"/aws/vendedlogs/bedrock/knowledge-base/APPLICATION_LOGS/{cfn_knowledge_base.name}",
+      removal_policy=cdk.RemovalPolicy.DESTROY, #XXX: for testing
+      retention=aws_logs.RetentionDays.THREE_DAYS
+    )
+
+    cfn_delivery_source = aws_logs.CfnDeliverySource(self, "CfnDeliverySourceForKB",
+      name=f"{cfn_knowledge_base.name}",
+      log_type="APPLICATION_LOGS",
+      resource_arn=cfn_knowledge_base.attr_knowledge_base_arn,
+    )
+
+    cfn_delivery_destination = aws_logs.CfnDeliveryDestination(self, "CfnDeliveryDestinationForKB",
+      name=f"{cfn_knowledge_base.name}",
+      destination_resource_arn=kb_log_group.log_group_arn,
+    )
+
+    cfn_delivery = aws_logs.CfnDelivery(self, "CfnDeliveryForKB",
+      delivery_destination_arn=cfn_delivery_destination.attr_arn,
+      delivery_source_name=cfn_delivery_source.name,
+    )
+    cfn_delivery.add_dependency(cfn_delivery_source)
 
     self.knowledge_base_id = cfn_knowledge_base.attr_knowledge_base_id
 
