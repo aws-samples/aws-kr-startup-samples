@@ -11,9 +11,9 @@ SageMaker Studio provides a convenient platform to host the Streamlit web applic
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
    cd aws-kr-startup-samples
    git sparse-checkout init --cone
-   git sparse-checkout set gen-ai/rag-with-knowledge-bases-for-amazon-bedrock-using-gen-ai-cdk-constructs
+   git sparse-checkout set gen-ai/rag-with-knowledge-bases-for-amazon-bedrock
 
-   cd gen-ai/rag-with-knowledge-bases-for-amazon-bedrock-using-gen-ai-cdk-constructs/app
+   cd gen-ai/rag-with-knowledge-bases-for-amazon-bedrock/app
    python -m venv .env
    source .env/bin/activate
    pip install -r requirements.txt

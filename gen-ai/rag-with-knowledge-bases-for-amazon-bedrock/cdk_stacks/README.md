@@ -1,5 +1,5 @@
 
-# Knowledge Base for Amazon Bedrock using Amazon OpenSearch Serverless
+# QnA with RAG using Knowledge Bases for Amazon Bedrock CDK Python project!
 
 ![rag_with_knowledge_bases_for_amazon_bedrock_arch](./rag_with_knowledge_bases_for_amazon_bedrock_arch.svg)
 
@@ -23,12 +23,6 @@ you can create the virtualenv manually.
 To manually create a virtualenv on MacOS and Linux:
 
 ```
-$ git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
-$ cd aws-kr-startup-samples
-$ git sparse-checkout init --cone
-$ git sparse-checkout set gen-ai/rag-with-knowledge-bases-for-amazon-bedrock
-$ cd gen-ai/rag-with-knowledge-bases-for-amazon-bedrock/cdk_stacks
-
 $ python3 -m venv .venv
 ```
 
@@ -50,24 +44,21 @@ Once the virtualenv is activated, you can install the required dependencies.
 ```
 (.venv) $ pip install -r requirements.txt
 ```
+
 To add additional dependencies, for example other CDK libraries, just add
 them to your `setup.py` file and rerun the `pip install -r requirements.txt`
 command.
 
 ## Prerequisites
 
-### Amazon S3 Bucket for a data source for Knowledge Base
+Before deployment, you need to make sure `docker daemon` is running.
+Otherwise you will encounter the following errors:
 
-- You already have s3 bucket where your documents are stored.<br/>
-  (e.g., `aws s3 mb s3://bedrock-kb-us-east-1-123456789012 --region us-east-1`)
-- The documents must be in one of the formats listed in [here](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-ds.html).
-
-### Prepare Python Packages for AWS Lambda Layer
-
-Before synthesizing the CloudFormation, **you first create a python package to regisiter with AWS Lambda Layer.
-Then you upload the python package into S3 (e.g., <i>s3-bucket-lambda-layer-lib</i>)**
-
-For more information about how to create a python package for AWS Lambda Layer, see [References](#references).
+```
+ERROR: Cannot connect to the Docker daemon at unix://$HOME/.docker/run/docker.sock. Is the docker daemon running?
+jsii.errors.JavaScriptError:
+  Error: docker exited with status 1
+```
 
 ### Set up `cdk.context.json`
 
@@ -77,64 +68,31 @@ For example,
 
 <pre>
 {
-  "knowledge_base_for_bedrock": {
-    "name": "kb-demo",
-    "description": "knowledge base description",
-    "knowledge_base_configuration": {
-      "vector_knowledge_base_configuration": {
-        "embedding_model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v1"
-      }
-    },
-    "storage_configuration": {
-      "opensearch_serverless_configuration": {
-        "field_mapping": {
-          "metadata_field": "metadata_field",
-          "text_field": "text",
-          "vector_field": "vector_field"
-        },
-        "vector_index_name": "embedding_vectors"
-      }
-    }
-  },
-  "knowledge_base_data_source_configuration": {
-    "name": "kb-vector-db",
-    "data_deletion_policy": "RETAIN",
-    "description": "data source description",
-    "s3_configuration": {
-      "bucket_arn": "arn:aws:s3:::bedrock-kb-us-east-1-123456789012"
-    },
-    "chunking_configuration": {
-      "chunking_strategy": "FIXED_SIZE",
-      "fixed_size_chunking_configuration": {
-        "max_tokens": 512,
-        "overlap_percentage": 20
-      }
-    }
-  },
-  "opensearch_collection_name": "kb-vector-db",
-  "lambda_layer_lib_s3_path": "s3://lambda-layer-resources/pylambda-layer/opensearch-py-sdk-lib.zip",
-  "sagemaker_studio_domain_name": "llm-app-rag-with-kb"
+  "knowledge_base_data_source_name": "kb-data-source",
+  "sagemaker_studio_domain_name": "qa-with-rag-using-kb"
 }
 </pre>
 :warning: It would be better **NOT TO USE** `metadata` for `metadata_field` in OpenSearch serverless field mapping. The popular LLM application frameworks like [LangChain](https://www.langchain.com/), [LlamaIndex](https://www.llamaindex.ai/) use `metadata` with data type other than `text` for OpenSearch field mapping. So to avoid conflicts when using the popular LLM frameworks, be careful to use `metadata` field name.
 
-Now this point you can now synthesize the CloudFormation template for this code.
+## Deploy
 
-```
+At this point you can now synthesize the CloudFormation template for this code.
+
+<pre>
 (.venv) $ export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 (.venv) $ export CDK_DEFAULT_REGION=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r .region)
 (.venv) $ cdk synth --all
-```
+</pre>
 
-Now you can deploy all the CDK stacks at once like this:
+Use `cdk deploy` command to create the stack shown above.
 
-```
-(.venv) $ cdk deploy --require-approval never --all
-```
+<pre>
+(.venv) cdk deploy --all
+</pre>
 
 ## Clean Up
 
-Delete the CloudFormation stacks by running the below command.
+Delete the CloudFormation stack by running the below command.
 
 ```
 (.venv) $ cdk destroy --all
@@ -152,35 +110,13 @@ Enjoy!
 
 ## References
 
- * [Amazon Bedrock Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/a4bdb007-5600-4368-81c5-ff5b4154f518/en-US) - Hands-on labs using Amazon Bedrock APIs, SDKs, and open-source software, such as LangChain and FAISS, to implement the most common Generative AI usage patterns (e.g., summarizing text, answering questions, building chatbots, creating images, and generating code).
+ * [AWS Generative AI CDK Constructs](https://awslabs.github.io/generative-ai-cdk-constructs/)
+ * [Announcing Generative AI CDK Constructs (2024-01-31)](https://aws.amazon.com/blogs/devops/announcing-generative-ai-cdk-constructs/)
+ * [(Video) AWS re:Invent 2023 - Use RAG to improve responses in generative AI applications (AIM336)](https://youtu.be/N0tlOXZwrSs?t=1659)
+ * [Knowledge Bases now delivers fully managed RAG experience in Amazon Bedrock (2023-11-28)](https://aws.amazon.com/blogs/aws/knowledge-bases-now-delivers-fully-managed-rag-experience-in-amazon-bedrock/)
+ * [Knowledge base for Amazon Bedrock Developer Guide](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html)
+   * [Knowledge bases logging](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-bases-logging.html)
+ * [LangChain - AmazonKnowledgeBasesRetriever](https://python.langchain.com/docs/integrations/retrievers/bedrock)
  * [Building with Amazon Bedrock and LangChain](https://catalog.workshops.aws/building-with-amazon-bedrock/en-US) - Hands-on labs using [LangChain](https://github.com/langchain-ai/langchain) to build generative AI prototypes with Amazon Bedrock.
- * [Amazon Bedrock Samples](https://github.com/aws-samples/amazon-bedrock-samples) - Pre-built examples to help customers get started with the Amazon Bedrock service.
-   * [Deploy e2e RAG solution (using Knowledgebases for Amazon Bedrock) via CloudFormation](https://github.com/aws-samples/amazon-bedrock-samples/tree/main/knowledge-bases/03-infra/e2e-rag-using-bedrock-kb-cfn)
- * [AWS Lambda Layers](https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html#configuration-layers-path)
-   * How to create a python package to register with AWS Lambda layer (e.g., **elasticsearch**, **pytz**) on **Amazon Linux**
+ * [Amazon Bedrock Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/a4bdb007-5600-4368-81c5-ff5b4154f518/en-US) - Hands-on labs using Amazon Bedrock APIs, SDKs, and open-source software, such as LangChain and FAISS, to implement the most common Generative AI usage patterns (e.g., summarizing text, answering questions, building chatbots, creating images, and generating code).
 
-      :warning: **You should create the python package on Amazon Linux, otherwise create it using a simulated Lambda environment with Docker.**
-      <pre>
-      $ python3 -m venv opensearch-py-lib
-      $ cd opensearch-py-lib
-      $ source bin/activate
-      (opensearch-py-lib) $ mkdir -p python_modules
-      (opensearch-py-lib) $ pip install opensearch-py==2.3.1 cfnresponse==1.1.2 urllib3==1.26.19 -t python_modules
-      (opensearch-py-lib) $ mv python_modules python
-      (opensearch-py-lib) $ zip -r opensearch-py-lib.zip python/
-      (opensearch-py-lib) $ aws s3 mb s3://my-bucket-for-lambda-layer-packages
-      (opensearch-py-lib) $ aws s3 cp opensearch-py-lib.zip s3://my-bucket-for-lambda-layer-packages/var/
-      (opensearch-py-lib) $ deactivate
-      </pre>
-   * [How to create a Lambda layer using a simulated Lambda environment with Docker](https://aws.amazon.com/premiumsupport/knowledge-center/lambda-layer-simulated-docker/)
-      <pre>
-      $ cat <<EOF > requirements.txt
-      > opensearch-py==2.3.1
-      > cfnresponse==1.1.2
-      > urllib3==1.26.19
-      > EOF
-      $ docker run -v "$PWD":/var/task "public.ecr.aws/sam/build-python3.12" /bin/sh -c "pip install -r requirements.txt -t python/lib/python3.12/site-packages/; exit"
-      $ zip -r opensearch-py-lib.zip python > /dev/null
-      $ aws s3 mb s3://my-bucket-for-lambda-layer-packages
-      $ aws s3 cp opensearch-py-lib.zip s3://my-bucket-for-lambda-layer-packages/var/
-      </pre>
