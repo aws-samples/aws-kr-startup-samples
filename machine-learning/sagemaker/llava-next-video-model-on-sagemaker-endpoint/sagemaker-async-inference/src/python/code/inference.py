@@ -95,29 +95,47 @@ def predict_fn(data, model_and_processor, context=None):
   # The prompt format looks as follows:
   #   USER: <video>\n<prompt> ASSISTANT:
   #   USER: <image>\n<prompt> ASSISTANT:
-  input_data_type = None
-  prompt = parameters.pop('prompt')
-  if prompt.startswith('USER: <video>'):
-    input_data_type = 'video'
-  elif prompt.startswith('USER: <image>'):
-    input_data_type = 'image'
-  else:
-    raise ValueError('Invalid Prompt Format!')
-
-  input_file = data.pop("inputs")
-  if input_data_type == 'image':
-    if input_file.startswith('http://') or input_file.startswith('https://'):
-      image = Image.open(requests.get(input_file, stream=True).raw)
+  input_data_types = []
+  prompts = parameters.pop('prompts')
+  for each in prompts:
+    if each.startswith('USER: <video>'):
+      input_data_types.append('video')
+    elif each.startswith('USER: <image>'):
+      input_data_types.append('image')
     else:
-      image = base64_to_pil_image(input_file)
-    inputs = processor(text=prompt, images=image, return_tensors="pt").to(model.device)
-  elif input_data_type == 'video':
-    assert input_file.startswith('http://') or input_file.startswith('https://')
-    sampling_rate = int(parameters.pop('sampling_rate', 8))
-    clip = read_video_from_url(input_file, sampling_rate)
-    inputs = processor(text=prompt, videos=clip, padding=True, return_tensors="pt").to(model.device)
-  else:
-    raise NotImplementedError()
+      raise ValueError('Invalid Prompt Format!')
+
+  input_data_list = data.pop("inputs")
+  assert len(input_data_types) == len(input_data_list), "Number of prompts does not match the number of inputs"
+
+  image_list, video_list = [], []
+  for idx, data_type in enumerate(input_data_types):
+    input_data = input_data_list[idx]
+    if data_type == 'image':
+      if input_data.startswith('http://') or input_data.startswith('https://'):
+        image = Image.open(requests.get(input_data, stream=True).raw)
+      else:
+        image = base64_to_pil_image(input_data)
+      image_list.append(image)
+    elif data_type == 'video':
+      assert input_data.startswith('http://') or input_data.startswith('https://')
+      sampling_rate = int(parameters.pop('sampling_rate', 8))
+      video_clip = read_video_from_url(input_data, sampling_rate)
+      video_list.append(video_clip)
+    else:
+      raise NotImplementedError()
+
+  params = {
+    "padding": True,
+    "return_tensors": "pt"
+  }
+
+  if image_list:
+    params['images'] = image_list
+  if video_list:
+    params['videos'] = video_list
+
+  inputs = processor(prompts, **params).to(model.device)
 
   generate_kwargs = parameters.get('generate_kwargs', {})
   output = model.generate(**inputs, **generate_kwargs)
