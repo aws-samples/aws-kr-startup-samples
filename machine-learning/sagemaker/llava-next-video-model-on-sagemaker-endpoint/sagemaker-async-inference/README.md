@@ -24,6 +24,12 @@ you can create the virtualenv manually.
 To manually create a virtualenv on MacOS and Linux:
 
 ```
+$ git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
+$ cd aws-kr-startup-samples
+$ git sparse-checkout init --cone
+$ git sparse-checkout set machine-learning/sagemaker/llava-next-video-model-on-sagemaker-endpoint/sagemaker-async-inference
+$ cd machine-learning/sagemaker/llava-next-video-model-on-sagemaker-endpoint/sagemaker-async-inference
+
 $ python3 -m venv .venv
 ```
 
