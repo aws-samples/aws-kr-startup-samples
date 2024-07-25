@@ -1,0 +1,2 @@
+accelerate==0.25.0
+bitsandbytes==0.41.3
