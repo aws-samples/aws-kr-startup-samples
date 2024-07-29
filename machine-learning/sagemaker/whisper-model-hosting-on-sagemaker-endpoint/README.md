@@ -1,4 +1,4 @@
-# Hosting OpenAI Whisper Model on Amazon SageMaker
+# Hosting OpenAI Whisper Model on Amazon SageMaker Endpoint
 
 This repository contains a set of example CDK Python projects to host the [OpenAI Whisper](https://openai.com/research/whisper) model
 on Amazon SageMaker Endpoint.
