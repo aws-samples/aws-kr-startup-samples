@@ -1,6 +1,6 @@
 boto3>=1.26.159
 langchain==0.2.5
 langchain-aws==0.1.6
-langchain-community==0.2.5
+langchain-community==0.2.9
 SQLAlchemy==2.0.28
 streamlit==1.35.0
