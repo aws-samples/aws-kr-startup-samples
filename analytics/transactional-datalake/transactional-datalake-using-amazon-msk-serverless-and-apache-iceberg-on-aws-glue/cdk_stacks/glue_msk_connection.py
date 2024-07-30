@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+# vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab
+
+import boto3
+
+import aws_cdk as cdk
+
+from aws_cdk import (
+  Stack,
+  aws_ec2,
+  aws_glue
+)
+from constructs import Construct
+
+
+def get_kafka_booststrap_servers(kafka_cluster_name, region_name):
+  client = boto3.client('kafka', region_name=region_name)
+  response = client.list_clusters_v2(ClusterNameFilter=kafka_cluster_name)
+  cluster_info_list = [e for e in response['ClusterInfoList'] if e['ClusterName'] == kafka_cluster_name]
+  if not cluster_info_list:
+    kafka_bootstrap_servers = "localhost:9094"
+  else:
+    msk_cluster_arn = cluster_info_list[0]['ClusterArn']
+    msk_brokers = client.get_bootstrap_brokers(ClusterArn=msk_cluster_arn)
+    kafka_bootstrap_servers = msk_brokers['BootstrapBrokerStringSaslIam']
+    assert kafka_bootstrap_servers
+
+  return kafka_bootstrap_servers
+
+
+class GlueMSKConnectionStack(Stack):
+
+  def __init__(self, scope: Construct, construct_id: str, vpc, msk_cluster_name, sg_msk_client, **kwargs) -> None:
+    super().__init__(scope, construct_id, **kwargs)
+
+    sg_glue_cluster = aws_ec2.SecurityGroup(self, 'GlueClusterSecurityGroup',
+      vpc=vpc,
+      allow_all_outbound=True,
+      description='security group for Amazon Glue Cluster',
+      security_group_name='glue-cluster-sg'
+    )
+    sg_glue_cluster.add_ingress_rule(peer=sg_glue_cluster, connection=aws_ec2.Port.all_tcp(),
+      description='inter-communication between glue cluster nodes')
+    cdk.Tags.of(sg_glue_cluster).add('Name', 'glue-cluster-sg')
+
+    kafka_bootstrap_servers = get_kafka_booststrap_servers(msk_cluster_name, vpc.env.region)
+    connection_properties = {
+      "KAFKA_BOOTSTRAP_SERVERS": kafka_bootstrap_servers,
+      "KAFKA_SSL_ENABLED": "false"
+    }
+
+    subnet = vpc.select_subnets(subnet_type=aws_ec2.SubnetType.PRIVATE_WITH_EGRESS).subnets[0]
+
+    connection_input_property = aws_glue.CfnConnection.ConnectionInputProperty(
+      connection_type="KAFKA",
+      connection_properties=connection_properties,
+      name="msk-serverless-connector",
+      physical_connection_requirements=aws_glue.CfnConnection.PhysicalConnectionRequirementsProperty(
+        security_group_id_list=[sg_msk_client.security_group_id, sg_glue_cluster.security_group_id],
+        subnet_id=subnet.subnet_id,
+        availability_zone=subnet.availability_zone
+      )
+    )
+
+    msk_connection = aws_glue.CfnConnection(self, 'GlueMSKConnector',
+      catalog_id=cdk.Aws.ACCOUNT_ID,
+      connection_input=connection_input_property
+    )
+
+    self.msk_connection_info = msk_connection.connection_input
+
+    cdk.CfnOutput(self, 'MSKConnectorName',
+      value=self.msk_connection_info.name,
+      export_name=f'{self.stack_name}-MSKConnectorName')
