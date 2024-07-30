@@ -1,0 +1,7 @@
+{
+  "opensearch_domain_name": "rag-vectordb",
+  "jumpstart_model_info": {
+    "model_id": "meta-textgeneration-llama-2-7b-f",
+    "version": "2.0.1"
+  }
+}
