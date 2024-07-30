@@ -1,0 +1,11 @@
+{
+  "vpc_name": "default",
+  "msk_cluster_name": "demo-msk",
+  "firehose": {
+    "buffering_hints": {
+      "intervalInSeconds": 300,
+      "sizeInMBs": 100
+    },
+    "topic_name": "ev_stream_data"
+  }
+}
