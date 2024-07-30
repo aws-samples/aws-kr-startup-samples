@@ -1,0 +1,8 @@
+{
+  "db_cluster_name": "rag-pgvector-demo",
+  "jumpstart_model_info": {
+    "model_id": "meta-textgeneration-llama-2-7b-f",
+    "version": "2.0.1"
+  },
+  "sagemaker_studio_domain_name": "llm-app-rag-pgvector"
+}

@@ -1,0 +1,5 @@
+export AWS_REGION="your-aws-region"
+export PGVECTOR_SECRET_ID="your-postgresql-secret"
+export COLLECTION_NAME="llm_rag_embeddings"
+export EMBEDDING_ENDPOINT_NAME="your-sagemaker-endpoint-for-embedding-model"
+export TEXT2TEXT_ENDPOINT_NAME="your-sagemaker-endpoint-for-text-generation-model"
