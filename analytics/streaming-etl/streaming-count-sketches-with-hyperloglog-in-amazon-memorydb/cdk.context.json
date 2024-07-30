@@ -1,0 +1,6 @@
+{
+  "vpc_name": "default",
+  "kinesis_stream_name": "demo-kds",
+  "s3_bucket_lambda_layer_lib": "lambda-layer-resources-use1",
+  "memorydb_cluster_name": "demo-memdb"
+}
