@@ -18,6 +18,7 @@ Before you begin, ensure you have the following:
 * You have the necessary permissions to create and manage AWS resources
 * You have access to [Amazon Bedrock](https://aws.amazon.com/bedrock/) and the required model (e.g., Claude 3)
 * You have a [GitHub](https://github.com/) account and a personal access token with appropriate permissions
+* You have a [Docker](https://www.docker.com/products/docker-desktop/) in your local device for building image.
 
 ## Setup
 
