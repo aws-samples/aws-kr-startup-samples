@@ -1,0 +1,6 @@
+boto3==1.21.19
+botocore==1.24.19
+
+dataset==1.5.2
+Faker==13.3.1
+PyMySQL==1.0.2
