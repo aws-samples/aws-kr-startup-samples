@@ -29,7 +29,7 @@ To set up this project:
 git clone https://github.com/aws-samples/aws-kr-startup-samples.git
 cd aws-kr-startup-samples
 git sparse-checkout init --cone
-git sparse-checkout set gen-ai/bedrock-chatbot-novel
+git sparse-checkout set gen-ai/persona-chatbot-with-knowledge-base-for-amazon-bedrock
 ```
 
 2. Create a virtual environment:
