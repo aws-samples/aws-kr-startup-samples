@@ -1,0 +1,6 @@
+export AWS_REGION="us-east-1"
+export MEMORYDB_SECRET_NAME="your-aws-secrets-for-memorydb (e.g., MemoryDBSecret-XXXXXXXX)"
+export REDIS_HOST="your-amazon-memorydb-host"
+export INDEX_NAME="idx:vss-mm"
+# export BEDROCK_MODEL_ID="anthropic.claude-v2:1"
+export BEDROCK_MODEL_ID="anthropic.claude-3-sonnet-20240229-v1:0"
