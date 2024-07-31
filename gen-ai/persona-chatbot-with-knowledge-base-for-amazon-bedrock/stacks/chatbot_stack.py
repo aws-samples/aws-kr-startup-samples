@@ -106,15 +106,6 @@ class ChatbotStack(Stack):
             role=custom_resource_role
         )
 
-        lambda_url = start_ingestion_job_lambda.add_function_url(
-            auth_type=lambda_.FunctionUrlAuthType.NONE
-        )
-
-        CfnOutput(self, 'StartIngestionJobLambdaUrl',
-            value=lambda_url.url,
-            description='URL for the Start Ingestion Job Lambda function'
-        )
-
         CfnOutput(self, 'ServiceURL',
             value=f"http://{fargate_service.load_balancer.load_balancer_dns_name}",
             description='Chatbot Service URL'
