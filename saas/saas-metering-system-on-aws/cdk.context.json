@@ -1,0 +1,22 @@
+{
+  "vpc_name": "default",
+  "firehose": {
+    "stream_name": "random-gen",
+    "buffer_size_in_mbs": 128,
+    "buffer_interval_in_seconds": 300,
+    "s3_output_folder": "json-data",
+    "prefix": "json-data/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/",
+    "error_output_prefix": "error/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/!{firehose:error-output-type}"
+  },
+  "athena": {
+    "work_group_name": "SaaSMeteringDemo"
+  },
+  "merge_small_files_lambda_env": {
+    "OLD_DATABASE": "mydatabase",
+    "OLD_TABLE_NAME": "restapi_access_log_json",
+    "NEW_DATABASE": "mydatabase",
+    "NEW_TABLE_NAME": "restapi_access_log_parquet",
+    "NEW_TABLE_S3_FOLDER_NAME": "parquet-data",
+    "COLUMN_NAMES": "requestId,ip,user,requestTime,httpMethod,resourcePath,status,protocol,responseLength"
+  }
+}
