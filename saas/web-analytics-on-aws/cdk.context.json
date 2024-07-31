@@ -1,0 +1,24 @@
+{
+  "firehose_data_tranform_lambda": {
+    "s3_bucket_name": "s3-bucket-name-for-lambda-layer-resources",
+    "s3_object_key": "var/fastavro-lib.zip"
+  },
+  "firehose": {
+    "buffer_size_in_mbs": 128,
+    "buffer_interval_in_seconds": 300,
+    "lambda_buffer_size_in_mbs": 3,
+    "lambda_buffer_interval_in_seconds": 300,
+    "lambda_number_of_retries": 3,
+    "s3_output_folder": "json-data",
+    "prefix": "json-data/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/",
+    "error_output_prefix": "error/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/!{firehose:error-output-type}"
+  },
+  "merge_small_files_lambda_env": {
+    "OLD_DATABASE": "mydatabase",
+    "OLD_TABLE_NAME": "web_log_json",
+    "NEW_DATABASE": "mydatabase",
+    "NEW_TABLE_NAME": "web_log_parquet",
+    "NEW_TABLE_S3_FOLDER_NAME": "parquet-data",
+    "COLUMN_NAMES": "userId,sessionId,referrer,userAgent,ip,hostname,os,timestamp,uri"
+  }
+}
