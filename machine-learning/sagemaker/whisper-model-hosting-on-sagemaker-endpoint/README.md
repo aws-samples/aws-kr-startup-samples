@@ -25,3 +25,4 @@ Enjoy!
 ## References
 
  * [Amazon SageMaker Deploy models for inference](https://docs.aws.amazon.com/sagemaker/latest/dg/deploy-model.html)
+ * [AWS CDK를 활용한 OpenAI Whisper 모델 Amazon SageMaker Endpoint 배포 자동화 (2024-08-02)](https://aws.amazon.com/ko/blogs/tech/how-to-deploy-whisper-on-sagemaker-endpoint-using-aws-cdk/)
