@@ -1,0 +1,6 @@
+{
+  "db_cluster_name": "rag-pgvector-demo",
+  "aurora_vectorstore_database_name": "bedrock_vector_db",
+  "knowledge_base_data_source_name": "kb-data-source",
+  "sagemaker_studio_domain_name": "qa-with-rag-using-kb-aurora-pgvector"
+}

@@ -1,0 +1,11 @@
+{
+  "db_cluster_name": "db-cluster-name",
+  "dms_data_source": {
+    "database_name": "testdb",
+    "table_name": "retail_trans"
+  },
+  "dms_data_target": {
+    "s3_bucket_name": "target-s3-bucket",
+    "s3_bucket_folder_name": "target-s3-prefix"
+  }
+}

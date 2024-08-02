@@ -1,0 +1,8 @@
+{
+  "db_cluster_name": "Your-DB-Cluster-Name",
+  "dms_data_source": {
+    "database_name": "testdb",
+    "table_name": "retail_trans"
+  },
+  "kinesis_stream_name": "Your-DMS-Target-Kinesis-Stream-Name"
+}
