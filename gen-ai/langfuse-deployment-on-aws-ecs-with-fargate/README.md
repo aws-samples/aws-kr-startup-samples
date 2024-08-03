@@ -156,7 +156,7 @@ You will the see the list of traces as follows:
 
 You will also see the details of the selected trace as follows:
 
-![Trace-detail](./assets/05-trace-detail.png)
+![Trace-detail](./assets/06-trace-detail.png)
 
 ## References
 
