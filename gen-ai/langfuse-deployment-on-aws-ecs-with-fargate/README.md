@@ -1,6 +1,8 @@
 
 # Hosting Langfuse on Amazon ECS with Fargate using CDK Python
 
+![lanfuse-on-aws-ecs-fargate-arch](./langfuse-on-aws-ecs-fargate-arch.svg)
+
 This repository contains the AWS CDK Python code for deploying the [Langfuse](https://langfuse.com/) application using Amazon Elastic Container Registry (ECR) and Amazon Elastic Container Service (ECS).
 
 Langfuse is an open-source LLM engineering platform that helps teams collaboratively debug, analyze, and iterate on their LLM applications.
@@ -122,34 +124,37 @@ Delete the CloudFormation stack by running the below command.
 
 Enjoy!
 
-## Example
+## Tracing for your LLM Application with Langfuse
 
-We can find the **langfuse URL** with the following command:
+After deploying all CDK stacks, you can find the **Langfuse URL** using the following command:
 
-```
+```bash
 aws cloudformation describe-stacks --stack-name LangFuseECSAlbFargateServiceStack | \
   jq -r '.Stacks[0].Outputs | map(select(.OutputKey == "LoadBalancerDNS")) | .[0].OutputValue'
 ```
 
-Then, open the **langfuse URL** in your browser.
+Next, open the **Langfuse URL** in your browser to create a new project for tracking your LLM application with Langfuse.
 
 ### Create new project in Langfuse
 
-1. Create Langfuse account
+1. Create a Langfuse Account
 
     ![Login](./assets/01-langfuse-main-page.png)
 
     ![Singup](./assets/02-sign-up.png)
-2. Create a new project
+2. Create a New Project
     ![New-Project](./assets/03-new-project.png)
-3. Create new API credentials in the project settings
+3. Create New API Credentials in the Project Settings
     ![API-Keys](./assets/04-create-api-keys.png)
 
-### Log your first LLM call to Langfuse
+### Log Your First LLM Call to Langfuse
 
 Open the `tracing_for_langchain` notebook in the `examples` folder and run it. (See [here](./examples/tracing_for_langchain.ipynb) for more information)
 
-Then we can see the trace details as follows:
+You will the see the list of traces as follows:
+![Traces](./assets/05-traces.png)
+
+You will also see the details of the selected trace as follows:
 
 ![Trace-detail](./assets/05-trace-detail.png)
 
@@ -159,6 +164,8 @@ Then we can see the trace details as follows:
     * [Langfuse Self-Hosting Guide (Docker)](https://langfuse.com/docs/deployment/self-host)
     * [Langfuse Configuring Environment Variables](https://langfuse.com/docs/deployment/self-host#configuring-environment-variables)
     * [Tracing for Langchain (Python & JS/TS)](https://langfuse.com/docs/integrations/langchain/tracing)
+    * [Langfuse Python SDK (Low-level)](https://langfuse.com/docs/sdk/python/low-level-sdk)
+ * [Langfuse Cookbook](https://github.com/langfuse/langfuse-docs/tree/main/cookbook)
  * [(GitHub) Langfuse](https://github.com/langfuse/langfuse) - 🪢 Open source LLM engineering platform: Observability, metrics, evals, prompt management, playground, datasets. Integrates with LlamaIndex, Langchain, OpenAI SDK, LiteLLM, and more.
  * [Langfuse ECR/ECS Deployment CDK TypeScript](https://github.com/AI4Organization/langfuse-ecr-ecs-deployment-cdk) - Deploy Langfuse to ECR and ECS with Fargate and AWS CDK TypeScript.
 
