@@ -6,4 +6,4 @@ langchain-postgres==0.0.7
 pgvector==0.2.5
 psycopg[binary]==3.1.19
 SQLAlchemy==2.0.28
-streamlit==1.33.0
+streamlit==1.37.0
