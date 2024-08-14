@@ -1,5 +1,4 @@
 {
-  "vpc_name": "default",
   "memorydb_user_name": "memdb-admin",
   "memorydb_cluster_name": "vectordb",
   "sagemaker_studio_domain_name": "llm-app-rag-memorydb"
