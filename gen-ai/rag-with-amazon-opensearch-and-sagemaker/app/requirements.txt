@@ -4,4 +4,4 @@ langchain-aws==0.1.6
 langchain-community==0.2.9
 SQLAlchemy==2.0.28
 opensearch-py==2.2.0
-streamlit==1.36.0
+streamlit==1.37.0
