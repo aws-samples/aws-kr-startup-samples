@@ -7,8 +7,12 @@ SageMaker Studio provides a convenient platform to host the Streamlit web applic
 1. Open Studio and then open a new **System terminal**.
 2. Run the following commands on the terminal to clone the code repository for this post and install the Python packages needed by the application:
    ```
-   git clone --depth=1 https://github.com/aws-samples/rag-with-amazon-bedrock-and-documentdb.git
-   cd rag-with-amazon-bedrock-and-documentdb/app
+   git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
+   cd aws-kr-startup-samples
+   git sparse-checkout init --cone
+   git sparse-checkout set gen-ai/rag-with-amazon-bedrock-and-documentdb
+
+   cd gen-ai/rag-with-amazon-bedrock-and-documentdb/app
    python -m venv .env
    source .env/bin/activate
    pip install -U -r requirements.txt

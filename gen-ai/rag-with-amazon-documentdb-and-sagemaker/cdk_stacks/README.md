@@ -17,6 +17,12 @@ you can create the virtualenv manually.
 To manually create a virtualenv on MacOS and Linux:
 
 ```
+$ git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
+$ cd aws-kr-startup-samples
+$ git sparse-checkout init --cone
+$ git sparse-checkout set gen-ai/rag-with-amazon-documentdb-and-sagemaker
+$ cd gen-ai/rag-with-amazon-documentdb-and-sagemaker/cdk_stacks
+
 $ python3 -m venv .venv
 ```
 

@@ -15,18 +15,7 @@ SageMaker Studio provides a convenient platform to host the Streamlit web applic
    cd gen-ai/rag-with-amazon-memorydb-and-sagemaker/app
    python -m venv .env
    source .env/bin/activate
-
-   # install LangChain MemoryDB package
-   git clone --depth=1 https://github.com/aws-samples/amazon-memorydb-for-redis-samples.git
-   pushd amazon-memorydb-for-redis-samples
-   git sparse-checkout init --cone
-   git sparse-checkout set tutorials/langchain-memorydb
-   pushd tutorials/langchain-memorydb
-   pip install . # (NOTE: There is a DOT at the end.)
-
-   # go back to rag-with-amazon-memorydb-and-sagemaker/app directory
-   pushd +2
-   pip install -U -r requirements.txt
+   pip install -r requirements.txt
    ```
 3. In the shell, set the following environment variables with the values that are available from the CloudFormation stack output.
    <pre>
