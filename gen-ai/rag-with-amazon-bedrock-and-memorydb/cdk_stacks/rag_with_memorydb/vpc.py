@@ -23,7 +23,7 @@ class VpcStack(Stack):
     # for example,
     # cdk -c vpc_name=your-existing-vpc syth
     #
-    if bool(os.environ.get('USE_DEFAULT_VPC', False)):
+    if str(os.environ.get('USE_DEFAULT_VPC', 'false')) == 'true':
       vpc_name = self.node.try_get_context('vpc_name') or "default"
       self.vpc = aws_ec2.Vpc.from_lookup(self, 'ExistingVPC',
         is_default=True,
