@@ -31,6 +31,12 @@ you can create the virtualenv manually.
 To manually create a virtualenv on MacOS and Linux:
 
 ```
+$ git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
+$ cd aws-kr-startup-samples
+$ git sparse-checkout init --cone
+$ git sparse-checkout set saas/saas-metering-system-on-aws
+
+$ cd saas/saas-metering-system-on-aws
 $ python3 -m venv .venv
 ```
 
@@ -62,7 +68,6 @@ Before synthesizing the CloudFormation, you should set approperly the cdk contex
 In this project, we use the following cdk context:
 <pre>
 {
-  "vpc_name": "default",
   "firehose": {
     "stream_name": "random-gen",
     "buffer_size_in_mbs": 128,
@@ -84,7 +89,7 @@ In this project, we use the following cdk context:
 }
 </pre>
 
-:warning: You can set `s3_bucket` to store access logs for yourself. Otherwise, `{region}` and `{account-id}` of `s3_bucket` option will be replaced based on your AWS account profile.
+:warning: You can set `s3_bucket` to store access logs for yourself. Otherwise, an `apigw-access-log-to-firehose-{region}-{account-id}` bucket will be created automatically. The `{region}` and `{account-id}` of `s3_bucket` option are replaced based on your AWS account profile. (e.g., `apigw-access-log-to-firehose-us-east-1-123456789012`)
 
 <pre>
 (.venv) $ export CDK_DEFAULT_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)

@@ -1,5 +1,4 @@
 {
-  "vpc_name": "default",
   "firehose": {
     "stream_name": "random-gen",
     "buffer_size_in_mbs": 128,
