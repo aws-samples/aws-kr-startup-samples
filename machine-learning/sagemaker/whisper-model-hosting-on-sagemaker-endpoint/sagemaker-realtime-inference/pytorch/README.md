@@ -89,6 +89,20 @@ as well as metadata, such as version details, authorship, and any notes related 
    snapshot_download(model_id, local_dir=model_dir)
    ```
 
+    :information_source: Since we are using the Hugging Face DLC as a PyTorch DLC,
+    we can skip step (2) and create model artifacts using only inference scripts
+    by passing the following environment variables to the `CustomSageMakerEndpoint` class as follows:
+    <pre>
+    sagemaker_endpoint = CustomSageMakerEndpoint(self, "PyTorchSageMakerEndpoint",
+      ...
+      environment={
+        "HF_MODEL_ID": "openai/whisper-medium",
+        "HF_TASK": "automatic-speech-recognition",
+        "SAGEMAKER_TS_RESPONSE_TIMEOUT": "600", #XXX: In order to avoid timeout when torchserver starting.
+      }
+    )
+    </pre>
+
    (3) Create `model.tar.gz` with model artifacts including your custom [inference scripts](./src/code/).
    ```
    (.venv) cp -rp src/code model

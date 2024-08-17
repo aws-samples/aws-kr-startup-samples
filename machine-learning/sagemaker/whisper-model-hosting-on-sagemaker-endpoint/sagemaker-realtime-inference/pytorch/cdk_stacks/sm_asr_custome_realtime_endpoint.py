@@ -54,6 +54,13 @@ class ASRPyTorchRealtimeEndpointStack(Stack):
       model_data_url=model_data_url,
       endpoint_name=sagemaker_endpoint_name,
       environment={
+        #XXX: If you want to download the model from the Hugging Face model hub when SageMaker Endpoint starts,
+        # remove comments from the following code and create model artifacts (model.tar.gz) from inference scripts only.
+        # 'HF_MODEL_ID': model_id,
+        # 'HF_TASK': 'automatic-speech-recognition',
+        # 'SAGEMAKER_TS_RESPONSE_TIMEOUT': '600', #XXX: In order to avoid timeout when torchserver starting.
+
+        #XXX: custom environment variables for the model
         'chunk_length_s': '30',
 
         #XXX: For Async Inference
