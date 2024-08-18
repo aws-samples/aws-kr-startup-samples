@@ -104,7 +104,7 @@ as well as metadata, such as version details, authorship, and any notes related 
 
    :warning: Replace `bucket_name` and `key_prefix` with yours.
 
-   :warning: `bucket_name` should start with `sagemaker-` prefix. (e.g., `sagemaker-us-east-1-123456789012`)
+   :warning: `bucket_name` must include the word "`sagemakr`" or "`SageMaker`". (e.g., `sagemaker-us-east-1-123456789012`, `SageMaker-us-east-1-123456789012`)
 
 2. Set up `cdk.context.json`
 
@@ -124,7 +124,7 @@ as well as metadata, such as version details, authorship, and any notes related 
      }
    }
    </pre>
-   :warning: `s3_bucket_name` should start with `sagemaker-` prefix.
+   :warning: `s3_bucket_name` must include the word "`sagemakr`" or "`SageMaker`". (e.g., `sagemaker-us-east-1-123456789012`, `SageMaker-us-east-1-123456789012`)
 
    :information_source: For more information about `dlc_image_info`, see [**Available Deep Learning Containers (DLC) images**](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
 
