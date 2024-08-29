@@ -48,7 +48,7 @@ class AuroraPostgresqlStack(Stack):
     db_cluster_name = self.node.try_get_context('db_cluster_name')
     rds_credentials = aws_rds.Credentials.from_generated_secret("postgres")
 
-    AURORA_POSTGRES_ENGINE_VERSION = aws_rds.AuroraPostgresEngineVersion.VER_15_3
+    AURORA_POSTGRES_ENGINE_VERSION = aws_rds.AuroraPostgresEngineVersion.VER_16_3
     rds_engine = aws_rds.DatabaseClusterEngine.aurora_postgres(version=AURORA_POSTGRES_ENGINE_VERSION)
 
     #XXX: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraPostgreSQL.Reference.ParameterGroups.html#AuroraPostgreSQL.Reference.Parameters.Cluster
