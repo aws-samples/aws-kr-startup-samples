@@ -39,7 +39,7 @@ class BedrockKnowledgeBaseStack(Stack):
     )
 
     kb_for_bedrock = bedrock.KnowledgeBase(self, 'KnowledgeBaseForBedrock',
-      vector_store= aurora_postgresql,
+      vector_store=aurora_postgresql,
       embeddings_model=bedrock.BedrockFoundationModel.TITAN_EMBED_TEXT_V1
     )
 
