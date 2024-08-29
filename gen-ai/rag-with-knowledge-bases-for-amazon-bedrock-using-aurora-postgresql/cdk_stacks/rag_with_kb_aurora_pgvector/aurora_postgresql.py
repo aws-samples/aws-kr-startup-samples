@@ -76,9 +76,12 @@ class AuroraPostgresqlStack(Stack):
       }
     )
 
+    aurora_vectorstore_database_name = self.node.try_get_context('aurora_vectorstore_database_name') or 'postgres'
+
     db_cluster = aws_rds.DatabaseCluster(self, 'AuroraPostgresDBCluster',
       engine=rds_engine,
       credentials=rds_credentials, # A username of 'admin' (or 'postgres' for PostgreSQL) and SecretsManager-generated password
+      default_database_name=aurora_vectorstore_database_name,
       writer=aws_rds.ClusterInstance.provisioned("Writer",
         instance_type=aws_ec2.InstanceType.of(aws_ec2.InstanceClass.MEMORY6_GRAVITON, aws_ec2.InstanceSize.LARGE),
         parameter_group=rds_db_param_group,

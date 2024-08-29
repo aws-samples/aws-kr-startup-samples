@@ -23,7 +23,9 @@ The overall architecture is like this:
    git sparse-checkout init --cone
    git sparse-checkout set gen-ai/rag-with-knowledge-bases-for-amazon-bedrock-using-aurora-postgresql
    ```
-4. Open `kb_for_amazon_bedrock.ipynb` notebook and Run it. (For more information, see [here](./data_ingestion_to_vectordb/kb_for_amazon_bedrock.ipynb))
+4. Open the following notebooks and run them one after the other.
+   * [`setup_aurora_postgresql.ipynb`](./data_ingestion_to_vectordb/setup_aurora_postgresql.ipynb)
+   * [`kb_for_amazon_bedrock.ipynb`](./data_ingestion_to_vectordb/kb_for_amazon_bedrock.ipynb)
 5. Run Streamlit application. (For more information, see [here](./app/README.md))
 
 ### References
