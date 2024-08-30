@@ -134,4 +134,6 @@ class AuroraPostgresqlStack(Stack):
     cdk.CfnOutput(self, 'DBClientSecurityGroupId',
       value=sg_postgresql_client.security_group_id,
       export_name='VectorDBClientSecurityGroupId')
-
+    cdk.CfnOutput(self, 'VectorDBName',
+      value=aurora_vectorstore_database_name,
+      export_name='VectorDBName')
