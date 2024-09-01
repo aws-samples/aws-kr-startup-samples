@@ -31,9 +31,11 @@ class BedrockKnowledgeBaseStack(Stack):
       credentials_secret_arn=rds_credentials_secret_arn,
       resource_arn=rds_cluster_arn,
       database_name=aurora_vectorstore_database_name,
+      #XXX: Set the following variables using the Postgresql table schema infomation
+      # created by running `setup_aurora_postgresql.ipynb`.
       metadata_field='metadata',
       primary_key_field='id',
-      table_name='bedrock_integration.bedrock_kb',
+      table_name='bedrock_integration.bedrock_kb', # <schema_name>.<table_name>
       text_field='chunks',
       vector_field='embedding',
     )
