@@ -43,6 +43,12 @@ Once the virtualenv is activated, you can install the required dependencies.
 (.venv) $ pip install -r requirements.txt
 ```
 
+If you’re deploying the AWS CDK for the first time, run the following command:
+
+```
+(.venv) $ cdk bootstrap
+```
+
 At this point you can now synthesize the CloudFormation template for this code.
 
 ```

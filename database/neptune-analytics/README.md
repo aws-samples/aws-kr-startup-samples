@@ -48,6 +48,12 @@ To add additional dependencies, for example other CDK libraries, just add
 them to your `setup.py` file and rerun the `pip install -r requirements.txt`
 command.
 
+If you’re deploying the AWS CDK for the first time, run the following command:
+
+```
+(.venv) $ cdk bootstrap
+```
+
 At this point you can now synthesize the CloudFormation template for this code.
 
 ```
