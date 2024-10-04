@@ -5,7 +5,10 @@
 Amazon Slack Gateway의 ["인사하기"](../README.md#인사하기)까지 진행합니다. 또한 Confluence 계정이 필요하며 [Confluence API Token](https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/)을 활용합니다. 
 
 ### 1. Confluence API Token 발급하기
-먼저 Confluence 계정의 API Token을 발급하기 위해 Attlasian Account의 [Security](https://id.atlassian.com/manage-profile/security/api-tokens)에 접근합니다. Create API Token을 선택하여 Token 값을 잠시 메모합니다. 이 값은 추후 Knowledge Base와 Confluence 연결 시 [AWS Secret Manager](https://docs.aws.amazon.com/ko_kr/secretsmanager/latest/userguide/intro.html)의 Value로 사용됩니다.
+먼저 Confluence 계정의 API Token을 발급하기 위해 Attlasian Account의 Security에 접근합니다. 
+  - https://id.atlassian.com/manage-profile/security/api-tokens
+
+Create API Token을 선택하여 Token 값을 잠시 메모합니다. 이 값은 추후 Knowledge Base와 Confluence 연결 시 [AWS Secret Manager](https://docs.aws.amazon.com/ko_kr/secretsmanager/latest/userguide/intro.html)의 Value로 사용됩니다.
 ![Confluence Security Token](../docs/images/confluence-security-token.jpg)
 
 ### 2. Knowledge base for Amazon Bedrock 구성하기
@@ -15,10 +18,10 @@ Amazon Bedrock은 [Knowledge Base(KB)](https://aws.amazon.com/ko/blogs/korea/kno
 ![Bedrock Console](../docs/images/bedrock-console-1.png)
 
 Knowledge Base 이름을 자유롭게 입력합니다.
-![Bedrock Create 1](../docs/images/bedrock-kb-1.jpg)
+![Bedrock Create 1](../docs/images/bedrock-kb-2.jpg)
 
 데이터 소스로 Confluence를 선택합니다. 이후 다른 설정은 기본값으로 놓고 Next를 선택합니다.
-![Bedrock Create 2](../docs/images/bedrock-kb-2.jpg)
+![Bedrock Create 2](../docs/images/bedrock-kb-1.jpg)
 
 다음으로 Confluence URL 및 인증을 위한 AWS Secret Manager arn을 입력해야 합니다.
 ![Bedrock Create 4](../docs/images/bedrock-kb-3.jpg)
@@ -26,7 +29,7 @@ Knowledge Base 이름을 자유롭게 입력합니다.
 Knowledge Base for Amazon Bedrock의 데이터 소스로 Confluence에 연결하려면 **Base Authentication**과 OAuth 2.0 Authentication 중에서 선택할 수 있습니다. 이번 예제에서는 username(Confluence 사용자 계정 이메일 주소)과 password(Confluence API Token)를 사용해보겠습니다.
 
 먼저 Confluence URL은 Attlasian Account > Product Settings에서 확인할 수 있습니다.
-https://id.atlassian.com/manage-profile/products
+- https://id.atlassian.com/manage-profile/products
 
 ![Bedrock with Confluence](../docs/images/confluence-product.jpg)
 
