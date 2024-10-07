@@ -16,6 +16,7 @@ class ChatbotStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         knowledge_base_id = Fn.import_value('KnowledgeBaseId')
+        data_source_id = Fn.import_value('DataSourceId')
 
         # Create ECR image
         image = ecr_assets.DockerImageAsset(self, "ChatbotImage",
@@ -61,7 +62,8 @@ class ChatbotStack(Stack):
             handler='index.handler',
             code=lambda_.Code.from_asset('./lambda/'),
             environment={
-                'KNOWLEDGE_BASE_ID': knowledge_base_id
+                'KNOWLEDGE_BASE_ID': knowledge_base_id,
+                'DATA_SOURCE_ID': data_source_id
             }
         )
 
