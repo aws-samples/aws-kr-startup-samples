@@ -46,7 +46,7 @@ class ASRAsyncEndpointStack(Stack):
       display_name='Asynchronous Inference Success Topic'
     )
 
-    S3_DEFAULT_BUCKET_NAME = f'sagemaker-async-inference-{kwargs['env'].region}-{kwargs['env'].account}'
+    S3_DEFAULT_BUCKET_NAME = f'sagemaker-async-inference-{kwargs["env"].region}-{kwargs["env"].account}'
     s3_output_bucket_name = self.node.try_get_context('s3_output_bucket_name') or S3_DEFAULT_BUCKET_NAME
     s3_output_bucket = s3.Bucket(self, "s3bucket",
       bucket_name=s3_output_bucket_name,
