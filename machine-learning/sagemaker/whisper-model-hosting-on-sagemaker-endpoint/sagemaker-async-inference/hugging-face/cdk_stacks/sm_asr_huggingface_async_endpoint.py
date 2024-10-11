@@ -80,7 +80,7 @@ class ASRHuggingFaceAsyncEndpointStack(Stack):
       ]
     )
 
-    model_id = self.node.try_get_context('model_id') or 'openai/whisper-medium'
+    model_id = self.node.try_get_context('model_id') or 'openai/whisper-large-v3-turbo'
     sagemaker_endpoint_name = name_from_base(model_id.lower().replace('/', '-').replace('.', '-'))
 
     self.sagemaker_endpoint = HuggingFaceSageMakerEndpoint(self, 'HFSageMakerEndpoint',

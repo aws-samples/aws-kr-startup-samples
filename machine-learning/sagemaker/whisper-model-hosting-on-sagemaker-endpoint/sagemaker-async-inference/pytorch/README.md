@@ -85,7 +85,7 @@ as well as metadata, such as version details, authorship, and any notes related 
    model_dir = Path('model')
    model_dir.mkdir(exist_ok=True)
 
-   model_id = "openai/whisper-medium"
+   model_id = "openai/whisper-large-v3-turbo"
    snapshot_download(model_id, local_dir=model_dir)
    ```
 
@@ -96,7 +96,7 @@ as well as metadata, such as version details, authorship, and any notes related 
     sagemaker_endpoint = CustomSageMakerEndpoint(self, "PyTorchSageMakerEndpoint",
       ...
       environment={
-        "HF_MODEL_ID": "openai/whisper-medium",
+        "HF_MODEL_ID": "openai/whisper-large-v3-turbo",
         "HF_TASK": "automatic-speech-recognition",
         "SAGEMAKER_TS_RESPONSE_TIMEOUT": "600", #XXX: In order to avoid timeout when torchserver starting.
       }
