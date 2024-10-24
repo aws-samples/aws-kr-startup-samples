@@ -1,0 +1,30 @@
+{
+  "db_cluster_name": "dms-source-db",
+  "dms_data_source": {
+    "database_name": "testdb",
+    "table_name": "retail_trans"
+  },
+  "kinesis_stream_name": "cdc_retail_trans_stream",
+  "data_firehose_configuration": {
+    "stream_name": "dms-to-iceberg",
+    "buffering_hints": {
+      "interval_in_seconds": 60,
+      "size_in_mbs": 128
+    },
+    "transform_records_with_aws_lambda": {
+      "buffer_size": 3,
+      "buffer_interval": 300,
+      "number_of_retries": 3
+    },
+    "destination_iceberg_table_configuration": {
+      "database_name": "cdc_iceberg_demo_db",
+      "table_name": "retail_trans_iceberg",
+      "unique_keys": [
+        "trans_id"
+      ]
+    },
+    "s3_bucket_name": "trans-datalake-iceberg-us-east-1",
+    "output_prefix": "cdc_iceberg_demo_db/retail_trans_iceberg",
+    "error_output_prefix": "error/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/!{firehose:error-output-type}"
+  }
+}
