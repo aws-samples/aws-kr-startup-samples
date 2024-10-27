@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+# vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab
+
 import os
 
 import aws_cdk as cdk
@@ -46,7 +49,7 @@ dms_iam_permissions.add_dependency(kds_stack)
 dms_stack = DMSAuroraMysqlToKinesisStack(app, 'DMSTaskAuroraMysqlToKinesis',
   vpc_stack.vpc,
   aurora_mysql_stack.sg_mysql_client,
-  aurora_mysql_stack.db_hostname,
+  aurora_mysql_stack.rds_credentials,
   kds_stack.kinesis_stream.stream_arn,
   env=APP_ENV
 )

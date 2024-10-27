@@ -42,12 +42,11 @@ class BastionHostEC2InstanceStack(Stack):
       ]
     )
 
-    amzn_linux = aws_ec2.MachineImage.latest_amazon_linux(
-      generation=aws_ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
-      edition=aws_ec2.AmazonLinuxEdition.STANDARD,
-      virtualization=aws_ec2.AmazonLinuxVirt.HVM,
+    amzn_linux = aws_ec2.MachineImage.latest_amazon_linux2(
       storage=aws_ec2.AmazonLinuxStorage.GENERAL_PURPOSE,
-      cpu_type=aws_ec2.AmazonLinuxCpuType.X86_64
+      virtualization=aws_ec2.AmazonLinuxVirt.HVM,
+      cpu_type=aws_ec2.AmazonLinuxCpuType.X86_64,
+      edition=aws_ec2.AmazonLinuxEdition.STANDARD
     )
 
     #XXX: https://docs.aws.amazon.com/cdk/api/latest/python/aws_cdk.aws_ec2/InstanceClass.html
@@ -76,19 +75,17 @@ class BastionHostEC2InstanceStack(Stack):
     )
 
     commands = '''
-yum update -y 
+yum update -y
 yum install -y python3.7
 yum install -y jq
 yum install -y mysql
 
 cd /home/ec2-user
-wget https://bootstrap.pypa.io/get-pip.py
-su -c "python3.7 get-pip.py --user" -s /bin/sh ec2-user
-su -c "/home/ec2-user/.local/bin/pip3 install boto3 --user" -s /bin/sh ec2-user
+su -c "pip3 install boto3 --user" -s /bin/sh ec2-user
 '''
 
     commands += f'''
-su -c "/home/ec2-user/.local/bin/pip3 install dataset==1.5.2 Faker==13.3.1 PyMySQL==1.0.2 --user" -s /bin/sh ec2-user
+su -c "pip3 install dataset==1.5.2 Faker==13.3.1 PyMySQL==1.0.2 --user" -s /bin/sh ec2-user
 cp {USER_DATA_LOCAL_PATH} /home/ec2-user/gen_fake_mysql_data.py & chown -R ec2-user /home/ec2-user/gen_fake_mysql_data.py
 '''
 
@@ -96,13 +93,13 @@ cp {USER_DATA_LOCAL_PATH} /home/ec2-user/gen_fake_mysql_data.py & chown -R ec2-u
 
     self.sg_bastion_host = sg_bastion_host
 
-    cdk.CfnOutput(self, f'{self.stack_name}-EC2InstancePublicDNS',
+    cdk.CfnOutput(self, 'EC2InstancePublicDNS',
       value=bastion_host.instance_public_dns_name,
       export_name=f'{self.stack_name}-EC2InstancePublicDNS')
-    cdk.CfnOutput(self, f'{self.stack_name}-EC2InstanceId',
+    cdk.CfnOutput(self, 'EC2InstanceId',
       value=bastion_host.instance_id,
       export_name=f'{self.stack_name}-EC2InstanceId')
-    cdk.CfnOutput(self, f'{self.stack_name}-EC2InstanceAZ',
+    cdk.CfnOutput(self, 'EC2InstanceAZ',
       value=bastion_host.instance_availability_zone,
       export_name=f'{self.stack_name}-EC2InstanceAZ')
 

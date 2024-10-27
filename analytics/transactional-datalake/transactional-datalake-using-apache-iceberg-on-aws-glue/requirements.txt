@@ -1,5 +1,2 @@
-aws-cdk-lib==2.67.0
+aws-cdk-lib==2.164.1
 constructs>=10.0.0,<11.0.0
-
-boto3==1.21.19
-botocore==1.24.19

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-
-import boto3
+# -*- encoding: utf-8 -*-
+# vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab
 
 import aws_cdk as cdk
 
@@ -9,6 +9,7 @@ from aws_cdk import (
   aws_iam
 )
 from constructs import Construct
+
 
 class DmsIAMRolesStack(Stack):
 
@@ -31,5 +32,10 @@ class DmsIAMRolesStack(Stack):
       ]
     )
 
-    cdk.CfnOutput(self, f'{self.stack_name}_DMSVpcRole', value=dms_vpc_role.role_arn)
-    cdk.CfnOutput(self, f'{self.stack_name}_DMSCloudWatchLogsRole', value=dms_cloudwatch_logs_role.role_arn)
+
+    cdk.CfnOutput(self, 'DMSVpcRoleArn',
+      value=dms_vpc_role.role_arn,
+      export_name=f'{self.stack_name}-DMSVpcRoleArn')
+    cdk.CfnOutput(self, 'DMSCloudWatchLogsRoleArn',
+      value=dms_cloudwatch_logs_role.role_arn,
+      export_name=f'{self.stack_name}-DMSCloudWatchLogsRoleArn')

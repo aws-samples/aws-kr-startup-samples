@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+# vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab
+
 import aws_cdk as cdk
 
 from aws_cdk import (
@@ -47,5 +51,6 @@ class DataLakePermissionsStack(Stack):
     # set dependency between CfnDataLakeSettings and CfnPrincipalPermissions
     cfn_principal_permissions.add_dependency(cfn_data_lake_settings)
 
-    cdk.CfnOutput(self, f'{self.stack_name}_Principal',
-      value=cfn_principal_permissions.attr_principal_identifier)
+    cdk.CfnOutput(self, 'Principal',
+      value=cfn_principal_permissions.attr_principal_identifier,
+      export_name=f'{self.stack_name}-Principal')

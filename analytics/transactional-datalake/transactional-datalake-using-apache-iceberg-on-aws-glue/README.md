@@ -21,6 +21,12 @@ you can create the virtualenv manually.
 To manually create a virtualenv on MacOS and Linux:
 
 ```
+$ git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
+$ cd aws-kr-startup-samples
+$ git sparse-checkout init --cone
+$ git sparse-checkout set analytics/transactional-datalake/transactional-datalake-using-apache-iceberg-on-aws-glue
+$ cd analytics/transactional-datalake/transactional-datalake-using-apache-iceberg-on-aws-glue
+
 $ python3 -m venv .venv
 ```
 
@@ -70,7 +76,6 @@ For example:
 <pre>
 {
   "db_cluster_name": "dms-source-db",
-  "db_secret_name": "dev/rds/admin",
   "dms_data_source": {
     "database_name": "testdb",
     "table_name": "retail_trans"
@@ -117,25 +122,9 @@ Now let's try to deploy.
 
 ## Creating Aurora MySQL cluster
 
-1. :information_source: Create an AWS Secret for your RDS Admin user like this:
-   <pre>
-   (.venv) $ aws secretsmanager create-secret \
-      --name <i>"your_db_secret_name"</i> \
-      --description "<i>(Optional) description of the secret</i>" \
-      --secret-string '{"username": "admin", "password": <i>"password_of_at_last_8_characters"</i>}'
-   </pre>
-   For example,
-   <pre>
-   (.venv) $ aws secretsmanager create-secret \
-      --name "dev/rds/admin" \
-      --description "admin user for rds" \
-      --secret-string '{"username": "admin", "password": <i>"your admin password"</i>}'
-   </pre>
-
-2. Create an Aurora MySQL Cluster
-   <pre>
-   (.venv) $ cdk deploy TransactionalDataLakeVpc AuroraMysqlAsDMSDataSource
-   </pre>
+<pre>
+(.venv) $ cdk deploy TransactionalDataLakeVpc AuroraMysqlAsDMSDataSource
+</pre>
 
 ## Confirm that binary logging is enabled
 
@@ -148,9 +137,21 @@ Now let's try to deploy.
    </pre>
 
 2. Connect to the Aurora cluster writer node.
+
+   :information_source: The Aurora MySQL `username` and `password` are stored in the [AWS Secrets Manager](https://console.aws.amazon.com/secretsmanager/listsecrets) as a name such as `DatabaseSecret-xxxxxxxxxxxx`.
+
+   To retrieve a secret (AWS console)
+
+   - (Step 1) Open the Secrets Manager console at [https://console.aws.amazon.com/secretsmanager/](https://console.aws.amazon.com/secretsmanager/).
+   - (Step 2) In the list of secrets, choose the secret you want to retrieve.
+   - (Step 3) In the **Secret value** section, choose **Retrieve secret value**.<br/>
+   Secrets Manager displays the current version (`AWSCURRENT`) of the secret. To see [other versions](https://docs.aws.amazon.com/secretsmanager/latest/userguide/getting-started.html#term_version) of the secret, such as `AWSPREVIOUS` or custom labeled versions, use the [AWS CLI](https://docs.aws.amazon.com/secretsmanager/latest/userguide/retrieving-secrets.html#retrieving-secrets_cli).
+
+   Once you're ready to connect to the Aurora cluster, log into the bastion host.
+
    <pre>
     $ sudo pip install ec2instanceconnectcli
-    $ export BASTION_HOST_ID=$(aws cloudformation describe-stacks --stack-name <i>AuroraMysqlBastionHost</i> | jq -r '.Stacks[0].Outputs | .[] | select(.OutputKey | endswith("EC2InstanceId")) | .OutputValue')
+    $ export BASTION_HOST_ID=$(aws cloudformation describe-stacks --stack-name <i>AuroraMysqlBastionHost</i> | jq -r '.Stacks[0].Outputs.[] | select(.OutputKey == "EC2InstanceId") | .OutputValue')
     $ mssh --region "<i>your-region-name (e.g., us-east-1)</i>" ec2-user@${BASTION_HOST_ID}
     [ec2-user@ip-172-31-7-186 ~]$ mysql -h<i>db-cluster-name</i>.cluster-<i>xxxxxxxxxxxx</i>.<i>region-name</i>.rds.amazonaws.com -uadmin -p
     Enter password:
@@ -392,20 +393,25 @@ Go to [Athena](https://console.aws.amazon.com/athena/home) on the AWS Management
 
 1. Start the DMS Replication task by replacing the ARN in below command.
    <pre>
-   (.venv) $ aws dms start-replication-task --replication-task-arn <i>dms-task-arn</i> --start-replication-task-type start-replication
+   (.venv) $ DMS_REPLICATION_TASK_ID=$(aws cloudformation describe-stacks --stack-name <i>DMSTaskAuroraMysqlToKinesis</i> | jq -r '.Stacks[0].Outputs.[] | select(.OutputKey == "DMSReplicationTaskId") | .OutputValue | ascii_downcase')
+   (.venv) $ DMS_REPLICATION_TASK_ARN=$(aws dms describe-replication-tasks | jq -r ".ReplicationTasks[] | select(.ReplicationTaskIdentifier == \"${DMS_REPLICATION_TASK_ID}\") | .ReplicationTaskArn")
+   (.venv) $ aws dms start-replication-task \
+                 --replication-task-arn <i>${DMS_REPLICATION_TASK_ARN}</i> \
+                 --start-replication-task-type start-replication
    </pre>
 
 2. Run glue job to load data from Kinesis Data Streams into S3
    <pre>
-   (.venv) $ aws glue start-job-run --job-name <i>cdc_based_upsert_to_iceberg_table</i>
+   (.venv) $ GLUE_JOB_NAME=$(aws cloudformation describe-stacks --stack-name <i>GlueStreamingCDCtoIceberg</i> | jq -r '.Stacks[0].Outputs.[] | select(.OutputKey == "GlueJobName") | .OutputValue')
+   (.venv) $ aws glue start-job-run --job-name <i>${GLUE_JOB_NAME}</i>
    </pre>
 
 3. Generate test data.
    <pre>
     $ export BASTION_HOST_ID=$(aws cloudformation describe-stacks --stack-name <i>AuroraMysqlBastionHost</i> | jq -r '.Stacks[0].Outputs | .[] | select(.OutputKey | endswith("EC2InstanceId")) | .OutputValue')
     $ mssh --region "<i>your-region-name (e.g., us-east-1)</i>" ec2-user@${BASTION_HOST_ID}
-    [ec2-user@ip-172-31-7-186 ~]$ pip3 install -r utils/requirements-dev.txt
-    [ec2-user@ip-172-31-7-186 ~]$ python3 utils/gen_fake_mysql_data.py \
+    [ec2-user@ip-172-31-7-186 ~]$ pip3 install -U boto3==1.33.13 dataset==1.5.2 Faker==13.3.1 PyMySQL==1.1.1
+    [ec2-user@ip-172-31-7-186 ~]$ python3 gen_fake_mysql_data.py \
                                     --database <i>your-database-name</i> \
                                     --table <i>your-table-name</i> \
                                     --user <i>user-name</i> \
@@ -562,6 +568,16 @@ Enjoy!
  * (14) [How AWS DMS handles open transactions when starting a full load and CDC task (2022-12-26)](https://aws.amazon.com/blogs/database/how-aws-dms-handles-open-transactions-when-starting-a-full-load-and-cdc-task/)
  * (15) [AWS DMS key troubleshooting metrics and performance enhancers (2023-02-10)](https://aws.amazon.com/blogs/database/aws-dms-key-troubleshooting-metrics-and-performance-enhancers/)
  * (16) [Choosing an open table format for your transactional data lake on AWS (2023-06-09)](https://aws.amazon.com/blogs/big-data/choosing-an-open-table-format-for-your-transactional-data-lake-on-aws/)
+
+## Related Works
+
+ * [transactional-datalake-using-amazon-msk-and-apache-iceberg-on-aws-glue](https://github.com/aws-samples/transactional-datalake-using-amazon-msk-and-apache-iceberg-on-aws-glue)
+   ![transactional-datalake-msk-arch](https://raw.githubusercontent.com/aws-samples/transactional-datalake-using-amazon-msk-and-apache-iceberg-on-aws-glue/main/transactional-datalake-arch.svg)
+ * [transactional-datalake-using-amazon-msk-serverless-and-apache-iceberg-on-aws-glue](https://github.com/aws-samples/transactional-datalake-using-amazon-msk-serverless-and-apache-iceberg-on-aws-glue)
+   ![transactional-datalake-msk-serverless-arch](https://raw.githubusercontent.com/aws-samples/transactional-datalake-using-amazon-msk-serverless-and-apache-iceberg-on-aws-glue/main/transactional-datalake-arch.svg)
+ * [transactional-datalake-using-amazon-datafirehose-and-apache-iceberg](https://github.com/aws-samples/aws-kr-startup-samples/tree/main/analytics/transactional-datalake/transactional-datalake-using-amazon-datafirehose-and-apache-iceberg)
+   ![transactional-datalake-data-firehose-arch](https://raw.githubusercontent.com/aws-samples/aws-kr-startup-samples/refs/heads/main/analytics/transactional-datalake/transactional-datalake-using-amazon-datafirehose-and-apache-iceberg/transactional-datalake-arch.svg)
+
 
 ## Troubleshooting
 

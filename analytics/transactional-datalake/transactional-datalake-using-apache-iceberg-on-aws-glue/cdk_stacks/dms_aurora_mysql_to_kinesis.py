@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+# vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab
 
 import json
-
-import boto3
 
 import aws_cdk as cdk
 
@@ -14,12 +14,15 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+
 class DMSAuroraMysqlToKinesisStack(Stack):
 
-  def __init__(self, scope: Construct, construct_id: str, vpc, db_client_sg, source_database_hostname, target_kinesis_stream_arn, **kwargs) -> None:
+  def __init__(self, scope: Construct, construct_id: str,
+              vpc, db_client_sg, rds_credentials,
+              target_kinesis_stream_arn, **kwargs) -> None:
+
     super().__init__(scope, construct_id, **kwargs)
 
-    db_cluster_name = self.node.try_get_context('db_cluster_name')
     dms_data_source = self.node.try_get_context('dms_data_source')
     database_name = dms_data_source['database_name']
     table_name = dms_data_source['table_name']
@@ -35,7 +38,9 @@ class DMSAuroraMysqlToKinesisStack(Stack):
       allocated_storage=50,
       allow_major_version_upgrade=False,
       auto_minor_version_upgrade=False,
-      engine_version='3.4.6',
+      #XXX: AWS DMS release notes
+      # https://docs.aws.amazon.com/dms/latest/userguide/CHAP_ReleaseNotes.html
+      engine_version='3.5.2',
       multi_az=False,
       preferred_maintenance_window='sat:03:17-sat:03:47',
       publicly_accessible=False,
@@ -43,21 +48,16 @@ class DMSAuroraMysqlToKinesisStack(Stack):
       vpc_security_group_ids=[db_client_sg.security_group_id]
     )
 
-    sm_client = boto3.client('secretsmanager', region_name=vpc.env.region)
-    secret_name = self.node.try_get_context('db_secret_name')
-    secret_value = sm_client.get_secret_value(SecretId=secret_name)
-    secret = json.loads(secret_value['SecretString'])
-
-    source_endpoint_id = db_cluster_name
+    source_endpoint_id = rds_credentials.secret_value_from_json("dbClusterIdentifier").unsafe_unwrap()
     dms_source_endpoint = aws_dms.CfnEndpoint(self, 'DMSSourceEndpoint',
       endpoint_identifier=source_endpoint_id,
       endpoint_type='source',
-      engine_name='mysql',
-      server_name=source_database_hostname,
+      engine_name=rds_credentials.secret_value_from_json("engine").unsafe_unwrap(),
+      server_name=rds_credentials.secret_value_from_json("host").unsafe_unwrap(),
       port=3306,
       database_name=database_name,
-      username=secret.get('username'),
-      password=secret.get('password')
+      username=rds_credentials.secret_value_from_json("username").unsafe_unwrap(),
+      password=rds_credentials.secret_value_from_json("password").unsafe_unwrap()
     )
 
     dms_kinesis_access_role_policy_doc = aws_iam.PolicyDocument()
@@ -151,7 +151,13 @@ class DMSAuroraMysqlToKinesisStack(Stack):
       replication_task_settings=json.dumps(task_settings_json)
     )
 
-    cdk.CfnOutput(self, 'DMSReplicationTaskId', value=dms_replication_task.replication_task_identifier)
-    cdk.CfnOutput(self, 'DMSSourceEndpointId', value=dms_source_endpoint.endpoint_identifier)
-    cdk.CfnOutput(self, 'DMSTargetEndpointId', value=dms_target_endpoint.endpoint_identifier)
 
+    cdk.CfnOutput(self, 'DMSReplicationTaskId',
+      value=dms_replication_task.replication_task_identifier,
+      export_name=f'{self.stack_name}-DMSReplicationTaskId')
+    cdk.CfnOutput(self, 'DMSSourceEndpointId',
+      value=dms_source_endpoint.endpoint_identifier,
+      export_name=f'{self.stack_name}-DMSSourceEndpointId')
+    cdk.CfnOutput(self, 'DMSTargetEndpointId',
+      value=dms_target_endpoint.endpoint_identifier,
+      export_name=f'{self.stack_name}-DMSTargetEndpointId')

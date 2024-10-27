@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+# vim: tabstop=2 shiftwidth=2 softtabstop=2 expandtab
+
 import aws_cdk as cdk
 
 from aws_cdk import (
@@ -92,5 +96,9 @@ class GlueJobRoleStack(Stack):
 
     self.glue_job_role = glue_job_role
 
-    cdk.CfnOutput(self, f'{self.stack_name}_GlueJobRole', value=self.glue_job_role.role_name)
-    cdk.CfnOutput(self, f'{self.stack_name}_GlueJobRoleArn', value=self.glue_job_role.role_arn)
+    cdk.CfnOutput(self, 'GlueJobRoleName',
+      value=self.glue_job_role.role_name,
+      export_name=f'{self.stack_name}-GlueJobRoleName')
+    cdk.CfnOutput(self, 'GlueJobRoleArn',
+      value=self.glue_job_role.role_arn,
+      export_name=f'{self.stack_name}-GlueJobRoleArn')
