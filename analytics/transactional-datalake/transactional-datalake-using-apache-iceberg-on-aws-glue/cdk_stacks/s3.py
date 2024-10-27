@@ -29,4 +29,6 @@ class S3BucketStack(Stack):
 
     self.s3_bucket_name = s3_bucket.bucket_name
 
-    cdk.CfnOutput(self, f'{self.stack_name}_S3Bucket', value=self.s3_bucket_name)
+    cdk.CfnOutput(self, 'S3BucketName',
+      value=self.s3_bucket_name,
+      export_name=f'{self.stack_name}-S3BucketName')
