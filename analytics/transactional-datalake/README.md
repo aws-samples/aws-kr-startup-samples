@@ -5,9 +5,10 @@ This repository contains a set of example CDK Python projects to build a transac
 
 | Example | Architecture Diagram | Tags |
 |-------------------------------|-------------|------|
-[Data Lake with Apache Iceberge, AWS Glue and Kinesis Data Streams](./transactional-datalake-using-apache-iceberg-on-aws-glue) | ![](./transactional-datalake-using-apache-iceberg-on-aws-glue/transactional-datalake-arch.svg) | Amazon Kinesis Data Streams, DMS, Glue Streaming, S3 + Apache Iceberg |
-[Data Lake with Apache Iceberg, AWS Glue and MSK](./transactional-datalake-using-amazon-msk-and-apache-iceberg-on-aws-glue) | ![](./transactional-datalake-using-amazon-msk-and-apache-iceberg-on-aws-glue/transactional-datalake-arch.svg) | Amazon MSK, DMS, Glue Streaming, S3 + Apache Iceberg |
-[Data Lake with Apache Iceberg, AWS Glue and MSK Serverless](./transactional-datalake-using-amazon-msk-serverless-and-apache-iceberg-on-aws-glue) | ![](./transactional-datalake-using-amazon-msk-serverless-and-apache-iceberg-on-aws-glue/transactional-datalake-arch.svg) | Amazon MSK Serverless, DMS, Glue Streaming, S3 + Apache Iceberg |
+| [Data Lake with Apache Iceberge, AWS Glue and Kinesis Data Streams](./transactional-datalake-using-apache-iceberg-on-aws-glue) | ![](./transactional-datalake-using-apache-iceberg-on-aws-glue/transactional-datalake-arch.svg) | Amazon Kinesis Data Streams, DMS, Glue Streaming, S3 + Apache Iceberg |
+| [Data Lake with Apache Iceberg, AWS Glue and MSK](./transactional-datalake-using-amazon-msk-and-apache-iceberg-on-aws-glue) | ![](./transactional-datalake-using-amazon-msk-and-apache-iceberg-on-aws-glue/transactional-datalake-arch.svg) | Amazon MSK, DMS, Glue Streaming, S3 + Apache Iceberg |
+| [Data Lake with Apache Iceberg, AWS Glue and MSK Serverless](./transactional-datalake-using-amazon-msk-serverless-and-apache-iceberg-on-aws-glue) | ![](./transactional-datalake-using-amazon-msk-serverless-and-apache-iceberg-on-aws-glue/transactional-datalake-arch.svg) | Amazon MSK Serverless, DMS, Glue Streaming, S3 + Apache Iceberg |
+| [Data Lake with Apache Iceberg, Amazon Data Firehose](./transactional-datalake-using-amazon-datafirehose-and-apache-iceberg) | ![](./transactional-datalake-using-amazon-datafirehose-and-apache-iceberg/transactional-datalake-arch.svg) | Amazon DMS, Data Firehose, S3 + Apache Iceberg |
 
 Enjoy!
 
