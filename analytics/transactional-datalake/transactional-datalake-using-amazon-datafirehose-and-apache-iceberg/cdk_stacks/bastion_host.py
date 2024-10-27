@@ -81,13 +81,11 @@ yum install -y jq
 yum install -y mysql
 
 cd /home/ec2-user
-wget https://bootstrap.pypa.io/get-pip.py
-su -c "python3.7 get-pip.py --user" -s /bin/sh ec2-user
-su -c "/home/ec2-user/.local/bin/pip3 install boto3 --user" -s /bin/sh ec2-user
+su -c "pip3 install boto3 --user" -s /bin/sh ec2-user
 '''
 
     commands += f'''
-su -c "/home/ec2-user/.local/bin/pip3 install dataset==1.5.2 Faker==13.3.1 PyMySQL==1.0.2 --user" -s /bin/sh ec2-user
+su -c "pip3 install dataset==1.5.2 Faker==13.3.1 PyMySQL==1.0.2 --user" -s /bin/sh ec2-user
 cp {USER_DATA_LOCAL_PATH} /home/ec2-user/gen_fake_mysql_data.py & chown -R ec2-user /home/ec2-user/gen_fake_mysql_data.py
 '''
 
