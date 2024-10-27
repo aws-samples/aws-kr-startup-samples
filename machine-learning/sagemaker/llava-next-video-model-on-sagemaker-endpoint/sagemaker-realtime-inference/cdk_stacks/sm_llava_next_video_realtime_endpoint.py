@@ -47,7 +47,7 @@ class LlaVaNeXTVideoRealtimeEndpointStack(Stack):
 
     dlc_image_info = self.node.try_get_context('dlc_image_info') or {}
     dlc_image_repository_name = dlc_image_info.get('repository_name', 'pytorch-inference')
-    dlc_image_tag = dlc_image_info.get('tag', '2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker')
+    dlc_image_tag = dlc_image_info.get('tag', '2.3.0-gpu-py311')
 
     #XXX: Available Deep Learning Containers (DLC) Images
     # https://github.com/aws/deep-learning-containers/blob/master/available_images.md
