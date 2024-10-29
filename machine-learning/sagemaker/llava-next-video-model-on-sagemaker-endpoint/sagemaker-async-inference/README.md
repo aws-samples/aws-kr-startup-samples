@@ -120,7 +120,7 @@ as well as metadata, such as version details, authorship, and any notes related 
      },
      "dlc_image_info": {
        "repository_name": "pytorch-inference",
-       "tag": "2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker"
+       "tag": "2.3.0-gpu-py311"
      }
    }
    </pre>
