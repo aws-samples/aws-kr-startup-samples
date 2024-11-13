@@ -106,6 +106,23 @@ At this point you can now synthesize the CloudFormation template for this code.
 
 Now let's try to deploy.
 
+## List all CDK Stacks
+
+```
+(.venv) $ cdk list
+TransactionalDataLakeVpc
+AuroraMysqlAsDMSDataSource
+AuroraMysqlBastionHost
+DMSTargetKinesisDataStream
+DMSRequiredIAMRolesStack
+DMSTaskAuroraMysqlToKinesis
+DataFirehoseToIcebergS3Path
+FirehoseDataTransformLambdaStack
+FirehoseToIcebergRoleStack
+GrantLFPermissionsOnFirehoseRole
+FirehoseToIcebergStack
+```
+
 ## Creating Aurora MySQL cluster
 
 Create an Aurora MySQL Cluster
