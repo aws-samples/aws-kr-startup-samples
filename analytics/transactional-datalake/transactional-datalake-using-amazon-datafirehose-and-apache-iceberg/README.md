@@ -53,50 +53,9 @@ To add additional dependencies, for example other CDK libraries, just add
 them to your `setup.py` file and rerun the `pip install -r requirements.txt`
 command.
 
-## Prerequisites
+## Set up `cdk.context.json`
 
-Before synthesizing the CloudFormation, you need to prepare the followings:
-
-### (1) AWS Glue Catalog for Apache Iceberg Table by creating a table with partitioned data in Amazon Athena
-
-Go to [Athena](https://console.aws.amazon.com/athena/home) on the AWS Management console.<br/>
-* (step 1) Create a database
-
-   In order to create a new database called `cdc_iceberg_demo_db`, enter the following statement in the Athena query editor and click the **Run** button to execute the query.
-
-   <pre>
-   CREATE DATABASE IF NOT EXISTS cdc_iceberg_demo_db;
-   </pre>
-
-* (step 2) Create a table
-
-   Copy the following query into the Athena query editor, replace the `xxxxxxx` in the last line under `LOCATION` with the string of your S3 bucket, and execute the query to create a new table.
-   <pre>
-   CREATE TABLE cdc_iceberg_demo_db.retail_trans_iceberg (
-      trans_id int,
-      customer_id string,
-      event string,
-      sku string,
-      amount int,
-      device string,
-      trans_datetime timestamp
-   )
-   PARTITIONED BY (`event`)
-   LOCATION 's3://trans-datalake-iceberg-xxxxxxx/cdc_iceberg_demo_db/retail_trans_iceberg'
-   TBLPROPERTIES (
-      'table_type'='iceberg',
-      'format'='parquet',
-      'write_compression'='snappy',
-      'optimize_rewrite_delete_file_threshold'='10'
-   );
-   </pre>
-   If the query is successful, a table named `retail_trans_iceberg` is created and displayed on the left panel under the **Tables** section.
-
-   If you get an error, check if (a) you have updated the `LOCATION` to the correct S3 bucket name, (b) you have mydatabase selected under the Database dropdown, and (c) you have `AwsDataCatalog` selected as the **Data source**.
-
-### (2) Set up `cdk.context.json`
-
-Then, you should set approperly the cdk context configuration file, `cdk.context.json`.
+Before synthesizing the CloudFormation, you need to prepare the cdk context configuration file, `cdk.context.json`:
 
 For example,
 
@@ -126,12 +85,14 @@ For example,
     },
     "s3_bucket_name": "trans-datalake-iceberg-us-east-1",
     "output_prefix": "cdc_iceberg_demo_db/retail_trans_iceberg",
-    "error_output_prefix":" error/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/!{firehose:error-output-type}"
+    "error_output_prefix": "error/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/!{firehose:error-output-type}"
   }
 }
 </pre>
 
-:information_source: `--unique_keys` of `data_firehose_configuration.destination_iceberg_table_configuration` should be set by Iceberg table's primary column name. So, it is better to set the primary key of RDS table.
+:information_source: `database_name`, and `table_name` of `data_firehose_configuration.destination_iceberg_table_configuration` is used in [**Set up Delivery Stream**](#set-up-delivery-stream) step.
+
+:information_source: `unique_keys` of `data_firehose_configuration.destination_iceberg_table_configuration` should be set by Iceberg table's primary column name. So, it is better to set the primary key of RDS table.
 
 ## Deploy
 
