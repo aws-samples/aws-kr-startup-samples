@@ -5,6 +5,7 @@
 import base64
 import json
 import os
+import traceback
 
 DESTINATION_DATABASE_NAME = os.environ['IcebergeDatabaseName']
 DESTINATION_TABLE_NAME = os.environ['IcebergTableName']
@@ -17,9 +18,13 @@ def lambda_handler(event, context):
     payload = base64.b64decode(record['data']).decode('utf-8')
     json_value = json.loads(payload)
 
-    data = json.dumps(json_value['data'])
-    metadata = json_value['metadata']
-    operation = metadata['operation']
+    try:
+      data = json.dumps(json_value['data'])
+      metadata = json_value['metadata']
+      operation = metadata['operation']
+    except Exception as _:
+      traceback.print_exc()
+      continue
 
     if operation not in ('insert', 'update', 'delete'):
       continue
