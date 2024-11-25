@@ -1,0 +1,22 @@
+{
+  "flags": {
+      "pagenation": {
+          "name": "pagenation"
+      },
+      "showcoursel": {
+        "name": "showcoursel"
+    }
+  },
+  "values": {
+      "pagenation": {
+          "enabled": true,
+          "attributeValues": {
+              "number": 10
+          }
+      },
+      "showcoursel": {
+        "enabled": false
+    }
+  },
+  "version": "1"
+}
