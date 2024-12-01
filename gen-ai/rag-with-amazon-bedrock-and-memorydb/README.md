@@ -15,7 +15,7 @@ The overall architecture is like this:
 1. Deploy the cdk stacks (For more information, see [here](./cdk_stacks/README.md)).
    - An Amazon MemoryDB for Redis to store embeddings.
    - An SageMaker Studio for RAG application and data ingestion to Amazon MemoryDB for Redis.
-2. Open SageMaker Studio and then open a new terminal.
+2. Open JupyterLab in SageMaker Studio and then open a new terminal.
 3. Run the following commands on the terminal to clone the code repository for this project:
    ```
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
