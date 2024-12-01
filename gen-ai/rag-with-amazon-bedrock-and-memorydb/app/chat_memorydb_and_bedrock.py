@@ -11,7 +11,7 @@ import boto3
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 from langchain_aws import ChatBedrock as BedrockChat
-from langchain_community.embeddings import BedrockEmbeddings
+from langchain_aws import BedrockEmbeddings
 
 from langchain_aws.vectorstores.inmemorydb import InMemoryVectorStore
 
