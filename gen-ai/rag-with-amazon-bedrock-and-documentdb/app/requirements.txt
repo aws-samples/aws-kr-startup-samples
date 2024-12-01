@@ -4,5 +4,4 @@ langchain-aws==0.2.7
 langchain-community==0.3.8
 SQLAlchemy==2.0.28
 pymongo==4.6.3
-altair<5.0
-streamlit==1.12.0
+streamlit==1.37.0
