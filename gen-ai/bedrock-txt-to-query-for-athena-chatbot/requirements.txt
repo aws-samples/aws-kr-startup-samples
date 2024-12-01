@@ -1,0 +1,5 @@
+boto3
+botocore
+langchain-community
+langchain-aws
+streamlit
