@@ -23,7 +23,7 @@ Some models require some additional information and take some time before you ar
 
 1. Deploy the cdk stacks (For more information, see [here](./cdk_stacks/README.md)).
    - An Amazon OpenSearch Serverless collection for storing embeddings.
-2. Open SageMaker Studio and then open a new terminal.
+2. Open JupyterLab in SageMaker Studio and then open a new terminal.
 3. Run the following commands on the terminal to clone the code repository for this project:
    ```
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git

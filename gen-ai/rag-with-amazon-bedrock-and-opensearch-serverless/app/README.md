@@ -2,10 +2,9 @@
 
 Now we’re ready to run the Streamlit web application for our question answering bot.
 
-SageMaker Studio provides a convenient platform to host the Streamlit web application. The following steps describes how to run the Streamlit app on SageMaker Studio. Alternatively, you could also follow the same procedure to run the app on Amazon EC2 instance or Cloud9 in your AWS Account.
+SageMaker Studio provides a convenient platform to host the Streamlit web application. The following steps describe how to run the Streamlit app on SageMaker Studio. Alternatively, you could also follow the same procedure to run the app on Amazon EC2 instance or Cloud9 in your AWS Account.
 
-1. Open Studio and then open a new **System terminal**.
-   ![](./sagemaker-studio-launcher-screenshot.png)
+1. Open JupyterLab and then open a new **Terminal**.
 2. Run the following commands on the terminal to clone the code repository for this post and install the Python packages needed by the application:
    ```
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
@@ -36,7 +35,7 @@ SageMaker Studio provides a convenient platform to host the Streamlit web applic
    Network URL: http://169.255.255.2:8501
    External URL: http://52.4.240.77:8501
    ```
-5. You can access the app in a new browser tab using a URL that is similar to your Studio domain URL. For example, if your Studio URL is `https://d-randomidentifier.studio.us-east-1.sagemaker.aws/jupyter/default/lab?` then the URL for your Streamlit app will be `https://d-randomidentifier.studio.us-east-1.sagemaker.aws/jupyter/default/proxy/8501/app` (notice that `lab` is replaced with `proxy/8501/app`). If the port number noted in the previous step is different from 8501 then use that instead of 8501 in the URL for the Streamlit app.
+5. You can access the app in a new browser tab using a URL that is similar to your Studio domain URL. For example, if your Studio URL is `https://d-randomidentifier.studio.us-east-1.sagemaker.aws/jupyter/default/lab?` then the URL for your Streamlit app will be `https://d-randomidentifier.studio.us-east-1.sagemaker.aws/jupyter/default/proxy/8501/app` (notice that `lab` is replaced with `proxy/8501/app`). If the port number noted in the previous step is different from `8501` then use that instead of `8501` in the URL for the Streamlit app.
 
    The following screenshot shows the app with a couple of user questions. (e.g., `What are the versions of XGBoost supported by Amazon SageMaker?`)
 
