@@ -5,7 +5,6 @@ Now we’re ready to run the Streamlit web application for our question answerin
 SageMaker Studio provides a convenient platform to host the Streamlit web application. The following steps describe how to run the Streamlit app on SageMaker Studio. Alternatively, you could also follow the same procedure to run the app on Amazon EC2 instance, Cloud9 in your AWS Account, or deploy as a container service to AWS ECS Fargate.
 
 1. Open JupyterLab and then open a **Terminal**.
-   ![](sagemaker-studio-launcher-screenshot.png)
 2. Run the following commands on the terminal to clone the code repository for this post and install the Python packages needed by the application:
    ```
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
