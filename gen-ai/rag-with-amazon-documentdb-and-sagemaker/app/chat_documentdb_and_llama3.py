@@ -14,7 +14,7 @@ from langchain.prompts import PromptTemplate
 from langchain_community.llms import SagemakerEndpoint
 from langchain_community.llms.sagemaker_endpoint import LLMContentHandler
 
-from langchain_community.embeddings import BedrockEmbeddings
+from langchain_aws import BedrockEmbeddings
 from langchain_community.vectorstores import DocumentDBVectorSearch
 
 from pymongo import MongoClient
