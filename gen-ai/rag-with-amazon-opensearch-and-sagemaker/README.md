@@ -17,7 +17,7 @@ The overall architecture is like this:
    - A SageMaker Endpoint for generating embeddings.
    - An Amazon OpenSearch cluster for storing embeddings.
    - Opensearch cluster's access credentials (username and password) stored in AWS Secrets Mananger as a name such as `OpenSearchMasterUserSecret1-xxxxxxxxxxxx`.
-2. Open SageMaker Studio and then open a new terminal.
+2. Open JupyterLab in SageMaker Studio and then open a new terminal.
 3. Run the following commands on the terminal to clone the code repository for this project:
    ```
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
