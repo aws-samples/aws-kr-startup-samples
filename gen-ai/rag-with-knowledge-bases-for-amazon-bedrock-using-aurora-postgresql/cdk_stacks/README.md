@@ -120,7 +120,7 @@ BedrockKnowledgeBaseStack
 
 #### Step 4: Prepare Aurora PostgreSQL to be used as a Knowledge Base for Amazon Bedrock
 
-1. Open SageMaker Studio and then open a new terminal.
+1. Open JupyterLab in SageMaker Studio and then open a new terminal.
 2. Run the following commands on the terminal to clone the code repository for this project:
    ```
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
