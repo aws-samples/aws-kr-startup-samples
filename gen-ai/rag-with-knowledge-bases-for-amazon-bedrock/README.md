@@ -15,7 +15,7 @@ The overall architecture is like this:
 1. Deploy the cdk stacks (For more information, see [here](./cdk_stacks/README.md)).
    - A Knowledge Base for Amazon Bedrock to store embeddings.
    - A SageMaker Studio for RAG application and data ingestion to Knowledge Base for Amazon Bedrock.
-2. Open SageMaker Studio and then open a new terminal.
+2. Open JupyterLab in SageMaker Studio and then open a new terminal.
 3. Run the following commands on the terminal to clone the code repository for this project:
    ```
    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
