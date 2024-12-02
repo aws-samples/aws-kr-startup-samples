@@ -61,7 +61,7 @@ def build_chain():
     }
   )
 
-  retriever = AmazonKendraRetriever(index_id=kendra_index_id, region_name=region)
+  retriever = AmazonKendraRetriever(index_id=kendra_index_id, region_name=region, min_score_confidence=0.0001)
 
   condense_qa_template = """Given the following conversation and a follow up question, rephrase the follow up question
 to be a standalone question.
