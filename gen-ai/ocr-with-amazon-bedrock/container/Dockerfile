@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 python:3.10.12
+FROM --platform=linux/amd64 python:3.11.10
 WORKDIR /opt/app
 COPY code/* ./
 RUN pip install -r requirements.txt
