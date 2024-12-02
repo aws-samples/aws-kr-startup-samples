@@ -86,7 +86,7 @@ def build_chain():
             endpoint_kwargs={"CustomAttributes": "accept_eula=true"},
             content_handler=content_handler)
 
-  retriever = AmazonKendraRetriever(index_id=kendra_index_id, region_name=region, top_k=3)
+  retriever = AmazonKendraRetriever(index_id=kendra_index_id, region_name=region, top_k=3, min_score_confidence=0.0001)
 
   prompt_template = """Answer based on context:\n\n{context}\n\n{question}"""
 
