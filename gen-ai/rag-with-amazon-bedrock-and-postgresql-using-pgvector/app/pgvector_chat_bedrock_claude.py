@@ -10,7 +10,7 @@ import urllib
 import boto3
 
 from langchain_postgres import PGVector
-from langchain_community.embeddings import BedrockEmbeddings
+from langchain_aws import BedrockEmbeddings
 from langchain_aws import ChatBedrock as BedrockChat
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains import (

@@ -1,8 +1,8 @@
 boto3>=1.26.159
-langchain==0.2.10
-langchain-aws==0.1.6
-langchain-community==0.2.9
-langchain-postgres==0.0.7
+langchain>=0.3,<0.4
+langchain-aws>=0.2,<0.3
+langchain-community>=0.3,<0.4
+langchain-postgres>=0.0.12,<0.1
 pgvector==0.2.5
 psycopg[binary]==3.1.19
 SQLAlchemy==2.0.28
