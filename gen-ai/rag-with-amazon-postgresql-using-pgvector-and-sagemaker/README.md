@@ -46,9 +46,9 @@ The overall architecture is like this:
   * [rag-with-amazon-kendra-and-sagemaker](https://github.com/aws-samples/aws-kr-startup-samples/tree/main/gen-ai/rag-with-amazon-kendra-and-sagemaker) - Question Answering application with Large Language Models (LLMs) and Amazon Kendra
   * [rag-with-amazon-opensearch-and-sagemaker](https://github.com/aws-samples/rag-with-amazon-opensearch-and-sagemaker) - Question Answering application with Large Language Models (LLMs) and Amazon OpenSearch Service
   * [rag-with-amazon-opensearch-serverless](https://github.com/aws-samples/rag-with-amazon-opensearch-serverless) - Question Answering application with Large Language Models (LLMs) and Amazon OpenSearch Serverless Service
-  * [Pgvector changelog](https://github.com/pgvector/pgvector/blob/master/CHANGELOG.md#040-2023-01-11)
-    > Increased max dimensions for vector from 1024 to 16000<br/>
-    > Increased max dimensions for index from 1024 to 2000
+  * [Pgvector changelog - v0.4.0 (2023-01-11)](https://github.com/pgvector/pgvector/blob/master/CHANGELOG.md#040-2023-01-11)
+    > Increased max dimensions for vector from `1024` to `16000`<br/>
+    > Increased max dimensions for index from `1024` to `2000`
 
 ## Security
 
