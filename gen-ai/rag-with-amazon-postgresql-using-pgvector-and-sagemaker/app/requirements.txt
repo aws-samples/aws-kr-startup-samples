@@ -1,7 +1,7 @@
 boto3>=1.26.159
-langchain==0.2.10
-langchain-community==0.2.9
+langchain>=0.3,<0.4
+langchain-community>=0.3,<0.4
+pgvector==0.2.5
+psycopg[binary]==3.1.19
 SQLAlchemy==2.0.28
 streamlit==1.37.0
-pgvector==0.2.0
-psycopg2-binary==2.9.6

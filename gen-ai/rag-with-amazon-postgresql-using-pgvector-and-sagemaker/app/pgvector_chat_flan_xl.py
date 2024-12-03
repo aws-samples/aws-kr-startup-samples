@@ -100,7 +100,7 @@ def build_chain():
     db_host = secret['host']
 
     CONNECTION_STRING = PGVector.connection_string_from_db_params(
-        driver = 'psycopg2',
+        driver = 'psycopg',
         user = db_username,
         password = db_password,
         host = db_host,
