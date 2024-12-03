@@ -5,10 +5,12 @@ FROM python:3.10.13-slim
 # amount of space in the image, which reduces start up time.
 RUN pip --no-cache-dir install -U pip
 RUN pip --no-cache-dir install boto3==1.33.9 \
-    langchain==0.1.0 \
-    langchain-community==0.0.20 \
-    psycopg2-binary==2.9.6 \
-    pgvector==0.2.0 \
+    langchain==0.2.5 \
+    langchain-community==0.2.4 \
+    langchain-postgres==0.0.7 \
+    SQLAlchemy==2.0.28 \
+    psycopg[binary]==3.1.19 \
+    pgvector==0.2.5 \
     beautifulsoup4==4.12.3
 
 

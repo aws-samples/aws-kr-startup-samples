@@ -18,7 +18,7 @@ import urllib
 import numpy as np
 
 from langchain_community.document_loaders import ReadTheDocsLoader
-from langchain_community.vectorstores import PGVector
+from langchain_postgres import PGVector
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from credentials import get_credentials
@@ -38,7 +38,7 @@ def process_shard(shard, embeddings_model_endpoint_name, aws_region, collection_
     vectordb = PGVector.from_existing_index(
         embedding=embeddings,
         collection_name=collection_name,
-        connection_string=connection_string)
+        connection=connection_string)
 
     vectordb.add_documents(documents=shard)
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     db_host = secret['host']
 
     CONNECTION_STRING = PGVector.connection_string_from_db_params(
-        driver = 'psycopg2',
+        driver = 'psycopg',
         user = db_username,
         password = db_password,
         host = db_host,
@@ -123,8 +123,8 @@ if __name__ == "__main__":
 
         embeddings = create_sagemaker_embeddings_from_js_model(args.embeddings_model_endpoint_name, args.aws_region)
         _ = PGVector(collection_name=args.pgvector_collection_name,
-                     connection_string=CONNECTION_STRING,
-                     embedding_function=embeddings)
+                     connection=CONNECTION_STRING,
+                     embeddings=embeddings)
     else:
         logger.info(f"{path} file is not present, "
                     f"will wait for some other node to create the {args.pgvector_collection_name} collection")

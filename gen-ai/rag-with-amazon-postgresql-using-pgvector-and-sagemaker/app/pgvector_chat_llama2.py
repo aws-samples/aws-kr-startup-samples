@@ -11,7 +11,7 @@ import urllib
 
 import boto3
 
-from langchain_community.vectorstores import PGVector
+from langchain_postgres import PGVector
 from langchain_community.embeddings import SagemakerEndpointEmbeddings
 from langchain_community.embeddings.sagemaker_endpoint import EmbeddingsContentHandler
 
@@ -177,8 +177,8 @@ def build_chain():
 
     vectorstore = PGVector(
         collection_name=collection_name,
-        connection_string=CONNECTION_STRING,
-        embedding_function=_create_sagemaker_embeddings(embeddings_model_endpoint, region)
+        connection=CONNECTION_STRING,
+        embeddings=_create_sagemaker_embeddings(embeddings_model_endpoint, region)
     )
     retriever = vectorstore.as_retriever()
 
