@@ -60,9 +60,10 @@ class BedrockKnowledgeBaseStack(Stack):
       bucket=s3_bucket,
       data_source_name=kb_data_source_name,
       knowledge_base=kb_for_bedrock,
-      chunking_strategy=bedrock.ChunkingStrategy.FIXED_SIZE,
-      max_tokens=500,
-      overlap_percentage=20
+      chunking_strategy=bedrock.ChunkingStrategy.fixed_size(
+        max_tokens=500,
+        overlap_percentage=20
+      )
     )
 
     cdk.CfnOutput(self, 'KnowledgeBaseId',
