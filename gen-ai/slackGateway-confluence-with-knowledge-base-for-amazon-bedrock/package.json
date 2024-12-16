@@ -38,7 +38,6 @@
     "license-checker": "25.0.1",
     "prettier": "^3.2.5",
     "projen": "0.85.2",
-    "repolinter": "v0.11.2",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
