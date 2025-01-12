@@ -100,10 +100,10 @@ as well as metadata, such as version details, authorship, and any notes related 
    For example,
    <pre>
    {
-     "model_id": "llava-hf/llava-1.5-7b-hf",
+     "model_id": "deepseek-ai/DeepSeek-V2-Lite-Chat",
      "model_data_source": {
        "s3_bucket_name": "<i>sagemaker-us-east-1-123456789012</i>",
-       "s3_object_key_name": "<i>llava-1.5-7b-hf/model.tar.gz</i>"
+       "s3_object_key_name": "<i>deepseek-v2-lite-chat/model.tar.gz</i>"
      },
      "sagemaker_endpoint_settings": {
        "min_capacity": 1,
