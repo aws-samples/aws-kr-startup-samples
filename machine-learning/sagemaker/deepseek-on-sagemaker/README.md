@@ -147,6 +147,10 @@ Delete the CloudFormation stack by running the below command.
 
 Enjoy!
 
+## (Optional) Deploy the model using SageMaker Python SDK
+
+Following [deploy_deepseek_v2_lite_chat_on_sagemaker_endpoint.ipynb](src/notebook/deploy_deepseek_v2_lite_chat_on_sagemaker_endpoint.ipynb) on the SageMaker Studio, we can deploy the model to Amazon SageMaker.
+
 ## Example
 
 Following [deepseek_v2_lite_chat_realtime_endpoint.ipynb](src/notebook/deepseek_v2_lite_chat_realtime_endpoint.ipynb) on the SageMaker Studio, we can invoke the model with sample data.
