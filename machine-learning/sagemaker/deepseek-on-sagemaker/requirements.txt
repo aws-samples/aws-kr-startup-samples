@@ -1,0 +1,4 @@
+aws-cdk-lib==2.175.1
+constructs>=10.0.0,<11.0.0
+cdklabs.generative-ai-cdk-constructs==0.1.289
+# cdklabs.generative-ai-cdk-constructs==0.1.215
