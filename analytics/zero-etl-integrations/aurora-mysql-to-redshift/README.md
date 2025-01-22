@@ -409,9 +409,9 @@ Enjoy!
 
 ## References
 
- * [(User Guide) Amazon RDS zero-ETL integrations with Amazon Redshift](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/zero-etl.html)
-   * [Data filtering for Amazon RDS zero-ETL integrations with Amazon Redshift](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/zero-etl.filtering.html)
-   * [RDS zero-ETL integrations with Amazon Redshift - Limitations](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/zero-etl.html#zero-etl.reqs-lims)
+ * [(User Guide) Aurora zero-ETL integrations with Amazon Redshift](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/zero-etl.html)
+   * [Data filtering for Aurora zero-ETL integrations with Amazon Redshift](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/zero-etl.filtering.html)
+   * [Aurora zero-ETL integrations with Amazon Redshift - Limitations](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/zero-etl.html#zero-etl.reqs-lims)
  * [(Management Guide) Amazon Redshift - Zero-ETL integrations](https://docs.aws.amazon.com/redshift/latest/mgmt/zero-etl-using.html)
    * [Configure authorization for your Amazon Redshift data warehouse](https://docs.aws.amazon.com/redshift/latest/mgmt/zero-etl-using.redshift-iam.html)
  * [(AWS Blog) Getting started guide for near-real time operational analytics using Amazon Aurora zero-ETL integration with Amazon Redshift (2023-06-28)](https://aws.amazon.com/blogs/big-data/getting-started-guide-for-near-real-time-operational-analytics-using-amazon-aurora-zero-etl-integration-with-amazon-redshift/)
