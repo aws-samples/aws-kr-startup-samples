@@ -44,8 +44,8 @@ def main():
   parser.add_argument('--host', action='store', help='database host')
   parser.add_argument('-u', '--user', action='store', help='user name')
   parser.add_argument('-p', '--password', action='store', help='password')
-  parser.add_argument('--database', action='store', default='testdb',
-    help='database name (default: testdb)')
+  parser.add_argument('--database', action='store', default='demodb',
+    help='database name (default: demodb)')
   parser.add_argument('--table', action='store', default='retail_trans',
     help='table name (default: retail_trans)')
   parser.add_argument('--max-count', default=10, type=int, help='The max number of records to put.')
@@ -60,7 +60,7 @@ def main():
   db_url = DB_URL_FMT.format(user=options.user, password=options.password, host=options.host)
   if not options.dry_run:
     db = dataset.connect(db_url)
-    
+
   if options.create_table:
     sql_stmt = CREATE_TABLE_SQL_FMT.format(database=options.database, table=options.table)
     print(sql_stmt)
