@@ -51,6 +51,8 @@ class AuroraMysqlStack(Stack):
       vpc=vpc
     )
 
+    #XXX: Supported Regions and Aurora DB engines for zero-ETL integrations with Amazon Redshift
+    # https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.Aurora_Fea_Regions_DB-eng.Feature.Zero-ETL.html
     rds_engine = aws_rds.DatabaseClusterEngine.aurora_mysql(version=aws_rds.AuroraMysqlEngineVersion.VER_3_07_1)
 
     #XXX: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Reference.html#AuroraMySQL.Reference.Parameters.Cluster
@@ -145,6 +147,9 @@ class AuroraMysqlStack(Stack):
     )
 
 
+    cdk.CfnOutput(self, 'DBClusterArn',
+      value=self.rds_cluster.cluster_arn,
+      export_name=f'{self.stack_name}-DBClusterArn')
     cdk.CfnOutput(self, 'DBClusterEndpoint',
       value=self.rds_cluster.cluster_endpoint.socket_address,
       export_name=f'{self.stack_name}-DBClusterEndpoint')

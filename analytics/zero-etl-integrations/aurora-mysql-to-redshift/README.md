@@ -122,7 +122,7 @@ Secrets Manager displays the current version (`AWSCURRENT`) of the secret. To se
 
 1. Connect to the Aurora cluster writer node.
    <pre>
-    $ BASTION_HOST_ID=$(aws cloudformation describe-stacks --stack-name <i>AuroraMySQLClientHostStack</i> | \
+    $ BASTION_HOST_ID=$(aws cloudformation describe-stacks --stack-name <i>AuroraMySQLClientHostStack</i> --region ${CDK_DEFAULT_REGION} | \
     jq -r '.Stacks[0].Outputs | .[] | select(.OutputKey | endswith("EC2InstanceId")) | .OutputValue')
 
     $ aws ec2-instance-connect ssh --instance-id ${BASTION_HOST_ID} --os-user ec2-user
@@ -246,9 +246,15 @@ Secrets Manager displays the current version (`AWSCURRENT`) of the secret. To se
   }
   </pre>
 
-  :information_source: You can find out the Amazon Redshift namespace ARN by running the following.
+  > :information_source: You can find out the Amazon Aurora Cluster ARN by running the following.
   <pre>
-  aws cloudformation describe-stacks --stack-name <i>RedshiftServerlessStack</i> | \
+  aws cloudformation describe-stacks --stack-name <i>AuroraMySQLStack</i> --region <i>{region}</i> | \
+  jq -r '.Stacks[0].Outputs | .[] | select(.OutputKey | endswith("DBClusterArn")) | .OutputValue'
+  </pre>
+
+  > :information_source: You can find out the Amazon Redshift namespace ARN by running the following.
+  <pre>
+  aws cloudformation describe-stacks --stack-name <i>RedshiftServerlessStack</i> --region <i>{region}</i> | \
   jq -r '.Stacks[0].Outputs | .[] | select(.OutputKey | endswith("NamespaceNameArn")) | .OutputValue'
   </pre>
 
@@ -256,8 +262,7 @@ Secrets Manager displays the current version (`AWSCURRENT`) of the secret. To se
   run a AWS CLI command similar to the following.
 
   <pre>
-  (.venv) $ export CDK_DEFAULT_REGION=$(aws configure get region)
-  (.venv) $ export RSS_RESOURCE_ARN=$(aws cloudformation describe-stacks --stack-name <i>RedshiftServerlessStack</i> | \
+  (.venv) $ export RSS_RESOURCE_ARN=$(aws cloudformation describe-stacks --stack-name <i>RedshiftServerlessStack</i> --region ${CDK_DEFAULT_REGION} | \
   jq -r '.Stacks[0].Outputs | .[] | select(.OutputKey | endswith("NamespaceNameArn")) | .OutputValue')
   (.venv) $ aws redshift put-resource-policy \
                 --region ${CDK_DEFAULT_REGION} \
@@ -292,61 +297,61 @@ Secrets Manager displays the current version (`AWSCURRENT`) of the secret. To se
 #### (1) Load Data Into Amazon Aurora MySQL Cluster
 
   <pre>
-    $ export BASTION_HOST_ID=$(aws cloudformation describe-stacks --stack-name <i>AuroraMySQLClientHostStack</i> | jq -r '.Stacks[0].Outputs | .[] | select(.OutputKey | endswith("EC2InstanceId")) | .OutputValue')
+  $ BASTION_HOST_ID=$(aws cloudformation describe-stacks --stack-name <i>AuroraMySQLClientHostStack</i> --region ${CDK_DEFAULT_REGION} | jq -r '.Stacks[0].Outputs | .[] | select(.OutputKey | endswith("EC2InstanceId")) | .OutputValue')
 
-    $ aws ec2-instance-connect ssh --instance-id ${BASTION_HOST_ID} --os-user ec2-user
+  $ aws ec2-instance-connect ssh --instance-id ${BASTION_HOST_ID} --os-user ec2-user
 
-    [ec2-user@ip-172-31-7-186 ~]$ python3 gen_fake_mysql_data.py \
-                                    --database <i>your-database-name</i> \
-                                    --table <i>your-table-name</i> \
-                                    --user <i>user-name</i> \
-                                    --password <i>password</i> \
-                                    --host <i>db-cluster-name</i>.cluster-<i>xxxxxxxxxxxx</i>.<i>region-name</i>.rds.amazonaws.com \
-                                    --max-count 10
+  [ec2-user@ip-172-31-7-186 ~]$ python3 gen_fake_mysql_data.py \
+                                  --database <i>{your-database-name}</i> \
+                                  --table <i>{your-table-name}</i> \
+                                  --user <i>{user-name}</i> \
+                                  --password <i>{password}</i> \
+                                  --host <i>{db-cluster-name}</i>.cluster-<i>xxxxxxxxxxxx</i>.<i>{region-name}</i>.rds.amazonaws.com \
+                                  --max-count 10
   </pre>
 
   After filling data into the MySQL table, connect to the Aurora cluster writer node and run some queries.
 
   For example, retrieve some records.
-   <pre>
-    $ mysql -h<i>db-cluster-name</i>.cluster-<i>xxxxxxxxxxxx</i>.<i>region-name</i>.rds.amazonaws.com -uadmin -p
-    Enter password:
-    Welcome to the MariaDB monitor.  Commands end with ; or \g.
-    Your MySQL connection id is 20
-    Server version: 8.0.23 Source distribution
+  <pre>
+  $ mysql -h<i>db-cluster-name</i>.cluster-<i>xxxxxxxxxxxx</i>.<i>region-name</i>.rds.amazonaws.com -uadmin -p
+  Enter password:
+  Welcome to the MariaDB monitor.  Commands end with ; or \g.
+  Your MySQL connection id is 20
+  Server version: 8.0.23 Source distribution
 
-    Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
+  Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
 
-    Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+  Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
 
-    MySQL [(none)]> USE demodb;
-    Database changed
+  MySQL [(none)]> USE demodb;
+  Database changed
 
-    MySQL [demodb]> SELECT count(*) FROM retail_trans;
-    +----------+
-    | count(*) |
-    +----------+
-    |      10  |
-    +----------+
-    1 row in set (0.01 sec)
+  MySQL [demodb]> SELECT count(*) FROM retail_trans;
+  +----------+
+  | count(*) |
+  +----------+
+  |      10  |
+  +----------+
+  1 row in set (0.01 sec)
 
-    MySQL [demodb]> SELECT * FROM retail_trans LIMIT 10;
-    +----------+--------------+----------+------------+--------+--------+---------------------+
-    | trans_id | customer_id  | event    | sku        | amount | device | trans_datetime      |
-    +----------+--------------+----------+------------+--------+--------+---------------------+
-    |        1 | 460104780596 | cart     | IQ6879MMTB |      8 | mobile | 2023-01-16 06:08:06 |
-    |        2 | 758933025159 | like     | RL1573WWLT |      1 | tablet | 2023-01-16 06:17:21 |
-    |        3 | 754384589074 | like     | PX4135DYNT |      1 | mobile | 2023-01-16 06:08:52 |
-    |        4 | 602811489876 | purchase | PI7913TREO |     66 | pc     | 2023-01-16 06:01:07 |
-    |        5 | 222732129586 | like     | AS6987HGLN |      1 | mobile | 2023-01-16 06:09:06 |
-    |        6 | 387378799012 | list     | AI6161BEFX |      1 | pc     | 2023-01-16 06:10:27 |
-    |        7 | 843982894991 | cart     | DA7930CJBR |     81 | pc     | 2023-01-16 06:11:41 |
-    |        8 | 818177069814 | like     | JS6166YPTE |      1 | pc     | 2023-01-16 06:17:08 |
-    |        9 | 248083404876 | visit    | AS8552DVOO |      1 | pc     | 2023-01-16 06:24:39 |
-    |       10 | 731184658511 | visit    | XZ9997LSJN |      1 | tablet | 2023-01-16 06:12:18 |
-    +----------+--------------+----------+------------+--------+--------+---------------------+
-    10 rows in set (0.00 sec)
-   </pre>
+  MySQL [demodb]> SELECT * FROM retail_trans LIMIT 10;
+  +----------+--------------+----------+------------+--------+--------+---------------------+
+  | trans_id | customer_id  | event    | sku        | amount | device | trans_datetime      |
+  +----------+--------------+----------+------------+--------+--------+---------------------+
+  |        1 | 460104780596 | cart     | IQ6879MMTB |      8 | mobile | 2023-01-16 06:08:06 |
+  |        2 | 758933025159 | like     | RL1573WWLT |      1 | tablet | 2023-01-16 06:17:21 |
+  |        3 | 754384589074 | like     | PX4135DYNT |      1 | mobile | 2023-01-16 06:08:52 |
+  |        4 | 602811489876 | purchase | PI7913TREO |     66 | pc     | 2023-01-16 06:01:07 |
+  |        5 | 222732129586 | like     | AS6987HGLN |      1 | mobile | 2023-01-16 06:09:06 |
+  |        6 | 387378799012 | list     | AI6161BEFX |      1 | pc     | 2023-01-16 06:10:27 |
+  |        7 | 843982894991 | cart     | DA7930CJBR |     81 | pc     | 2023-01-16 06:11:41 |
+  |        8 | 818177069814 | like     | JS6166YPTE |      1 | pc     | 2023-01-16 06:17:08 |
+  |        9 | 248083404876 | visit    | AS8552DVOO |      1 | pc     | 2023-01-16 06:24:39 |
+  |       10 | 731184658511 | visit    | XZ9997LSJN |      1 | tablet | 2023-01-16 06:12:18 |
+  +----------+--------------+----------+------------+--------+--------+---------------------+
+  10 rows in set (0.00 sec)
+  </pre>
 
 #### (2) Create a database from the integration in Amazon Redshift
 
@@ -415,6 +420,7 @@ Enjoy!
    * [Aurora zero-ETL integrations with Amazon Redshift - Limitations](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/zero-etl.html#zero-etl.reqs-lims)
  * [(Management Guide) Amazon Redshift - Zero-ETL integrations](https://docs.aws.amazon.com/redshift/latest/mgmt/zero-etl-using.html)
    * [Configure authorization for your Amazon Redshift data warehouse](https://docs.aws.amazon.com/redshift/latest/mgmt/zero-etl-using.redshift-iam.html)
+ * [Supported Regions and Aurora DB engines for zero-ETL integrations with Amazon Redshift](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.Aurora_Fea_Regions_DB-eng.Feature.Zero-ETL.html)
  * [(AWS Blog) Getting started guide for near-real time operational analytics using Amazon Aurora zero-ETL integration with Amazon Redshift (2023-06-28)](https://aws.amazon.com/blogs/big-data/getting-started-guide-for-near-real-time-operational-analytics-using-amazon-aurora-zero-etl-integration-with-amazon-redshift/)
  * [(AWS Blog) Unlock insights on Amazon RDS for MySQL data with zero-ETL integration to Amazon Redshift (2024-03-21)](https://aws.amazon.com/blogs/big-data/unlock-insights-on-amazon-rds-for-mysql-data-with-zero-etl-integration-to-amazon-redshift/)
  * [(Workshop) Zero ETL Integration](https://catalog.us-east-1.prod.workshops.aws/workshops/fc6069e2-a3a7-475c-9592-9f62843b3ffb)
