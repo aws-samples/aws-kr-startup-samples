@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS {database}.{table} (
 ) ENGINE=InnoDB AUTO_INCREMENT=0;
 '''
 
-DROP_TABLE_SQL_FMT = '''DROP TABLE IF NOT EXISTS {database}.{table};'''
+DROP_TABLE_SQL_FMT = '''DROP TABLE IF EXISTS {database}.{table};'''
 
 INSERT_SQL_FMT = '''INSERT INTO {database}.{table} (customer_id, event, sku, amount, device, trans_datetime) VALUES("{customer_id}", "{event}", "{sku}", {amount}, "{device}", "{trans_datetime}");'''
 
@@ -92,7 +92,7 @@ def main():
     sql_stmt = INSERT_SQL_FMT.format(database=options.database, table=options.table, **json_record)
 
     if options.dry_run:
-      print(record, file=sys.stderr)
+      print(sql_stmt, file=sys.stderr)
     else:
       db.query(sql_stmt)
 
