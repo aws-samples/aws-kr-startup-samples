@@ -100,6 +100,7 @@ def main():
         print(sql_stmt)
         print('[INFO] {} records are processed'.format(cnt+1), file=sys.stderr)
       time.sleep(3)
+  print('[INFO] Total {} records are processed'.format(cnt+1), file=sys.stderr)
 
 
 if __name__ == '__main__':
