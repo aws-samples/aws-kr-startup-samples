@@ -283,7 +283,7 @@ Secrets Manager displays the current version (`AWSCURRENT`) of the secret. To se
      }
    }
   </pre>
-  > :information_source: [Data filtering for Amazon RDS zero-ETL integrations with Amazon Redshift](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/zero-etl.filtering.html)
+  > :information_source: [Data filtering for Aurora zero-ETL integrations with Amazon Redshift](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/zero-etl.filtering.html)
 
   Now let's create the Zero-ETL integration.
   It takes a few minutes to change the status of the Zero-ETL integration from **Creating** to **Active**.
