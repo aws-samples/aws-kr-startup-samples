@@ -235,9 +235,10 @@ Secrets Manager displays the current version (`AWSCURRENT`) of the secret. To se
           "Service": "redshift.amazonaws.com"
         },
         "Action": "redshift:AuthorizeInboundIntegration",
+        "Resource": "arn:aws:redshift-serverless:<i>{region}</i>:<i>{account-id}</i>:namespace/<i>namespace-uuid</i>",
         "Condition": {
           "StringEquals": {
-            "aws:SourceArn": "arn:aws:redshift-serverless:<i>{region}</i>:<i>{account-id}</i>:namespace/<i>namespace-uuid</i>"
+            "aws:SourceArn": "arn:aws:rds:<i>{region}</i>:<i>{account-id}</i>:cluster:<i>{rds-cluster-name}</i>"
           }
         }
       }
