@@ -420,6 +420,7 @@ Enjoy!
    * [Aurora zero-ETL integrations with Amazon Redshift - Limitations](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/zero-etl.html#zero-etl.reqs-lims)
  * [(Management Guide) Amazon Redshift - Zero-ETL integrations](https://docs.aws.amazon.com/redshift/latest/mgmt/zero-etl-using.html)
    * [Configure authorization for your Amazon Redshift data warehouse](https://docs.aws.amazon.com/redshift/latest/mgmt/zero-etl-using.redshift-iam.html)
+   * [Creating destination databases in Amazon Redshift](https://docs.aws.amazon.com/redshift/latest/mgmt/zero-etl-using.creating-db.html)
  * [Supported Regions and Aurora DB engines for zero-ETL integrations with Amazon Redshift](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.Aurora_Fea_Regions_DB-eng.Feature.Zero-ETL.html)
  * [(AWS Blog) Getting started guide for near-real time operational analytics using Amazon Aurora zero-ETL integration with Amazon Redshift (2023-06-28)](https://aws.amazon.com/blogs/big-data/getting-started-guide-for-near-real-time-operational-analytics-using-amazon-aurora-zero-etl-integration-with-amazon-redshift/)
  * [(AWS Blog) Unlock insights on Amazon RDS for MySQL data with zero-ETL integration to Amazon Redshift (2024-03-21)](https://aws.amazon.com/blogs/big-data/unlock-insights-on-amazon-rds-for-mysql-data-with-zero-etl-integration-to-amazon-redshift/)
