@@ -1,0 +1,11 @@
+{
+  "model_id": "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+  "model_data_source": {
+    "s3_bucket_name": "<s3-bucket-name>",
+    "s3_object_key_name": "<model-artifacts-path (e.g., `torch-model/model.tar.gz`, or `torch-model/` >"
+  },
+  "sagemaker_endpoint_settings": {
+    "min_capacity": 1,
+    "max_capacity": 2
+  }
+}
