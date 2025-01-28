@@ -10,6 +10,10 @@ SagemMaker Real-time inference is ideal for inference workloads where you have r
 You can deploy your model to SageMaker hosting services and get an endpoint that can be used for inference.
 These endpoints are fully managed and support autoscaling.
 
+Here's a sample architecture diagram for running the DeepSeek Inference Server on AWS.
+
+![](./deepseek-on-sagemaker-arch.svg)
+
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
 This project is set up like a standard Python project.  The initialization
