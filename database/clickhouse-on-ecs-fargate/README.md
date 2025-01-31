@@ -1,7 +1,9 @@
 
 # Clickhouse on AWS Fargate with Amazon EFS for Data Persistence
 
-This is a CDK Python project to deploy [Clickhouse](https://clickhouse.com/docs) running on **AWS ECS Fargate** with **Amazon EFS** for data persistence.
+This is a CDK Python project to deploy [ClickHouse®](https://clickhouse.com/docs) running on **AWS ECS Fargate** with **Amazon EFS** for data persistence.
+
+ClickHouse® is a high-performance, column-oriented SQL database management system (DBMS) for online analytical processing (OLAP).
 
 ![clickhouse-on-ecs-fargate-arch](./clickhouse-on-ecs-fargate-arch.svg)
 
