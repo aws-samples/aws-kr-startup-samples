@@ -1,0 +1,11 @@
+{
+  "model_id": "deepseek-ai/Janus-Pro-7B",
+  "model_data_source": {
+    "s3_bucket_name": "sagemaker-us-east-1-123456789012",
+    "s3_object_key_name": "janus-pro-7b/model.tar.gz"
+  },
+  "sagemaker_endpoint_settings": {
+    "min_capacity": 1,
+    "max_capacity": 4
+  }
+}
