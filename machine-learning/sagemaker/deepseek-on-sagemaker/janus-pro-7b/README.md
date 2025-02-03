@@ -214,3 +214,5 @@ Following [janus_pro_7b_realtime_endpoint.ipynb](src/notebook/janus_pro_7b_realt
  * [deepseek-ai/Janus-Pro-7B](https://huggingface.co/deepseek-ai/Janus-Pro-7B)
  * [DeepSeek in HuggingFace](https://huggingface.co/deepseek-ai)
  * [(GitHub) Janus](https://github.com/deepseek-ai/Janus/) - Unified Multimodal Understanding and Generation Models
+ * 🛠️ [sagemaker-pytorch-inference-toolkit](https://github.com/aws/sagemaker-pytorch-inference-toolkit) - SageMaker PyTorch Inference Toolkit is an open-source library for serving PyTorch models on Amazon SageMaker.
+   * [sagemaker-pytorch-inference-toolkit parameters](https://github.com/aws/sagemaker-pytorch-inference-toolkit/blob/master/src/sagemaker_pytorch_serving_container/ts_parameters.py) - List of environment variables for SageMaker Endpoint
