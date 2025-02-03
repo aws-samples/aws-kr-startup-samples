@@ -6,6 +6,7 @@ import base64
 from io import BytesIO
 import datetime
 import json
+import os
 from typing import List
 
 import numpy as np
@@ -20,11 +21,16 @@ from janus.models import (
 )
 from janus.utils.io import load_pil_images
 from PIL import Image
+from huggingface_hub import snapshot_download
 
 CUDA_DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 def model_fn(model_dir, context=None):
+  if os.environ.get('HF_SNAPSHOT_DOWNLOAD_ENABLED', 'false').lower() == 'true':
+      model_id = os.environ['HF_MODEL_ID']
+      model_dir = snapshot_download(model_id, force_download=False, max_workers=1)
+
   try:
     processor = VLChatProcessor.from_pretrained(model_dir)
 
