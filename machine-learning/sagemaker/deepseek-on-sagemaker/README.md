@@ -4,10 +4,11 @@ This repository contains a set of example CDK Python projects to host [DeepSeek 
 
 You can deploy the model to SageMaker hosting services and get an endpoint that can be used for inference. These endpoints are fully managed and support autoscaling.
 
-| CDK Project  | Hugging Face Model Card |
-|--------------|-------------------------|
-| [deepseek-r1-distill-qwen-14b](./deepseek-r1-distill-qwen-14b/) | [deepseek-ai/DeepSeek-R1-Distill-Qwen-14B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-14B) |
-| [deepseek-v2-lite-chat](./deepseek-v2-lite-chat/) | [deepseek-ai/DeepSeek-V2-Lite-Chat](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat) |
+| CDK Project  | Hugging Face Model Card | Description |
+|--------------|-------------------------|-------------|
+| [deepseek-r1-distill-qwen-14b](./deepseek-r1-distill-qwen-14b/) | [deepseek-ai/DeepSeek-R1-Distill-Qwen-14B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-14B) | Reasoning model |
+| [deepseek-v2-lite-chat](./deepseek-v2-lite-chat/) | [deepseek-ai/DeepSeek-V2-Lite-Chat](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat) | Mixture-of-Experts (MoE) Language model |
+| [janus-pro-7b](./janus-pro-7b/) | [deepseek-ai/Janus-Pro-7B](https://huggingface.co/deepseek-ai/Janus-Pro-7B) | Visual Question Answering and Text-to-Image generation |
 
 Enjoy!
 
