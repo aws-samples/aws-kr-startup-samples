@@ -113,6 +113,16 @@ as well as metadata, such as version details, authorship, and any notes related 
    </pre>
    :information_source: This CDK project uses [`cdklabs.generative-ai-cdk-constructs`](https://awslabs.github.io/generative-ai-cdk-constructs/) to deploy SageMaker Endpoints. `cdklabs.generative-ai-cdk-constructs` library assumes the model artifact (`model.tar.gz`) is stored in a bucket on S3 with the word "`sagemaker`" or "`SageMaker`". Therefore, `s3_bucket_name` must include the word "`sagemakr`" or "`SageMaker`". (e.g., `sagemaker-us-east-1-123456789012`, `SageMaker-us-east-1-123456789012`).
 
+3. (Optional) Bootstrap AWS environment for AWS CDK app
+
+   Also, before any AWS CDK app can be deployed, you have to bootstrap your AWS environment to create certain AWS resources that the AWS CDK CLI (Command Line Interface) uses to deploy your AWS CDK app.
+
+   Run the cdk bootstrap command to bootstrap the AWS environment.
+
+   ```
+   (.venv) $ cdk bootstrap
+   ```
+
 ## Deploy
 
 At this point you can now synthesize the CloudFormation template for this code.
