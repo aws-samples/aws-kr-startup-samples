@@ -7,5 +7,6 @@
   "sagemaker_endpoint_settings": {
     "min_capacity": 1,
     "max_capacity": 2
-  }
+  },
+  "sagemaker_instance_type": "ml.g5.12xlarge"
 }

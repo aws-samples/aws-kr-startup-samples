@@ -45,11 +45,12 @@ class DeepSeekV2LiteChatRealtimeEndpointStack(Stack):
     model_id = self.node.try_get_context('model_id') or 'deepseek-ai/DeepSeek-V2-Lite-Chat'
     sagemaker_endpoint_name = name_from_base(model_id.lower().replace('/', '-').replace('.', '-'))
 
+    instance_type = self.node.try_get_context('sagemaker_instance_type') or 'ml.g5.12xlarge'
     endpoint_settings = self.node.try_get_context('sagemaker_endpoint_settings') or {}
 
     self.sagemaker_endpoint = CustomSageMakerEndpoint(self, 'DJLSageMakerEndpoint',
       model_id=model_id,
-      instance_type=SageMakerInstanceType.ML_G5_12_XLARGE,
+      instance_type=SageMakerInstanceType.of(instance_type),
       # XXX: Available Deep Learing Container (DLC) Image List
       # https://github.com/aws/deep-learning-containers/blob/master/available_images.md
       # e.g., '763104351884.dkr.ecr.us-east-1.amazonaws.com/djl-inference:0.30.0-lmi12.0.0-cu124'

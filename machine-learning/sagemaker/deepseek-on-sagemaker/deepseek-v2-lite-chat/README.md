@@ -108,7 +108,8 @@ as well as metadata, such as version details, authorship, and any notes related 
      "sagemaker_endpoint_settings": {
        "min_capacity": 1,
        "max_capacity": 4
-     }
+     },
+     "sagemaker_instance_type": "ml.g5.12xlarge"
    }
    </pre>
    :information_source: This CDK project uses [`cdklabs.generative-ai-cdk-constructs`](https://awslabs.github.io/generative-ai-cdk-constructs/) to deploy SageMaker Endpoints. `cdklabs.generative-ai-cdk-constructs` library assumes the model artifact (`model.tar.gz`) is stored in a bucket on S3 with the word "`sagemaker`" or "`SageMaker`". Therefore, `s3_bucket_name` must include the word "`sagemakr`" or "`SageMaker`". (e.g., `sagemaker-us-east-1-123456789012`, `SageMaker-us-east-1-123456789012`).
@@ -165,6 +166,37 @@ Following [deploy_deepseek_v2_lite_chat_on_sagemaker_endpoint.ipynb](src/noteboo
 
 Following [deepseek_v2_lite_chat_realtime_endpoint.ipynb](src/notebook/deepseek_v2_lite_chat_realtime_endpoint.ipynb) on the SageMaker Studio, we can invoke the model with sample data.
 
+## How to Deploy DeepSeek V3 Model on SageMaker Endpoint Using This CDK Python Project
+
+To deploy the DeepSeek V3 model using this example, please follow these instructions:
+
+1. When creating **model.tar.gz**, configure the `option.model_id=deepseek-ai/DeepSeek-V3` in the **serving.properties** file as shown below:
+    <pre>
+    engine=Python
+    option.model_id=<i>deepseek-ai/DeepSeek-V3</i>
+    option.rolling_batch=vllm
+    option.max_model_len=8192
+    option.tensor_parallel_size=1
+    trust_remote_code=True
+    </pre>
+2. Configure the DeepSeek V3 settings in **cdk.context.json** by specifying the `model_id` and `sagemaker_instance_type` as follows:
+   <pre>
+   {
+     "model_id": "deepseek-ai/DeepSeek-V3",
+     "model_data_source": {
+       "s3_bucket_name": "<i>sagemaker-us-east-1-123456789012</i>",
+       "s3_object_key_name": "<i>deepseek-v3/model.tar.gz</i>"
+     },
+     "sagemaker_endpoint_settings": {
+       "min_capacity": 1,
+       "max_capacity": 4
+     },
+     "sagemaker_instance_type": "<i>ml.p5e.48xlarge</i>"
+   }
+   </pre>
+
+Once you've completed these configuration steps, proceed with the deployment process according to the main project instructions.
+
 ## References
 
  * [DeepSeek: A Strong, Economical, and Efficient Mixture-of-Experts Language Model](https://www.deepseek.com/)
@@ -177,6 +209,7 @@ Following [deepseek_v2_lite_chat_realtime_endpoint.ipynb](src/notebook/deepseek_
  * [SageMaker Python SDK - Hugging Face](https://sagemaker.readthedocs.io/en/stable/frameworks/huggingface/index.html)
  * [Docker Registry Paths and Example Code for Pre-built SageMaker Docker images](https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html)
  * [Model Directory Structure for Deploying Pre-trained PyTorch Models](https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure)
+ * [Amazon EC2 Instance types](https://aws.amazon.com/ec2/instance-types/)
  * 🛠️ [sagemaker-huggingface-inference-toolkit](https://github.com/aws/sagemaker-huggingface-inference-toolkit) - SageMaker Hugging Face Inference Toolkit is an open-source library for serving 🤗 [Transformers](https://huggingface.co/docs/transformers/index) and [Diffusers](https://huggingface.co/docs/diffusers/index) models on Amazon SageMaker.
  * 🛠️ [sagemaker-inference-toolkit](https://github.com/aws/sagemaker-inference-toolkit) - The SageMaker Inference Toolkit implements a model serving stack and can be easily added to any Docker container, making it [deployable to SageMaker](https://aws.amazon.com/sagemaker/deploy/).
    * [sagemaker-inference-toolkit parameters](https://github.com/aws/sagemaker-inference-toolkit/blob/master/src/sagemaker_inference/parameters.py) - List of environment variables for SageMaker Endpoint
