@@ -5,6 +5,7 @@ on Amazon SageMaker Real-time Inference Endpoint.
 
 [DeepSeek V2 Lite Chat](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat) is a strong Mixture-of-Experts (MoE)
 language model characterized by economical training and efficient inference.
+> Please see [here](#how-to-deploy-deepseek-v3-model-on-sagemaker-endpoint-using-this-cdk-python-project) for information on deploying the [DeepSeek V3](https://huggingface.co/deepseek-ai/DeepSeek-V3) model.
 
 SagemMaker Real-time inference is ideal for inference workloads where you have real-time, interactive, low latency requirements.
 You can deploy your model to SageMaker hosting services and get an endpoint that can be used for inference.
