@@ -22,7 +22,7 @@ SageMaker Studio provides a convenient platform to host the Streamlit web applic
    export AWS_REGION=us-east-1
    export OPENSEARCH_DOMAIN_ENDPOINT="your-opensearch-url (http:// ...)"
    export OPENSEARCH_INDEX="llm_rag_embeddings"
-   export EMBEDDING_ENDPOINT_NAME="your-sagemakr-endpoint-for-embedding-model"
+   export EMBEDDING_ENDPOINT_NAME="your-sagemaker-endpoint-for-embedding-model"
    export TEXT2TEXT_ENDPOINT_NAME="your-sagemaner-endpoint-for-text-generation-model"
    ```
 4. When the application runs successfully, you’ll see an output similar to the following (the IP addresses you will see will be different from the ones shown in this example). Note the port number (typically `8501`) from the output to use as part of the URL for app in the next step.

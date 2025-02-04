@@ -22,7 +22,7 @@ SageMaker Studio provides a convenient platform to host the Streamlit web applic
    export AWS_REGION=us-east-1
    export PGVECTOR_SECRET_ID="your-postgresql-secret-id"
    export COLLECTION_NAME="llm_rag_embeddings"
-   export EMBEDDING_ENDPOINT_NAME="your-sagemakr-endpoint-for-embedding-model"
+   export EMBEDDING_ENDPOINT_NAME="your-sagemaker-endpoint-for-embedding-model"
    export TEXT2TEXT_ENDPOINT_NAME="your-sagemaner-endpoint-for-text-generation-model"
    ```
    :information_source: `COLLECTION_NAME` can be found in [data ingestion to vectordb](../data_ingestion_to_vectordb/data_ingestion_to_pgvector.ipynb) step.
