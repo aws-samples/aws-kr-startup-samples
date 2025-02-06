@@ -1,0 +1,43 @@
+{
+  "sagemaker_endpoint_name": "deepseek-r1-llama-8b-ep",
+  "sagemaker_endpoint_config": {
+    "instance_type": "ml.g5.2xlarge",
+    "managed_instance_scaling": {
+      "min_instance_count": 0,
+      "max_instance_count": 2,
+      "status": "ENABLED"
+    },
+    "routing_config": {
+      "routing_strategy": "LEAST_OUTSTANDING_REQUESTS"
+    }
+  },
+  "deep_learning_container_image_uri": {
+    "repository_name": "djl-inference",
+    "tag": "0.31.0-lmi13.0.0-cu124"
+  },
+  "models": {
+    "deepseek-r1-llama-8b": {
+      "HF_MODEL_ID": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
+      "OPTION_MAX_MODEL_LEN": "10000",
+      "OPTION_GPU_MEMORY_UTILIZATION": "0.95",
+      "OPTION_ENABLE_STREAMING": "false",
+      "OPTION_ROLLING_BATCH": "auto",
+      "OPTION_MODEL_LOADING_TIMEOUT": "3600",
+      "OPTION_PAGED_ATTENTION": "false",
+      "OPTION_DTYPE": "fp16"
+    }
+  },
+  "inference_components": {
+    "ic-deepseek-r1-llama-8b": {
+      "model_name": "deepseek-r1-llama-8b",
+      "compute_resource_requirements": {
+        "number_of_accelerator_devices_required": 1,
+        "number_of_cpu_cores_required": 2,
+        "min_memory_required_in_mb": 1024
+      },
+      "runtime_config": {
+        "copy_count": 1
+      }
+    }
+  }
+}
