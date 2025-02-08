@@ -1,0 +1,13 @@
+{
+  "jumpstart_model_info": {
+    "model_id": "deepseek-llm-r1-distill-qwen-32b",
+    "version": "1.0.0"
+  },
+  "sagemaker_endpoint_config": {
+    "instance_type": "ml.g6.12xlarge",
+    "managed_instance_scaling": {
+      "min_instance_count": 1,
+      "max_instance_count": 2
+    }
+  }
+}
