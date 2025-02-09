@@ -152,6 +152,10 @@ Delete the CloudFormation stack by running the below command.
 (.venv) $ cdk destroy --force --all
 ```
 
+## (Optional) Deploy the model using SageMaker Python SDK
+
+Following this [example notebook](./src/notebook/deploy-DeepSeek-R1-Distill-Llama-8B-with-scale-to-zero-autoscaling.ipynb) on the SageMaker Studio, we can deploy the model to Amazon SageMaker.
+
 ## Useful commands
 
  * `cdk ls`          list all stacks in the app
