@@ -119,6 +119,10 @@ Delete the CloudFormation stack by running the below command.
 
 Enjoy!
 
+## Example
+
+Following [deepseek_r1_32b_realtime_endpoint.ipynb](src/notebook/deepseek_r1_32b_realtime_endpoint.ipynb) on the SageMaker Studio, we can invoke the model with sample data.
+
 ## References
 
  * [(AWS Machine Learning Blog) DeepSeek-R1 model now available in Amazon Bedrock Marketplace and Amazon SageMaker JumpStart (2025-01-30)](https://aws.amazon.com/blogs/machine-learning/deepseek-r1-model-now-available-in-amazon-bedrock-marketplace-and-amazon-sagemaker-jumpstart/)
