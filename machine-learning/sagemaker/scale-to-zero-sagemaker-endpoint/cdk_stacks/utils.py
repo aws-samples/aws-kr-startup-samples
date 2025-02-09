@@ -10,7 +10,7 @@ random.seed(47)
 
 def name_from_base(base, max_length=63):
   unique = ''.join(random.sample(string.digits, k=7))
-  max_length = 63
+  max_length = min(max_length, 63)
   trimmed_base = base[: max_length - len(unique) - 1]
 
   return "{}-{}".format(trimmed_base, unique)
