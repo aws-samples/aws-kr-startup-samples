@@ -23,7 +23,7 @@ random.seed(47)
 
 def name_from_base(base, max_length=63):
   unique = ''.join(random.sample(string.digits, k=7))
-  max_length = 63
+  max_length = min(max_length, 63 - len('jumpstart-'))
   trimmed_base = base[: max_length - len(unique) - 1]
   return "{}-{}".format(trimmed_base, unique)
 
@@ -35,8 +35,10 @@ class DeepSeekR1JumpStartEndpointStack(Stack):
 
     jumpstart_model = self.node.try_get_context('jumpstart_model_info')
     model_id, model_version = jumpstart_model.get('model_id', 'deepseek-llm-r1-distill-qwen-32b'), jumpstart_model.get('version', '1.0.0')
-    model_name = f"{model_id.upper().replace('-', '_')}_{model_version.replace('.', '_')}"
+    model_version = model_version if model_version != "*" else '1.0.0'
 
+    HUB_CONTENT_ARN = f"arn:aws:sagemaker:{self.region}:aws:hub-content/SageMakerPublicHub/Model/{model_id}/{model_version}"
+    model_name = f"{model_id.upper().replace('-', '_')}_{model_version.replace('.', '_')}"
     endpoint_name = name_from_base(model_id.lower().replace('/', '-').replace('.', '-'))
 
     endpoint_config = self.node.try_get_context('sagemaker_endpoint_config')
@@ -50,8 +52,28 @@ class DeepSeekR1JumpStartEndpointStack(Stack):
       instance_type=SageMakerInstanceType.of(instance_type),
       endpoint_name=endpoint_name
     )
+    cdk.Tags.of(self.sagemaker_endpoint).add("sagemaker-studio:hub-content-arn", HUB_CONTENT_ARN)
 
-    self.sagemaker_endpoint.cfn_model.add_override("Properties.ModelName", endpoint_name)
+    cfn_model = self.sagemaker_endpoint.cfn_model
+
+    #XXX: In order to register a SageMaker endpoint with Amazon Bedrock,
+    # there must be no unexpected environment variables in your model.
+    # The expected environment variables are
+    #  SAGEMAKER_PROGRAM,
+    #  HF_MODEL_ID,
+    #  MODEL_CACHE_ROOT,
+    #  SAGEMAKER_ENV,
+    #  ENDPOINT_SERVER_TIMEOUT,
+    #  NUM_SHARD,
+    #  SAGEMAKER_MODEL_SERVER_WORKERS
+    cfn_model.add_deletion_override("Properties.PrimaryContainer.Environment.SAGEMAKER_CONTAINER_LOG_LEVEL")
+    cfn_model.add_deletion_override("Properties.PrimaryContainer.Environment.SAGEMAKER_MODEL_SERVER_TIMEOUT")
+
+    # The followings are optional
+    cfn_model.add_override("Properties.ModelName", endpoint_name)
+
+    cdk.Tags.of(cfn_model).add("sagemaker-sdk:bedrock", "compatible")
+    cdk.Tags.of(cfn_model).add("sagemaker-studio:hub-content-arn", HUB_CONTENT_ARN)
 
 
     cdk.CfnOutput(self, 'JumpStartModelId',
@@ -69,3 +91,6 @@ class DeepSeekR1JumpStartEndpointStack(Stack):
     cdk.CfnOutput(self, 'EndpointArn',
       value=self.sagemaker_endpoint.endpoint_arn,
       export_name=f'{self.stack_name}-EndpointArn')
+    cdk.CfnOutput(self, 'HubContentARN',
+      value=HUB_CONTENT_ARN,
+      export_name=f'{self.stack_name}-HubContentARN')
