@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS {database}.{table} (
 ) ENGINE=InnoDB AUTO_INCREMENT=0;
 '''
 
-DROP_TABLE_SQL_FMT = '''DROP TABLE IF NOT EXISTS {database}.{table};'''
+DROP_TABLE_SQL_FMT = '''DROP TABLE IF EXISTS {database}.{table};'''
 
 INSERT_SQL_FMT = '''INSERT INTO {database}.{table} (customer_id, event, sku, amount, device, trans_datetime) VALUES("{customer_id}", "{event}", "{sku}", {amount}, "{device}", "{trans_datetime}");'''
 
@@ -60,7 +60,7 @@ def main():
   db_url = DB_URL_FMT.format(user=options.user, password=options.password, host=options.host)
   if not options.dry_run:
     db = dataset.connect(db_url)
-    
+
   if options.create_table:
     sql_stmt = CREATE_TABLE_SQL_FMT.format(database=options.database, table=options.table)
     print(sql_stmt)
