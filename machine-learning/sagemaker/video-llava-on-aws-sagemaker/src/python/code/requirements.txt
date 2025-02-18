@@ -1,8 +1,5 @@
 accelerate==0.32.1
 av==12.2.0
-bitsandbytes==0.43.1
+bitsandbytes==0.45.2 #==0.43.1
 sentencepiece==0.2.0
-
-# Make sure you have 'transformers>=4.41.0,<4.42.0'.
-# Otherwise sagemaker.huggingface.HuggingFaceModel will fail to load the model.
-transformers==4.41.2
+transformers==4.48.0
