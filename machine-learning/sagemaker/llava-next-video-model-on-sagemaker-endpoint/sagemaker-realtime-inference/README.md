@@ -72,7 +72,19 @@ as well as metadata, such as version details, authorship, and any notes related 
    $ mkdir -p model
    ```
 
-   (2) Create `model.tar.gz` with model artifacts including your custom [inference scripts](./src/python/code/).
+   (2) Run the following python code to download OpenAI Whisper model artifacts from Hugging Face model hub.
+   ```python
+   from huggingface_hub import snapshot_download
+   from pathlib import Path
+
+   model_dir = Path('model')
+   model_dir.mkdir(exist_ok=True)
+
+   model_id = "llava-hf/LLaVA-NeXT-Video-7B-hf"
+   snapshot_download(model_id, local_dir=model_dir)
+   ```
+
+   (3) Create `model.tar.gz` with model artifacts including your custom [inference scripts](./src/python/code/).
    ```
    $ cp -rp src/python/code model
    $ tree model
@@ -80,22 +92,26 @@ as well as metadata, such as version details, authorship, and any notes related 
     └── code
         ├── inference.py
         └── requirements.txt
+    ...
 
     2 directories, 2 files
 
-   $ tar --exclude=".ipynb_checkpoints" -czf model.tar.gz -C model .
+   $ tar --exclude=".ipynb_checkpoints" -czf model.tar.gz --use-compress-program=pigz -C model .
    $ tar -tvf model.tar.gz
     drwxr-xr-x  0 wheel staff       0 Jul 19 13:44 ./
     drwxr-xr-x  0 wheel staff       0 Jul 19 10:33 ./code/
     -rw-r--r--  0 wheel staff     109 Jul 19 13:30 ./code/requirements.txt
     -rw-r--r--  0 wheel staff    6110 Jul 19 12:17 ./code/inference.py
+    ...
    ```
+
+   :information_source: `pigz` is used to speed up the `tar` command. More information on how to install `pigz` can be found [here](#pigz-installation-guide).
 
    :information_source: The LLaVA-NeXT-Video model, which is used for making predictions, is downloaded from the HuggingFace Hub when the `model_fn` function in the `inference.py` file is called.
 
    :information_source: For more information about the directory structure of `model.tar.gz`, see [**Model Directory Structure for Deploying Pre-trained PyTorch Models**](https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure)
 
-   (3) Upload `model.tar.gz` file into `s3`
+   (4) Upload `model.tar.gz` file into `s3`
    <pre>
    $ export MODEL_URI="s3://{<i>bucket_name</i>}/{<i>key_prefix</i>}/model.tar.gz"
    $ aws s3 cp model.tar.gz ${MODEL_URI}
