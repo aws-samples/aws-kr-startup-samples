@@ -67,15 +67,14 @@ def read_video_from_url(url: str, sampling_rate: int=8):
 
 
 def model_fn(model_dir, context=None):
-  model_id = os.environ['HF_MODEL_ID']
   quantization_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_compute_dtype=torch.float16
   )
 
-  processor = LlavaNextVideoProcessor.from_pretrained(model_id)
+  processor = LlavaNextVideoProcessor.from_pretrained(model_dir)
   model = LlavaNextVideoForConditionalGeneration.from_pretrained(
-    model_id,
+    model_dir,
     quantization_config=quantization_config,
     device_map='auto'
   )
