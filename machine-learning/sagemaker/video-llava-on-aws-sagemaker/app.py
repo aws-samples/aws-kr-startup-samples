@@ -7,8 +7,7 @@ import os
 import aws_cdk as cdk
 
 from cdk_stacks import (
-  VideoLlaVaRealtimeEndpointStack,
-  SageMakerRealtimeEndpointAutoScalingStack
+  VideoLlaVaRealtimeEndpointStack
 )
 
 APP_ENV = cdk.Environment(
@@ -21,11 +20,5 @@ app = cdk.App()
 sm_video_llava_endpoint = VideoLlaVaRealtimeEndpointStack(app, 'VideoLlaVaRealtimeEndpointStack',
   env=APP_ENV
 )
-
-sm_realtime_endpoint_autoscale = SageMakerRealtimeEndpointAutoScalingStack(app, 'VideoLlaVaRealtimeEndpointAutoScalingStack',
-  sm_video_llava_endpoint.sagemaker_endpoint,
-  env=APP_ENV
-)
-sm_realtime_endpoint_autoscale.add_dependency(sm_video_llava_endpoint)
 
 app.synth()
