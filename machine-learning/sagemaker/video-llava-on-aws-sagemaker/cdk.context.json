@@ -3,5 +3,9 @@
   "model_data_source": {
     "s3_bucket_name": "<s3-bucket-name>",
     "s3_object_key_name": "<model-artifacts-path (e.g., `torch-model/model.tar.gz`, or `torch-model/` >"
+  },
+  "dlc_image_info": {
+    "repository_name": "huggingface-pytorch-inference",
+    "tag": "2.3.0-transformers4.46.1-gpu-py311-cu121-ubuntu20.04"
   }
 }

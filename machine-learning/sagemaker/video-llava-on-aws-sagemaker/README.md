@@ -106,10 +106,16 @@ as well as metadata, such as version details, authorship, and any notes related 
      "model_data_source": {
        "s3_bucket_name": "<i>sagemaker-us-east-1-123456789012</i>",
        "s3_object_key_name": "<i>video-llava-7b-hf/model.tar.gz</i>"
+     },
+     "dlc_image_info": {
+       "repository_name": "huggingface-pytorch-inference",
+       "tag": "2.3.0-transformers4.46.1-gpu-py311-cu121-ubuntu20.04"
      }
    }
    </pre>
    :information_source: This CDK project uses [`cdklabs.generative-ai-cdk-constructs`](https://awslabs.github.io/generative-ai-cdk-constructs/) to deploy SageMaker Endpoints. `cdklabs.generative-ai-cdk-constructs` library assumes the model artifact (`model.tar.gz`) is stored in a bucket on S3 with the word "`sagemaker`" or "`SageMaker`". Therefore, `s3_bucket_name` must include the word "`sagemaker`" or "`SageMaker`". (e.g., `sagemaker-us-east-1-123456789012`, `SageMaker-us-east-1-123456789012`).
+
+   :information_source: For more information about `dlc_image_info`, see [**Available Deep Learning Containers (DLC) images**](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
 
 ## Deploy
 
@@ -159,6 +165,7 @@ Following [video-llava_realtime_endpoint.ipynb](src/notebook/video-llava_realtim
    * [Video-LLaVA in HuggingFace](https://huggingface.co/docs/transformers/model_doc/video_llava)
  * 🤗 [HuggingFace Transformers Supported models and frameworks](https://huggingface.co/docs/transformers/index#supported-models-and-frameworks)
    * [LanguageBind/Video-LLaVA-7B-hf](https://huggingface.co/LanguageBind/Video-LLaVA-7B-hf)
+ * [Available Amazon Deep Learning Containers Images](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
  * [AWS Generative AI CDK Constructs](https://awslabs.github.io/generative-ai-cdk-constructs/)
  * [(AWS Blog) Announcing Generative AI CDK Constructs (2024-01-31)](https://aws.amazon.com/blogs/devops/announcing-generative-ai-cdk-constructs/)
  * [SageMaker Python SDK - Hugging Face](https://sagemaker.readthedocs.io/en/stable/frameworks/huggingface/index.html)

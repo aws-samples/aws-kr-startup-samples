@@ -45,12 +45,23 @@ class VideoLlaVaRealtimeEndpointStack(Stack):
     model_id = self.node.try_get_context('model_id') or 'LanguageBind/Video-LLaVA-7B-hf'
     sagemaker_endpoint_name = name_from_base(model_id.replace('/', '-').replace('.', '-'))
 
+    dlc_image_info = self.node.try_get_context('dlc_image_info') or {}
+    dlc_image_repository_name = dlc_image_info.get('repository_name', 'huggingface-pytorch-inference')
+    dlc_image_tag = dlc_image_info.get('tag', '2.3.0-transformers4.46.1-gpu-py311-cu121-ubuntu20.04')
+
+    #XXX: Available Deep Learning Containers (DLC) Images
+    # https://github.com/aws/deep-learning-containers/blob/master/available_images.md
+    container = DeepLearningContainerImage.from_deep_learning_container_image(
+      dlc_image_repository_name,
+      dlc_image_tag
+    )
+
     self.sagemaker_endpoint = CustomSageMakerEndpoint(self, 'PyTorchSageMakerEndpoint',
       model_id=model_id,
       instance_type=SageMakerInstanceType.ML_G5_XLARGE,
       # XXX: Available Deep Learing Container (DLC) Image List
       # https://github.com/awslabs/generative-ai-cdk-constructs/blob/main/src/patterns/gen-ai/aws-model-deployment-sagemaker/deep-learning-container-image.ts
-      container=DeepLearningContainerImage.HUGGINGFACE_PYTORCH_INFERENCE_2_1_0_TRANSFORMERS4_37_0_GPU_PY310_CU118_UBUNTU20_04,
+      container=container,
       model_data_url=model_data_url,
       endpoint_name=sagemaker_endpoint_name,
       environment={
