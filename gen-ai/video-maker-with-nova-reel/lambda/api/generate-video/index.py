@@ -91,13 +91,13 @@ def lambda_handler(event, context):
     print("Invocation ID:", invocation_id)
 
     # Save the invocation ARN to the DynamoDB table
-    ddb_client.put_item(
+    response = ddb_client.put_item(
         TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
         Item={
-            'invocation_id': invocation_id,
-            'invocation_arn': invocation_arn,
-            'prompt': prompt,
-            'status': 'InProgress'
+            'invocation_id': {"S": invocation_id},
+            'invocation_arn': {"S": invocation_arn},
+            'prompt': {"S": prompt},
+            'status': {"S": 'InProgress'}
         }
     )
 
