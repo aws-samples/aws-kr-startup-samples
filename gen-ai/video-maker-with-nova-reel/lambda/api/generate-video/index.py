@@ -21,7 +21,12 @@ def create_response(status_code, body):
     """
     return {
         'statusCode': status_code,
-        'body': json.dumps(body)
+        'body': json.dumps(body),
+        'headers': {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+            'Access-Control-Allow-Methods': 'POST,OPTIONS'
+        }
     }
 
 def parse_body(body):
