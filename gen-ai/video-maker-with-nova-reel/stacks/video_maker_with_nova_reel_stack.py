@@ -20,8 +20,6 @@ class VideoMakerWithNovaReelStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        print(self.account)
-
         # Get context information
         self.video_generation_model_id = self.node.try_get_context("video_generation_model_id")
         self.s3_base_bucket_name = self.node.try_get_context("s3_base_bucket_name")
@@ -260,6 +258,17 @@ class VideoMakerWithNovaReelStack(Stack):
                 effect=Effect.ALLOW,
                 actions=["dynamodb:GetItem"],
                 resources=[self.video_maker_with_nova_reel_process_table.table_arn],
+            )
+        )
+        """Grants S3 GetObject and ListBucket permission to the get video Lambda function."""
+        self.get_video_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=["s3:GetObject", "s3:ListBucket"],
+                resources=[
+                    self.s3_base_bucket.bucket_arn,
+                    f"{self.s3_base_bucket.bucket_arn}/*"
+                ],
             )
         )
 

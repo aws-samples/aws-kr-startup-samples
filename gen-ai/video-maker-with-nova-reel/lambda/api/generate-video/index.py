@@ -101,7 +101,7 @@ def lambda_handler(event, context):
         return create_response(500, {'error': 'Server error: Failed to initiate video generation request.'})
         
     s3_prefix = invocation_arn.split('/')[-1]
-    s3_location = f"s3://{S3_DESTINATION_BUCKET}/{s3_prefix}"
+    s3_location = f"s3://{S3_DESTINATION_BUCKET}/{s3_prefix}/output.mp4"
 
     # Save the invocation ARN to the DynamoDB table
     response = ddb_client.put_item(

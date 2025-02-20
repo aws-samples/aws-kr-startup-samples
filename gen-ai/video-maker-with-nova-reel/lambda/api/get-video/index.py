@@ -81,6 +81,10 @@ def lambda_handler(event, context):
             # s3://bucket-name/key 형식에서 버킷과 키 추출
             bucket = s3_url.split('/')[2]
             key = '/'.join(s3_url.split('/')[3:])
+
+            print(s3_url)
+            print(bucket)
+            print(key)
             
             # presigned URL 생성 (5분 = 300초)
             presigned_url = s3_client.generate_presigned_url(
