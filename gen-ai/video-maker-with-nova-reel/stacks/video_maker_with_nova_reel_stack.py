@@ -81,6 +81,18 @@ class VideoMakerWithNovaReelStack(Stack):
 
         # Set up Lambda integration with API Gateway for video listing
         self._setup_list_videos_lambda_integration()
+
+        # Create get video Lambda function
+        self.get_video_lambda = self._create_get_video_lambda()
+
+        # Add dependency to ensure Lambda function is created after S3 bucket
+        self.get_video_lambda.node.add_dependency(self.s3_base_bucket)
+
+        # Grant S3 permissions to get video Lambda function
+        self._attach_get_video_lambda_permissions()
+
+        # Set up Lambda integration with API Gateway for getting video
+        self._setup_get_video_by_invocation_id_integration()
         
         # Output API Gateway URL (CFN Output)
         CfnOutput(
@@ -123,6 +135,8 @@ class VideoMakerWithNovaReelStack(Stack):
         apis_resource = self.api_gateway.root.add_resource("apis")
         self.videos_resource = apis_resource.add_resource("videos")
         self.generate_resource = self.videos_resource.add_resource("generate")
+        self.video_resource = self.api_gateway.root.add_resource("video")
+        self.video_with_id_resource = self.video_resource.add_resource("{invocation_id}")
 
     def _create_dependencies_layer(self) -> LayerVersion:
         """
@@ -175,6 +189,20 @@ class VideoMakerWithNovaReelStack(Stack):
                 "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name,
             },
         )
+
+    def _create_get_video_lambda(self) -> Function:
+        """Create and configure Lambda function for getting video."""
+        return Function(
+            self,
+            "VideoMakerWithNovaReelGetVideoLambda",
+            function_name="VideoMakerWithNovaReelGetVideoLambda",
+            runtime=Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=Code.from_asset("lambda/api/get-video"),
+            environment={
+                "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name
+            },
+        )
     
     def _attach_generate_video_lambda_permissions(self, bucket_name: str) -> None:
         """Grants S3, AWS Bedrock, and DynamoDB access permissions to the video generation Lambda function."""
@@ -223,6 +251,16 @@ class VideoMakerWithNovaReelStack(Stack):
             )
         )
 
+    def _attach_get_video_lambda_permissions(self) -> None:
+        """Grants DynamoDB GetItem permission to the get video Lambda function."""
+        self.get_video_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=["dynamodb:GetItem"],
+                resources=[self.video_maker_with_nova_reel_process_table.table_arn],
+            )
+        )
+
     def _setup_list_videos_lambda_integration(self) -> None:
         """Connects API Gateway to the video listing Lambda function using Lambda integration."""
         integration = LambdaIntegration(
@@ -247,8 +285,18 @@ class VideoMakerWithNovaReelStack(Stack):
             allow_origins=["*"],
             allow_methods=["GET", "OPTIONS"],
             allow_headers=["Content-Type", "X-Amz-Date", "Authorization", "X-Api-Key", "X-Amz-Security-Token", "Access-Control-Allow-Origin", "Access-Control-Allow-Headers", "Access-Control-Allow-Methods"]
-        )  
-
+        )
+    
+    def _setup_get_video_by_invocation_id_integration(self) -> None:
+        """Connects API Gateway to the get video Lambda function using Lambda integration."""
+        integration = LambdaIntegration(self.get_video_lambda)
+        self.video_with_id_resource.add_method(
+            "GET",
+            integration,
+            authorization_type=AuthorizationType.NONE,
+            method_responses=self._default_method_response()
+        )
+    
     def _default_method_response(self):
         """Returns a default MethodResponse configuration for CORS."""
         return [
