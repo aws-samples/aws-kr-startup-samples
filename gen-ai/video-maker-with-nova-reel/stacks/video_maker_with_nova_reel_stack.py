@@ -2,6 +2,7 @@ import os
 import subprocess
 import uuid
 from aws_cdk import (
+    Aws,
     Stack,
     RemovalPolicy,
     Duration,
@@ -19,10 +20,12 @@ class VideoMakerWithNovaReelStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        print(self.account)
+
         # Get context information
         self.video_generation_model_id = self.node.try_get_context("video_generation_model_id")
         self.s3_base_bucket_name = self.node.try_get_context("s3_base_bucket_name")
-        self.s3_stack_bucket_name = f"{self.s3_base_bucket_name}-{uuid.uuid4().hex[:4]}".lower()
+        self.s3_stack_bucket_name = f"{self.s3_base_bucket_name}".lower()
         self.ddb_table_name = self.node.try_get_context("video_maker_with_nova_reel_process_table")
 
         # Create DynamoDB table
@@ -106,7 +109,7 @@ class VideoMakerWithNovaReelStack(Stack):
         return Bucket(
             self, "VideoMakerWithNovaReelBucket",
             bucket_name=bucket_name,
-            removal_policy=RemovalPolicy.DESTROY,
+            removal_policy=RemovalPolicy.RETAIN,
             cors=[
                 CorsRule(
                     allowed_methods=[
@@ -135,8 +138,7 @@ class VideoMakerWithNovaReelStack(Stack):
         apis_resource = self.api_gateway.root.add_resource("apis")
         self.videos_resource = apis_resource.add_resource("videos")
         self.generate_resource = self.videos_resource.add_resource("generate")
-        self.video_resource = self.api_gateway.root.add_resource("video")
-        self.video_with_id_resource = self.video_resource.add_resource("{invocation_id}")
+        self.video_with_id_resource = self.videos_resource.add_resource("{invocation_id}")
 
     def _create_dependencies_layer(self) -> LayerVersion:
         """
