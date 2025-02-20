@@ -84,14 +84,14 @@ function InvocationsTable() {
       }
 
       const data = await response.json();
-      // api 응답은 { videos: [...], nextToken: "..." } 구조로 반환됩니다.
-      // API가 video 항목을 { id, arn, prompt, status }로 반환한다고 가정하면,
+      // API가 video 항목을 { invocation_id, prompt, status, created_at, updated_at }로 반환한다고 가정하면,
       // 테이블의 컬럼에 맞게 키를 변환해줍니다.
       const videos = data.videos.map((video) => ({
-        invocation_id: video.invocation_id,    // API의 id 값을 Invocation ID로 사용
-        invocation_arn: video.invocation_arn,  // API의 arn 값을 Invocation ARN으로 사용
+        invocation_id: video.invocation_id,
         prompt: video.prompt,
-        status: video.status
+        status: video.status,
+        created_at: video.created_at,   // 추가된 필드
+        updated_at: video.updated_at    // 추가된 필드
       }));
 
       setPageData((prev) => ({ ...prev, [page]: videos }));
@@ -130,31 +130,33 @@ function InvocationsTable() {
     }
   };
 
-  // 다운로드 핸들러 추가
+  // 변경된 handleDownload 함수 (다운로드 핸들러)
   const handleDownload = async (invocationId) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_HOST}/apis/videos/${invocationId}/download`, {
+      const response = await fetch(`${process.env.REACT_APP_API_HOST}/apis/videos/${invocationId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Access-Control-Allow-Origin': '*'
         },
-        mode: 'cors',
+        mode: 'cors'
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      // 응답으로부터 presigned_url를 JSON으로 파싱
+      const data = await response.json();
+      const presignedUrl = data.presigned_url;
+      if (!presignedUrl) {
+        throw new Error('응답에서 presigned_url을 찾을 수 없습니다.');
+      }
+      // presignedUrl을 이용하여 파일 다운로드 수행
       const a = document.createElement('a');
-      a.href = url;
+      a.href = presignedUrl;
       a.download = `video-${invocationId}.mp4`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
       a.remove();
     } catch (error) {
       console.error("다운로드 실패:", error);
@@ -179,12 +181,6 @@ function InvocationsTable() {
           isRowHeader: true,
         },
         {
-          id: "invocation_arn",
-          header: "Invocation ARN",
-          cell: (item) => item.invocation_arn,
-          sortingField: "invocation_arn",
-        },
-        {
           id: "prompt",
           header: "Prompt",
           cell: (item) => item.prompt,
@@ -195,6 +191,18 @@ function InvocationsTable() {
           header: "Status",
           cell: (item) => item.status,
           sortingField: "status",
+        },
+        {
+          id: "updated_at",
+          header: "Updated At",
+          cell: (item) => item.updated_at,
+          sortingField: "updated_at",
+        },
+        {
+          id: "created_at",
+          header: "Created At",
+          cell: (item) => item.created_at,
+          sortingField: "created_at",
         },
         {
           id: "actions",
@@ -264,7 +272,8 @@ function InvocationsTable() {
             pageSize: LIMIT,
             contentDisplay: [
               { id: "invocation_id", visible: true },
-              { id: "invocation_arn", visible: true },
+              { id: "created_at", visible: true },
+              { id: "updated_at", visible: true },
               { id: "prompt", visible: true },
               { id: "status", visible: true },
             ],
@@ -282,7 +291,8 @@ function InvocationsTable() {
           contentDisplayPreference={{
             options: [
               { id: "invocation_id", label: "Invocation ID", alwaysVisible: true },
-              { id: "invocation_arn", label: "Invocation ARN" },
+              { id: "created_at", label: "Created At" },
+              { id: "updated_at", label: "Updated At" },
               { id: "prompt", label: "Prompt" },
               { id: "status", label: "Status" },
             ],

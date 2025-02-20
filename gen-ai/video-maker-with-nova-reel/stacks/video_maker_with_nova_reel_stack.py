@@ -379,12 +379,38 @@ class VideoMakerWithNovaReelStack(Stack):
     
     def _setup_get_video_by_invocation_id_integration(self) -> None:
         """Connects API Gateway to the get video Lambda function using Lambda integration."""
-        integration = LambdaIntegration(self.get_video_lambda)
+        integration = LambdaIntegration(
+            self.get_video_lambda,
+            proxy=True,
+            integration_responses=[{
+                'statusCode': '200',
+                'responseParameters': {
+                    'method.response.header.Access-Control-Allow-Origin': "'*'",
+                    'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                    'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'"
+                }
+            }]
+        )
         self.video_with_id_resource.add_method(
             "GET",
             integration,
             authorization_type=AuthorizationType.NONE,
             method_responses=self._default_method_response()
+        )
+        # CORS preflight 설정 추가
+        self.video_with_id_resource.add_cors_preflight(
+            allow_origins=["*"],
+            allow_methods=["GET", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Amz-Date",
+                "Authorization",
+                "X-Api-Key",
+                "X-Amz-Security-Token",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Methods"
+            ],
         )
     
     def _default_method_response(self):
