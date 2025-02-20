@@ -1,6 +1,5 @@
 {
     "s3_base_bucket_name": "video-maker-with-nova-reel-stack",
     "video_generation_model_id": "amazon.nova-reel-v1:0",
-    "video_maker_with_nova_reel_process_table": "VideoMakerWithNovaReelProcessTable",
-    "CDK_DEFAULT_ACCOUNT": "284736429876"
+    "video_maker_with_nova_reel_process_table": "VideoMakerWithNovaReelProcessTable"
 }

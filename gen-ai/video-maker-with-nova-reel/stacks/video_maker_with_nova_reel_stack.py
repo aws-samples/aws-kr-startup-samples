@@ -24,9 +24,7 @@ class VideoMakerWithNovaReelStack(Stack):
 
         # Get context information
         self.video_generation_model_id = self.node.try_get_context("video_generation_model_id")
-        self.s3_base_bucket_name = self.node.try_get_context("s3_base_bucket_name")
-        self.CDK_DEFAULT_ACCOUNT = self.node.try_get_context("CDK_DEFAULT_ACCOUNT")
-        self.s3_stack_bucket_name = f"{self.s3_base_bucket_name}-{self.CDK_DEFAULT_ACCOUNT}"
+        self.s3_stack_bucket_name = self.node.try_get_context("s3_base_bucket_name")
         self.ddb_table_name = self.node.try_get_context("video_maker_with_nova_reel_process_table")
 
         # Create DynamoDB table
