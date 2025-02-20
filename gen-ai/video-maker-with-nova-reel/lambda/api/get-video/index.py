@@ -12,6 +12,7 @@ logger.setLevel(logging.INFO)
 VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME = os.environ.get('VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME')
 
 ddb_client = boto3.client('dynamodb')
+s3_client = boto3.client('s3')
 
 def create_response(status_code, body):
     """
@@ -52,66 +53,47 @@ def lambda_handler(event, context):
     if http_method != 'GET':
         return create_response(405, {'error': f"{http_method} Methods are not allowed."})
     
-    # 쿼리 스트링으로 pagination 파라미터(limit, nextToken) 추출
-    query_params = event.get("queryStringParameters") or {}
-    logger.info("Query params: %s", query_params)
+    # path parameter에서 invocation_id 추출
+    path_parameters = event.get('pathParameters', {})
+    invocation_id = path_parameters.get('invocation_id')
     
-    limit = None
-    if "limit" in query_params:
-        try:
-            limit = int(query_params.get("limit"))
-        except ValueError as e:
-            logger.error("유효하지 않은 limit 값: %s", query_params.get("limit"))
+    if not invocation_id:
+        return create_response(400, {'error': 'invocation_id is required'})
     
-    exclusive_start_key = None
-    if "nextToken" in query_params and query_params.get("nextToken"):
-        next_token_str = query_params.get("nextToken")
-        try:
-            # nextToken은 base64 인코딩 된 JSON 문자열이므로 디코딩 후 dict로 변환
-            exclusive_start_key = json.loads(base64.b64decode(next_token_str).decode('utf-8'))
-        except Exception as e:
-            logger.error("유효하지 않은 nextToken 값: %s", next_token_str)
-    
-    data = list_videos(limit, exclusive_start_key)
-    logger.info("List videos data: %s", data)
-    # data는 {"videos": [...], "nextToken": "..."} 구조로 반환
-    return create_response(200, data)
-
-def list_videos(limit=None, exclusive_start_key=None):
-    """
-    DynamoDB의 VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME 테이블에서 항목을 조회하여
-    리스트와 (있다면) pagination 토큰(nextToken)을 반환합니다.
-    """
-    scan_kwargs = {
-        "TableName": VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME
-    }
-    if limit:
-        scan_kwargs["Limit"] = limit
-    if exclusive_start_key:
-        scan_kwargs["ExclusiveStartKey"] = exclusive_start_key
-
     try:
-        response = ddb_client.scan(**scan_kwargs)
+        # DynamoDB에서 해당 invocation_id로 아이템 조회
+        response = ddb_client.get_item(
+            TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
+            Key={'invocation_id': {'S': invocation_id}}
+        )
+        
+        # 아이템이 존재하지 않는 경우
+        if 'Item' not in response:
+            return create_response(404, {'error': 'Video not found'})
+        
+        # DynamoDB 응답을 파이썬 딕셔너리로 변환
+        deserializer = TypeDeserializer()
+        item = {k: deserializer.deserialize(v) for k, v in response['Item'].items()}
+        
+        # location에서 S3 버킷과 키 추출
+        if 'location' in item:
+            s3_url = item['location']
+            # s3://bucket-name/key 형식에서 버킷과 키 추출
+            bucket = s3_url.split('/')[2]
+            key = '/'.join(s3_url.split('/')[3:])
+            
+            # presigned URL 생성 (5분 = 300초)
+            presigned_url = s3_client.generate_presigned_url(
+                'get_object',
+                Params={'Bucket': bucket, 'Key': key},
+                ExpiresIn=300
+            )
+            
+            # 응답에 presigned URL 추가
+            item['presigned_url'] = presigned_url
+        
+        return create_response(200, item)
+        
     except Exception as e:
-        logger.error("DynamoDB 스캔 중 오류 발생: %s", e)
-        return {"videos": []}
-    
-    items = response.get("Items", [])
-    deserializer = TypeDeserializer()
-    
-    def deserialize_item(item):
-        return {key: deserializer.deserialize(value) for key, value in item.items()}
-    
-    videos = [deserialize_item(item) for item in items]
-    result = {"videos": videos}
-    
-    # 결과에 LastEvaluatedKey가 있다면 다음 페이지가 있으므로 nextToken 생성
-    if "LastEvaluatedKey" in response:
-        try:
-            # DynamoDB에서 반환된 LastEvaluatedKey는 JSON 직렬화가 어려울 수 있으므로 base64 인코딩 처리
-            next_token = base64.b64encode(json.dumps(response["LastEvaluatedKey"]).encode('utf-8')).decode('utf-8')
-            result["nextToken"] = next_token
-        except Exception as e:
-            logger.error("토큰 인코딩 오류: %s", e)
-    
-    return result
+        logger.error("Error fetching video: %s", e)
+        return create_response(500, {'error': 'Internal server error'})

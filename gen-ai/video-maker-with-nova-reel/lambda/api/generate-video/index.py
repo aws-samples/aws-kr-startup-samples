@@ -111,6 +111,7 @@ def lambda_handler(event, context):
             'prompt': {"S": prompt},
             'status': {"S": 'InProgress'},
             'location': {"S": s3_location},
+            'updated_at': {"S": datetime.now().isoformat()},
             'created_at': {"S": datetime.now().isoformat()}
         }
     )
