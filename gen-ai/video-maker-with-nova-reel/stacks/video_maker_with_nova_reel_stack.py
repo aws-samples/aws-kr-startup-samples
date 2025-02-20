@@ -14,6 +14,8 @@ from aws_cdk.aws_apigateway import RestApi, LambdaIntegration, AuthorizationType
 from aws_cdk.aws_iam import PolicyStatement, Effect
 from aws_cdk.aws_dynamodb import Table, Attribute, AttributeType, BillingMode
 from constructs import Construct
+from aws_cdk.aws_events import Rule, Schedule
+from aws_cdk.aws_events_targets import LambdaFunction
 
 
 class VideoMakerWithNovaReelStack(Stack):
@@ -23,7 +25,8 @@ class VideoMakerWithNovaReelStack(Stack):
         # Get context information
         self.video_generation_model_id = self.node.try_get_context("video_generation_model_id")
         self.s3_base_bucket_name = self.node.try_get_context("s3_base_bucket_name")
-        self.s3_stack_bucket_name = f"{self.s3_base_bucket_name}".lower()
+        self.CDK_DEFAULT_ACCOUNT = self.node.try_get_context("CDK_DEFAULT_ACCOUNT")
+        self.s3_stack_bucket_name = f"{self.s3_base_bucket_name}-{self.CDK_DEFAULT_ACCOUNT}"
         self.ddb_table_name = self.node.try_get_context("video_maker_with_nova_reel_process_table")
 
         # Create DynamoDB table
@@ -64,6 +67,8 @@ class VideoMakerWithNovaReelStack(Stack):
 
         # Add dependency to ensure Lambda function is created after S3 bucket
         self.generate_video_lambda.node.add_dependency(self.s3_base_bucket)
+        self.generate_video_lambda.node.add_dependency(self.video_maker_with_nova_reel_process_table)  # DynamoDB 의존성 추가
+        self.api_gateway.node.add_dependency(self.generate_video_lambda)
 
         # Grant S3, AWS Bedrock, and DynamoDB permissions to Lambda function
         self._attach_generate_video_lambda_permissions(self.s3_stack_bucket_name)
@@ -95,11 +100,32 @@ class VideoMakerWithNovaReelStack(Stack):
         # Set up Lambda integration with API Gateway for getting video
         self._setup_get_video_by_invocation_id_integration()
         
+        # Create status check Lambda function
+        self.status_videos_lambda = self._create_status_videos_lambda(dependencies_layer)
+
+        # Add dependency to ensure Lambda function is created after S3 bucket
+        self.status_videos_lambda.node.add_dependency(self.s3_base_bucket)
+
+        # Grant permissions to status check Lambda function
+        self._attach_status_videos_lambda_permissions(self.s3_stack_bucket_name)
+
+        # Create EventBridge rule for status check
+        self._create_status_check_rule()
+        
         # Output API Gateway URL (CFN Output)
         CfnOutput(
             self, "VideoMakerWithNovaReelAPIGateway",
             value=self.api_gateway.url,
             description="The URL of the API Gateway"
+        )
+
+    def _create_status_check_rule(self) -> None:
+        """Creates EventBridge rule to trigger status check Lambda."""
+        Rule(
+            self,
+            "VideoStatusCheckRule",
+            schedule=Schedule.rate(Duration.minutes(5)),
+            targets=[LambdaFunction(self.status_videos_lambda)]
         )
 
     def _create_s3_bucket(self, bucket_name: str) -> Bucket:
@@ -189,6 +215,22 @@ class VideoMakerWithNovaReelStack(Stack):
                 "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name,
             },
         )
+    
+    def _create_status_videos_lambda(self, layer: LayerVersion) -> Function:
+        """Create and configure Lambda function for checking video status."""
+        return Function(
+            self,
+            "VideoMakerWithNovaReelStatusVideosLambda",
+            function_name="VideoMakerWithNovaReelStatusVideosLambda",
+            runtime=Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=Code.from_asset("lambda/api/status-video"),
+            environment={
+                "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name,
+            },
+            timeout=Duration.minutes(1),
+            layers=[layer],
+        )
 
     def _create_get_video_lambda(self) -> Function:
         """Create and configure Lambda function for getting video."""
@@ -227,6 +269,43 @@ class VideoMakerWithNovaReelStack(Stack):
             PolicyStatement(
                 effect=Effect.ALLOW,
                 actions=["dynamodb:PutItem"],
+                resources=[self.video_maker_with_nova_reel_process_table.table_arn],
+            )
+        )
+
+    def _attach_status_videos_lambda_permissions(self, bucket_name: str) -> None:
+        """Grants required permissions to the status check Lambda function."""
+        self.status_videos_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=[
+                    "s3:GetObject",
+                    "s3:PutObject"
+                ],
+                resources=[f"arn:aws:s3:::{bucket_name}/*"],
+            )
+        )
+        
+        self.status_videos_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=[
+                    "bedrock:InvokeModel",
+                    "bedrock:ListAsyncInvokes",
+                    "bedrock:GetAsyncInvoke"
+                ],
+                resources=["*"],
+            )
+        )
+        
+        self.status_videos_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=[
+                    "dynamodb:PutItem",
+                    "dynamodb:Scan",
+                    "dynamodb:UpdateItem"
+                ],
                 resources=[self.video_maker_with_nova_reel_process_table.table_arn],
             )
         )
