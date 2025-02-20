@@ -95,17 +95,6 @@ def lambda_handler(event, context):
     print("Invocation ARN:", invocation_arn)
     print("Invocation ID:", invocation_id)
 
-    # Save the invocation ARN to the DynamoDB table
-    response = ddb_client.put_item(
-        TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
-        Item={
-            'invocation_id': {"S": invocation_id},
-            'invocation_arn': {"S": invocation_arn},
-            'prompt': {"S": prompt},
-            'status': {"S": 'InProgress'}
-        }
-    )
-
     if not invocation_arn:
         logger.error("invocationArn missing")
         return create_response(500, {'error': 'Server error: Failed to initiate video generation request.'})
@@ -113,6 +102,19 @@ def lambda_handler(event, context):
     s3_prefix = invocation_arn.split('/')[-1]
     s3_location = f"s3://{S3_DESTINATION_BUCKET}/{s3_prefix}"
 
+    # Save the invocation ARN to the DynamoDB table
+    response = ddb_client.put_item(
+        TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
+        Item={
+            'invocation_id': {"S": invocation_id},
+            'invocation_arn': {"S": invocation_arn},
+            'prompt': {"S": prompt},
+            'status': {"S": 'InProgress'},
+            'location': {"S": s3_location},
+            'created_at': {"S": datetime.now().isoformat()}
+        }
+    )
+    
     return create_response(200, {
         'message': 'Video generation started',
         'invocationArn': invocation_arn,
