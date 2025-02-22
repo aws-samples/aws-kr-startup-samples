@@ -83,7 +83,7 @@ as well as metadata, such as version details, authorship, and any notes related 
         └── requirements.txt
 
     2 directories, 2 files
-   (.venv) tar --exclude ".cache" --exclude=".ipynb_checkpoints" -czf model.tar.gz --use-compress-program=pigz -C model/ .
+   (.venv) tar --exclude=".cache" --exclude=".ipynb_checkpoints" -czf model.tar.gz --use-compress-program=pigz -C model/ .
    ```
 
    :information_source: For more information about the directory structure of `model.tar.gz`, see [**Model Directory Structure for Deploying Pre-trained PyTorch Models**](https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure)
