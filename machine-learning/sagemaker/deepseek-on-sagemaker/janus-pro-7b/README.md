@@ -78,53 +78,16 @@ as well as metadata, such as version details, authorship, and any notes related 
    (.venv) mkdir -p model
    ```
 
-   (2) Run the following python code to download OpenAI Whisper model artifacts from Hugging Face model hub.
-   ```python
-   from huggingface_hub import snapshot_download
-   from pathlib import Path
-
-   model_dir = Path('model')
-   model_dir.mkdir(exist_ok=True)
-
-   model_id = "deepseek-ai/Janus-Pro-7B"
-   snapshot_download(model_id, local_dir=model_dir)
-   ```
-
-    :information_source: Since we are using the Hugging Face DLC as a PyTorch DLC,
-    we can skip step (2) and create model artifacts using only inference scripts
-    by passing the following environment variables to the `CustomSageMakerEndpoint` class as follows:
-    <pre>
-    sagemaker_endpoint = CustomSageMakerEndpoint(self, "PyTorchSageMakerEndpoint",
-      ...
-      environment={
-        "HF_MODEL_ID": "deepseek-ai/Janus-Pro-7B",
-        "SAGEMAKER_TS_RESPONSE_TIMEOUT": "600", #XXX: In order to avoid timeout when torchserver starting.
-      }
-    )
-    </pre>
-
-   (3) Create `model.tar.gz` with model artifacts including your custom [inference scripts](./src/code/).
+   (2) Create `model.tar.gz` with model artifacts including your custom [inference scripts](./src/code/).
    ```
    (.venv) $ cp -rp src/python/code model
    (.venv) $ tree model
     model
-    ├── README.md
-    ├── code
-    │   ├── inference.py
-    │   └── requirements.txt
-    ├── config.json
-    ├── janus_pro_teaser1.png
-    ├── janus_pro_teaser2.png
-    ├── preprocessor_config.json
-    ├── processor_config.json
-    ├── pytorch_model-00001-of-00002.bin
-    ├── pytorch_model-00002-of-00002.bin
-    ├── pytorch_model.bin.index.json
-    ├── special_tokens_map.json
-    ├── tokenizer.json
-    └── tokenizer_config.json
+    └── code
+        ├── inference.py
+        └── requirements.txt
 
-    2 directories, 14 files
+    2 directories, 2 files
    (.venv) tar --exclude ".cache" --exclude=".ipynb_checkpoints" -czf model.tar.gz --use-compress-program=pigz -C model/ .
    ```
 
@@ -132,7 +95,7 @@ as well as metadata, such as version details, authorship, and any notes related 
 
    :information_source: `pigz` is used to speed up the `tar` command. More information on how to install `pigz` can be found [here](#pigz-installation-guide).
 
-   (4) Upload `model.tar.gz` file into `s3`
+   (3) Upload `model.tar.gz` file into `s3`
    <pre>
    (.venv) export MODEL_URI="s3://{<i>bucket_name</i>}/{<i>key_prefix</i>}/model.tar.gz"
    (.venv) aws s3 cp model.tar.gz ${MODEL_URI}
@@ -153,6 +116,10 @@ as well as metadata, such as version details, authorship, and any notes related 
      "model_data_source": {
        "s3_bucket_name": "<i>sagemaker-us-east-1-123456789012</i>",
        "s3_object_key_name": "<i>janus-pro-7b/model.tar.gz</i>"
+     },
+     "dlc_image_info": {
+       "repository_name": "huggingface-pytorch-inference",
+       "tag": "2.3.0-transformers4.46.1-gpu-py311-cu121-ubuntu20.04"
      },
      "sagemaker_endpoint_settings": {
        "min_capacity": 1,

@@ -45,6 +45,17 @@ class JanusProRealtimeEndpointStack(Stack):
     model_id = self.node.try_get_context('model_id') or 'deepseek-ai/deepseek-ai/Janus-Pro-7B'
     sagemaker_endpoint_name = name_from_base(model_id.lower().replace('/', '-').replace('.', '-'))
 
+    dlc_image_info = self.node.try_get_context('dlc_image_info') or {}
+    dlc_image_repository_name = dlc_image_info.get('repository_name', 'huggingface-pytorch-inference')
+    dlc_image_tag = dlc_image_info.get('tag', '2.3.0-transformers4.46.1-gpu-py311-cu121-ubuntu20.04')
+
+    #XXX: Available Deep Learning Containers (DLC) Images
+    # https://github.com/aws/deep-learning-containers/blob/master/available_images.md
+    container = DeepLearningContainerImage.from_deep_learning_container_image(
+      dlc_image_repository_name,
+      dlc_image_tag
+    )
+
     endpoint_settings = self.node.try_get_context('sagemaker_endpoint_settings') or {}
 
     self.sagemaker_endpoint = CustomSageMakerEndpoint(self, 'PyTorchSageMakerEndpoint',
@@ -52,12 +63,13 @@ class JanusProRealtimeEndpointStack(Stack):
       instance_type=SageMakerInstanceType.ML_G5_4_XLARGE,
       # XXX: Available Deep Learing Container (DLC) Image List
       # https://github.com/aws/deep-learning-containers/blob/master/available_images.md
-      # e.g., '763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-inference:2.3.0-gpu-py311'
-      container=DeepLearningContainerImage.from_deep_learning_container_image('pytorch-inference', '2.3.0-gpu-py311'),
+      # e.g., '763104351884.dkr.ecr.us-east-1.amazonaws.com/huggingface-pytorch-inference:2.3.0-transformers4.48.0-gpu-py311-cu121-ubuntu22.04'
+      container=container,
       model_data_url=model_data_url,
       endpoint_name=sagemaker_endpoint_name,
       environment={
         'HF_MODEL_ID': model_id,
+        'HF_TASK':'any-to-any',
 
         #XXX: In order to avoid timeout when torchserver starting.
         'SAGEMAKER_TS_RESPONSE_TIMEOUT': '600'
