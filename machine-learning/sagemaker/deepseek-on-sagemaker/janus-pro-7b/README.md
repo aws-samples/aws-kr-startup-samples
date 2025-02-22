@@ -64,12 +64,7 @@ including deployment and retraining.
 They can include model parameters, configuration files, pre-processing components,
 as well as metadata, such as version details, authorship, and any notes related to its performance.
 
-1. Install required packages
-   ```
-   (.venv) $ pip install -U huggingface-hub==0.28.1
-   ```
-
-2. Save model artifacts
+1. Save model artifacts
 
    The following instructions work well on either `Ubuntu` or `SageMaker Studio`.
 
@@ -105,7 +100,7 @@ as well as metadata, such as version details, authorship, and any notes related 
 
    :information_source: This CDK project uses [`cdklabs.generative-ai-cdk-constructs`](https://awslabs.github.io/generative-ai-cdk-constructs/) to deploy SageMaker Endpoints. `cdklabs.generative-ai-cdk-constructs` library assumes the model artifact (`model.tar.gz`) is stored in a bucket on S3 with the word "`sagemaker`" or "`SageMaker`". Therefore, `bucket_name` must include the word "`sagemaker`" or "`SageMaker`". (e.g., `sagemaker-us-east-1-123456789012`, `SageMaker-us-east-1-123456789012`).
 
-3. Set up `cdk.context.json`
+2. Set up `cdk.context.json`
 
    Then, you should set approperly the cdk context configuration file, `cdk.context.json`.
 
@@ -129,7 +124,9 @@ as well as metadata, such as version details, authorship, and any notes related 
    </pre>
    :information_source: This CDK project uses [`cdklabs.generative-ai-cdk-constructs`](https://awslabs.github.io/generative-ai-cdk-constructs/) to deploy SageMaker Endpoints. `cdklabs.generative-ai-cdk-constructs` library assumes the model artifact (`model.tar.gz`) is stored in a bucket on S3 with the word "`sagemaker`" or "`SageMaker`". Therefore, `s3_bucket_name` must include the word "`sagemaker`" or "`SageMaker`". (e.g., `sagemaker-us-east-1-123456789012`, `SageMaker-us-east-1-123456789012`).
 
-4. (Optional) Bootstrap AWS environment for AWS CDK app
+   :information_source: For more information about `dlc_image_info`, see [**Available AWS Deep Learning Containers (DLC) images**](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
+
+3. (Optional) Bootstrap AWS environment for AWS CDK app
 
    Also, before any AWS CDK app can be deployed, you have to bootstrap your AWS environment to create certain AWS resources that the AWS CDK CLI (Command Line Interface) uses to deploy your AWS CDK app.
 
@@ -187,5 +184,7 @@ Following [janus_pro_7b_realtime_endpoint.ipynb](src/notebook/janus_pro_7b_realt
  * [deepseek-ai/Janus-Pro-7B](https://huggingface.co/deepseek-ai/Janus-Pro-7B)
  * [DeepSeek in HuggingFace](https://huggingface.co/deepseek-ai)
  * [(GitHub) Janus](https://github.com/deepseek-ai/Janus/) - Unified Multimodal Understanding and Generation Models
+ * [Available AWS Deep Learning Containers (DLC) images](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
  * 🛠️ [sagemaker-pytorch-inference-toolkit](https://github.com/aws/sagemaker-pytorch-inference-toolkit) - SageMaker PyTorch Inference Toolkit is an open-source library for serving PyTorch models on Amazon SageMaker.
    * [sagemaker-pytorch-inference-toolkit parameters](https://github.com/aws/sagemaker-pytorch-inference-toolkit/blob/master/src/sagemaker_pytorch_serving_container/ts_parameters.py) - List of environment variables for SageMaker Endpoint
+ * 🛠️ [sagemaker-huggingface-inference-toolkit](https://github.com/aws/sagemaker-huggingface-inference-toolkit) - SageMaker Hugging Face Inference Toolkit is an open-source library for serving 🤗 [Transformers](https://huggingface.co/docs/transformers/index) and [Diffusers](https://huggingface.co/docs/diffusers/index) models on Amazon SageMaker.

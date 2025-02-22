@@ -128,7 +128,7 @@ as well as metadata, such as version details, authorship, and any notes related 
    </pre>
    :information_source: This CDK project uses [`cdklabs.generative-ai-cdk-constructs`](https://awslabs.github.io/generative-ai-cdk-constructs/) to deploy SageMaker Endpoints. `cdklabs.generative-ai-cdk-constructs` library assumes the model artifact (`model.tar.gz`) is stored in a bucket on S3 with the word "`sagemaker`" or "`SageMaker`". Therefore, `s3_bucket_name` must include the word "`sagemaker`" or "`SageMaker`". (e.g., `sagemaker-us-east-1-123456789012`, `SageMaker-us-east-1-123456789012`).
 
-   :information_source: For more information about `dlc_image_info`, see [**Available Deep Learning Containers (DLC) images**](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
+   :information_source: For more information about `dlc_image_info`, see [**Available AWS Deep Learning Containers (DLC) images**](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
 
 
 ## Deploy
@@ -184,7 +184,7 @@ Following [llava_next_video_realtime_endpoint.ipynb](src/notebook/llava_next_vid
  * [SageMaker Python SDK - Hugging Face](https://sagemaker.readthedocs.io/en/stable/frameworks/huggingface/index.html)
  * [Docker Registry Paths and Example Code for Pre-built SageMaker Docker images](https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html)
  * [Model Directory Structure for Deploying Pre-trained PyTorch Models](https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure)
- * [Available Deep Learning Containers (DLC) images](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
+ * [Available AWS Deep Learning Containers (DLC) images](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
  * [🤗 transformers (github)](https://github.com/huggingface/transformers) - 🤗 Transformers provides thousands of pretrained models to perform tasks on different modalities such as text, vision, and audio.
  * 🛠️ [sagemaker-huggingface-inference-toolkit](https://github.com/aws/sagemaker-huggingface-inference-toolkit) - SageMaker Hugging Face Inference Toolkit is an open-source library for serving 🤗 [Transformers](https://huggingface.co/docs/transformers/index) and [Diffusers](https://huggingface.co/docs/diffusers/index) models on Amazon SageMaker.
  * 🛠️ [sagemaker-inference-toolkit](https://github.com/aws/sagemaker-inference-toolkit) - The SageMaker Inference Toolkit implements a model serving stack and can be easily added to any Docker container, making it [deployable to SageMaker](https://aws.amazon.com/sagemaker/deploy/).
