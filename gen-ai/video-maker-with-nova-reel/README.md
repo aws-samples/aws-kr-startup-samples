@@ -1,7 +1,7 @@
-# Video Maker with Nova Reel
+# Video Maker with Amazon Bedrock(Nova Reel)
 
 ## Project Overview
-This project is a video creation automation system using Nova Reel. It is built using AWS CDK for infrastructure and consists of frontend and backend components.
+This project is a video creation automation system using Amazon Bedrock(Nova Reel). It is built using AWS CDK for infrastructure and consists of frontend and backend components.
 
 ![screenshot1](./docs/images/video-generation-service-1.jpeg)
 
