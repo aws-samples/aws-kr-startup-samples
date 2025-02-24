@@ -1,58 +1,65 @@
+# Video Maker with Nova Reel
 
-# Welcome to your CDK Python project!
+## Project Overview
+This project is a video creation automation system using Nova Reel. It is built using AWS CDK for infrastructure and consists of frontend and backend components.
 
-This is a blank project for CDK development with Python.
+## System Architecture
+- Frontend: React-based web application
+- Backend: Serverless architecture using AWS CDK
+  - AWS Lambda
+  - Amazon S3
+  - Other AWS services
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+## Installation and Deployment
 
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
+### Backend Deployment
+Follow these steps to deploy the backend:
 
-To manually create a virtualenv on MacOS and Linux:
+```bash
+# Navigate to backend directory
+cd backend
 
-```
-$ python3 -m venv .venv
-```
+# Install required dependencies
+pip install -r requirements.txt
 
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
-
-```
-$ source .venv/bin/activate
-```
-
-If you are a Windows platform, you would activate the virtualenv like this:
-
-```
-% .venv\Scripts\activate.bat
+# Deploy using AWS CDK
+cdk deploy
 ```
 
-Once the virtualenv is activated, you can install the required dependencies.
+### Frontend Deployment
+Follow these steps to deploy the frontend:
 
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Deploy to production
+npm run deploy
 ```
-$ pip install -r requirements.txt
-```
 
-At this point you can now synthesize the CloudFormation template for this code.
+## Prerequisites
+- Node.js 16.x or higher
+- Python 3.8 or higher
+- AWS CLI configured
+- AWS CDK CLI installed
 
-```
-$ cdk synth
-```
+## Features
+- Automated video creation
+- Cloud-based processing
+- Scalable architecture
+- Easy deployment process
 
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
+## Configuration
+Make sure to set up your AWS credentials and configure the necessary environment variables before deployment.
 
-## Useful commands
-
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
-
-Enjoy!
+## Support
+For support, please open an issue in the GitHub repository.
