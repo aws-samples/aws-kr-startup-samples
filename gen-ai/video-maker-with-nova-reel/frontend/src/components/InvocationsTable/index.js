@@ -6,9 +6,9 @@ import Button from "@cloudscape-design/components/button";
 import { useCollection } from '@cloudscape-design/collection-hooks';
 import { TABLE_CONFIG } from '../../constants/table';
 import { fetchVideos, downloadVideo } from '../../utils/api';
-import TableActions from './TableActions';
 import TableHeader from './TableHeader';
 import TablePreferences from './TablePreferences';
+import StatusIndicator from "@cloudscape-design/components/status-indicator";
 
 export default function InvocationsTable() {
   // State management for pagination
@@ -116,7 +116,26 @@ export default function InvocationsTable() {
   };
 
   const columnDefinitions = [
-    ...TABLE_CONFIG.BASE_COLUMN_DEFINITIONS,
+    ...TABLE_CONFIG.BASE_COLUMN_DEFINITIONS.slice(0, 2),
+    {
+      id: "status",
+      header: "Status",
+      cell: item => {
+        const statusProps = {
+          Completed: { type: "success" },
+          Failed: { type: "error" },
+          InProgress: { type: "info" }
+        }[item.status] || { type: "pending" };
+
+        return (
+          <StatusIndicator {...statusProps}>
+            {item.status}
+          </StatusIndicator>
+        );
+      },
+      minWidth: 120
+    },
+    ...TABLE_CONFIG.BASE_COLUMN_DEFINITIONS.slice(3),
     {
       id: "actions",
       header: "Actions",

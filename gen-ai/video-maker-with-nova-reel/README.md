@@ -3,6 +3,10 @@
 ## Project Overview
 This project is a video creation automation system using Nova Reel. It is built using AWS CDK for infrastructure and consists of frontend and backend components.
 
+![screenshot1](./docs/images/video-generation-service-1.jpeg)
+
+![screenshot2](./docs/images/video-generation-service-2.jpeg)
+
 ## System Architecture
 - Frontend: React-based web application
 - Backend: Serverless architecture using AWS CDK
