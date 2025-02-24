@@ -52,9 +52,13 @@ def lambda_handler(event, context):
     if http_method != 'GET':
         return create_response(405, {'error': f"{http_method} Methods are not allowed."})
     
-    # 쿼리 스트링으로 pagination 파라미터(limit, nextToken) 추출
+    # 쿼리 스트링 파라미터 추출 (pagination + 정렬 조건)
     query_params = event.get("queryStringParameters") or {}
     logger.info("Query params: %s", query_params)
+    
+    # 정렬 관련 파라미터 추출
+    sort_key = query_params.get("sort", "created_at")  # 기본값은 created_at
+    sort_order = query_params.get("order", "desc")     # 기본값은 desc
     
     limit = None
     if "limit" in query_params:
@@ -72,15 +76,13 @@ def lambda_handler(event, context):
         except Exception as e:
             logger.error("유효하지 않은 nextToken 값: %s", next_token_str)
     
-    data = list_videos(limit, exclusive_start_key)
+    data = list_videos(limit, exclusive_start_key, sort_key, sort_order)
     logger.info("List videos data: %s", data)
-    # data는 {"videos": [...], "nextToken": "..."} 구조로 반환
     return create_response(200, data)
 
-def list_videos(limit=None, exclusive_start_key=None):
+def list_videos(limit=None, exclusive_start_key=None, sort_key="created_at", sort_order="desc"):
     """
-    DynamoDB의 VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME 테이블에서 항목을 조회하여
-    리스트와 (있다면) pagination 토큰(nextToken)을 반환합니다.
+    DynamoDB에서 비디오 목록을 조회하고 정렬하여 반환합니다.
     """
     scan_kwargs = {
         "TableName": VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME
@@ -103,6 +105,16 @@ def list_videos(limit=None, exclusive_start_key=None):
         return {key: deserializer.deserialize(value) for key, value in item.items()}
     
     videos = [deserialize_item(item) for item in items]
+    
+    # 정렬 키가 존재하는 항목만 필터링
+    videos = [v for v in videos if sort_key in v]
+    
+    # 정렬 수행
+    videos.sort(
+        key=lambda x: x.get(sort_key),
+        reverse=(sort_order.lower() == "desc")
+    )
+    
     result = {"videos": videos}
     
     # 결과에 LastEvaluatedKey가 있다면 다음 페이지가 있으므로 nextToken 생성

@@ -122,7 +122,7 @@ class VideoMakerWithNovaReelStack(Stack):
         Rule(
             self,
             "VideoStatusCheckRule",
-            schedule=Schedule.rate(Duration.minutes(5)),
+            schedule=Schedule.rate(Duration.seconds(10)),
             targets=[LambdaFunction(self.status_videos_lambda)]
         )
 

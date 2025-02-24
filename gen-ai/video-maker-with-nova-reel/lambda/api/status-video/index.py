@@ -20,7 +20,7 @@ def json_serial(obj):
     raise TypeError("Type not serializable")
 
 def update_dynamo_status(invocation_id, new_status, s3_uri=None):
-    """DynamoDB 상태 업데이트 함수"""
+    """Function to update DynamoDB status"""
     update_expression = 'SET #status = :status, updated_at = :updated_at'
     expression_values = {
         ':status': {'S': new_status},
@@ -48,7 +48,7 @@ def lambda_handler(event, context):
     logger.info("Checking video generation status...")
     
     try:
-        # DynamoDB에서 InProgress 상태인 항목들을 조회
+        # Query items with InProgress status from DynamoDB
         response = ddb_client.scan(
             TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
             FilterExpression='#status = :status',
@@ -77,23 +77,23 @@ def lambda_handler(event, context):
                 if not invocation_arn or not invocation_id:
                     continue
                     
-                # Bedrock invoke 상태 확인
+                # Check Bedrock invoke status
                 logger.info(f"Checking status with ARN: {invocation_arn}")
                 status_response = bedrock_runtime.get_async_invoke(
                     invocationArn=invocation_arn
                 )
                 
-                # datetime 객체를 포함한 응답을 JSON으로 직렬화
+                # Serialize response containing datetime objects to JSON
                 logger.info(f"Status response: {json.dumps(status_response, default=json_serial, indent=2)}")
                 
                 current_status = status_response.get('status')
                 logger.info(f"Status for invocation {invocation_id}: {current_status}")
                 
-                # 완료된 경우 DynamoDB 업데이트
+                # Update DynamoDB when completed
                 if current_status in ['Completed', 'Failed']:
                     new_status = 'Completed' if current_status == 'Completed' else 'Failed'
                     
-                    # Completed인 경우 S3 URI 추출
+                    # Extract S3 URI if status is Completed
                     s3_uri = None
                     if new_status == 'Completed' and 'outputDataConfig' in status_response:
                         s3_config = status_response['outputDataConfig'].get('s3OutputDataConfig', {})
