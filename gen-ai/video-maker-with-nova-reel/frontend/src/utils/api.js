@@ -73,4 +73,53 @@ export const downloadVideo = async (invocationId) => {
   a.remove();
 };
 
-// ... other API functions 
+export const deleteVideo = async (invocationId) => {
+  try {
+    const response = await fetch(`${API_HOST}/apis/videos/${invocationId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      mode: 'cors',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`error: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('error:', error);
+    throw error;
+  }
+};
+
+export const deleteVideos = async (invocationIds) => {
+  try {
+    if (!Array.isArray(invocationIds)) {
+      return await deleteVideo(invocationIds);
+    }
+    
+    const results = await Promise.all(
+      invocationIds.map(async (id) => {
+        try {
+          return await deleteVideo(id);
+        } catch (error) {
+          return { id, error: error.message, success: false };
+        }
+      })
+    );
+    
+    return {
+      success: true,
+      results,
+      totalDeleted: results.filter(r => !r.error).length,
+      totalFailed: results.filter(r => r.error).length
+    };
+  } catch (error) {
+    console.error('error:', error);
+    throw error;
+  }
+};

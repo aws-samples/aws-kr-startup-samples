@@ -98,6 +98,18 @@ class VideoMakerWithNovaReelStack(Stack):
         # Set up Lambda integration with API Gateway for getting video
         self._setup_get_video_by_invocation_id_integration()
         
+        # Create delete video Lambda function
+        self.delete_video_lambda = self._create_delete_video_lambda()
+
+        # Add dependency to ensure Lambda function is created after S3 bucket
+        self.delete_video_lambda.node.add_dependency(self.s3_base_bucket)
+        
+        # Grant S3 permissions to delete video Lambda function
+        self._attach_delete_video_lambda_permissions()
+        
+        # Set up Lambda integration with API Gateway for deleting video
+        self._setup_delete_video_lambda_integration()
+        
         # Create status check Lambda function
         self.status_videos_lambda = self._create_status_videos_lambda(dependencies_layer)
 
@@ -214,6 +226,39 @@ class VideoMakerWithNovaReelStack(Stack):
             },
         )
     
+    def _create_delete_video_lambda(self) -> Function:
+        """Create and configure Lambda function for deleting video."""
+        return Function(
+            self,
+            "VideoMakerWithNovaReelDeleteVideoLambda",
+            function_name="VideoMakerWithNovaReelDeleteVideoLambda",
+            runtime=Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=Code.from_asset("lambda/api/delete-video"),
+            environment={
+                "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name,
+            },
+        )
+
+    def _attach_delete_video_lambda_permissions(self) -> None:
+        """Grants S3 permissions to the delete video Lambda function."""
+        self.delete_video_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=["s3:DeleteObject"],
+                resources=[f"{self.s3_base_bucket.bucket_arn}/*"],
+            )
+        )
+        
+        # Grant DynamoDB DeleteItem and GetItem permissions to the delete video Lambda function
+        self.delete_video_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=["dynamodb:DeleteItem", "dynamodb:GetItem"],
+                resources=[self.video_maker_with_nova_reel_process_table.table_arn],
+            )
+        )
+
     def _create_status_videos_lambda(self, layer: LayerVersion) -> Function:
         """Create and configure Lambda function for checking video status."""
         return Function(
@@ -385,7 +430,7 @@ class VideoMakerWithNovaReelStack(Stack):
                 'responseParameters': {
                     'method.response.header.Access-Control-Allow-Origin': "'*'",
                     'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
-                    'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS'"
+                    'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS,DELETE'"
                 }
             }]
         )
@@ -395,10 +440,10 @@ class VideoMakerWithNovaReelStack(Stack):
             authorization_type=AuthorizationType.NONE,
             method_responses=self._default_method_response()
         )
-        # CORS preflight 설정 추가
+        # CORS preflight 설정 개선
         self.video_with_id_resource.add_cors_preflight(
             allow_origins=["*"],
-            allow_methods=["GET", "OPTIONS"],
+            allow_methods=["GET", "DELETE", "OPTIONS"],
             allow_headers=[
                 "Content-Type",
                 "X-Amz-Date",
@@ -411,6 +456,27 @@ class VideoMakerWithNovaReelStack(Stack):
             ],
         )
     
+    def _setup_delete_video_lambda_integration(self) -> None:
+        """Connects API Gateway to the delete video Lambda function using Lambda integration."""
+        integration = LambdaIntegration(
+            self.delete_video_lambda,
+            proxy=True,
+            integration_responses=[{
+                'statusCode': '200',
+                'responseParameters': {
+                    'method.response.header.Access-Control-Allow-Origin': "'*'",
+                    'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                    'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS,DELETE'"
+                }
+            }]
+        )
+        self.video_with_id_resource.add_method(
+            "DELETE",
+            integration,
+            authorization_type=AuthorizationType.NONE,
+            method_responses=self._default_method_response()
+        )
+    
     def _default_method_response(self):
         """Returns a default MethodResponse configuration for CORS."""
         return [
@@ -418,6 +484,23 @@ class VideoMakerWithNovaReelStack(Stack):
                 status_code="200",
                 response_parameters={
                     "method.response.header.Access-Control-Allow-Origin": True, 
+                    "method.response.header.Access-Control-Allow-Headers": True,
+                    "method.response.header.Access-Control-Allow-Methods": True,
+                },
+            ),
+            # 추가: 4xx 및 5xx 오류에 대한 CORS 헤더 설정
+            MethodResponse(
+                status_code="400",
+                response_parameters={
+                    "method.response.header.Access-Control-Allow-Origin": True,
+                    "method.response.header.Access-Control-Allow-Headers": True,
+                    "method.response.header.Access-Control-Allow-Methods": True,
+                },
+            ),
+            MethodResponse(
+                status_code="500",
+                response_parameters={
+                    "method.response.header.Access-Control-Allow-Origin": True,
                     "method.response.header.Access-Control-Allow-Headers": True,
                     "method.response.header.Access-Control-Allow-Methods": True,
                 },

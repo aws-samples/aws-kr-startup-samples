@@ -65,14 +65,22 @@ export default function GenerateForm() {
             </FormField>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button 
-                variant="primary" 
-                type="submit"
-                loading={loading}
-                disabled={!prompt.trim() || loading}
-              >
-                Generate
-              </Button>
+              <SpaceBetween direction="horizontal" size="xs">
+                <Button 
+                  variant="normal"
+                  onClick={() => alert("AI 프롬프트 추천 기능이 곧 제공될 예정입니다.")}
+                >
+                  Generative AI Assist
+                </Button>
+                <Button 
+                  variant="primary" 
+                  type="submit"
+                  loading={loading}
+                  disabled={!prompt.trim() || loading}
+                >
+                  Generate
+                </Button>
+              </SpaceBetween>
             </div>
           </SpaceBetween>
         </form>

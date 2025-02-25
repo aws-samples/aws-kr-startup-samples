@@ -5,7 +5,7 @@ import Pagination from "@cloudscape-design/components/pagination";
 import Button from "@cloudscape-design/components/button";
 import { useCollection } from '@cloudscape-design/collection-hooks';
 import { TABLE_CONFIG } from '../../constants/table';
-import { fetchVideos, downloadVideo } from '../../utils/api';
+import { fetchVideos, downloadVideo, deleteVideo } from '../../utils/api';
 import TableHeader from './TableHeader';
 import TablePreferences from './TablePreferences';
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
@@ -115,6 +115,32 @@ export default function InvocationsTable() {
     }
   };
 
+  // Handle single item delete
+  const handleDelete = async (invocationId) => {
+    try {
+      await deleteVideo(invocationId);
+      // 삭제 후 현재 페이지 새로고침
+      handleRefresh();
+    } catch (error) {
+      console.error("Delete failed:", error);
+    }
+  };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    try {
+      for (const item of selectedItems) {
+        await deleteVideo(item.invocation_id);
+      }
+      // 삭제 후 현재 페이지 새로고침
+      handleRefresh();
+      // 선택된 항목 초기화
+      setSelectedItems([]);
+    } catch (error) {
+      console.error("Bulk delete failed:", error);
+    }
+  };
+
   const columnDefinitions = [
     ...TABLE_CONFIG.BASE_COLUMN_DEFINITIONS.slice(0, 2),
     {
@@ -140,15 +166,22 @@ export default function InvocationsTable() {
       id: "actions",
       header: "Actions",
       cell: item => (
-        <Button
-          variant="inline-link"
-          onClick={() => handleDownload(item.invocation_id)}
-          ariaLabel={`Download ${item.invocation_id}`}
-        >
-          Download
-        </Button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Button
+            variant="icon"
+            iconName="download"
+            onClick={() => handleDownload(item.invocation_id)}
+            ariaLabel={`Download ${item.invocation_id}`}
+          />
+          <Button
+            variant="icon"
+            iconName="remove"
+            onClick={() => handleDelete(item.invocation_id)}
+            ariaLabel={`Delete ${item.invocation_id}`}
+          />
+        </div>
       ),
-      minWidth: 170
+      minWidth: 120
     }
   ];
 
@@ -170,6 +203,7 @@ export default function InvocationsTable() {
           loading={loading}
           onRefresh={handleRefresh}
           onBulkDownload={handleBulkDownload}
+          onBulkDelete={handleBulkDelete}
         />
       }
       filter={
