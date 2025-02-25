@@ -9,6 +9,7 @@ import Alert from "@cloudscape-design/components/alert";
 import HelpPanel from "@cloudscape-design/components/help-panel";
 import Icon from "@cloudscape-design/components/icon";
 import AppLayout from "@cloudscape-design/components/app-layout";
+import PromptInput from "@cloudscape-design/components/prompt-input";
 import { generateVideo } from "../../utils/api";
 
 export default function GenerateForm() {
@@ -16,6 +17,7 @@ export default function GenerateForm() {
   const [loading, setLoading] = React.useState(false);
   const [showSuccess, setShowSuccess] = React.useState(false);
   const [toolsOpen, setToolsOpen] = React.useState(false);
+  const [chatValue, setChatValue] = React.useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -91,6 +93,65 @@ export default function GenerateForm() {
                     </Button>
                   </SpaceBetween>
                 </div>
+
+                <div>
+                    <p>
+                    <h2>Tips for Effective Prompting:</h2>
+                    </p>
+                    
+                    <h3>Prompt Structure</h3>
+                    <ul>
+                    <li>Describe the scene as a caption rather than a command</li>
+                    <li>Separate details with semicolons (;)</li>
+                    <li>Add camera movements at the beginning or end of your prompt</li>
+                    <li>Keep prompts under 512 characters</li>
+                    <li>Avoid negation words like "no", "not", "without"</li>
+                    </ul>
+
+                    <h3>Recommended Keywords</h3>
+                    <p>
+                    <code>4k</code>, <code>cinematic</code>, <code>high quality</code>, <code>detailed</code>, 
+                    <code>realistic</code>, <code>slow motion</code>, <code>dolly zoom</code>
+                    </p>
+
+                    <h3>Refinement Techniques</h3>
+                    <ul>
+                    <li>Use consistent seed values when making small prompt changes</li>
+                    <li>Generate multiple variations with different seeds once you're satisfied</li>
+                    </ul>
+
+                    <h3>Example Prompts</h3>
+                    <pre>
+        Slow cam of a man middle age; 4k; Cinematic; in a sunny day; peaceful; highest quality; dolly in;
+                    </pre>
+                    <pre>
+        Closeup of a large seashell in the sand. Gentle waves flow around the shell. Camera zoom in.
+                    </pre>
+                </div>
+
+                <div>
+                    <h3>
+                        Learn More{" "}
+                        <Icon name="external" size="inherit" />
+                    </h3>
+                    <ul>
+                        <li>
+                        <a href="https://docs.aws.amazon.com/nova/latest/userguide/prompting-video-generation.html" target="_blank" rel="noopener noreferrer">
+                            Amazon Nova Reel prompting best practices
+                        </a>
+                        </li>
+                        <li>
+                        <a href="https://docs.aws.amazon.com/nova/latest/userguide/prompting-video-image-prompts.html" target="_blank" rel="noopener noreferrer">
+                            Image-based video generation prompts
+                        </a>
+                        </li>
+                        <li>
+                        <a href="https://docs.aws.amazon.com/nova/latest/userguide/prompting-video-camera-control.html" target="_blank" rel="noopener noreferrer">
+                            Camera controls
+                        </a>
+                        </li>
+                    </ul>
+                    </div>
               </SpaceBetween>
             </form>
           </SpaceBetween>
@@ -98,66 +159,29 @@ export default function GenerateForm() {
       }
       tools={
         <HelpPanel
-          header={<h2>Generative AI Assist</h2>}
-          footer={
-            <div>
-              <h3>
-                Learn More{" "}
-                <Icon name="external" size="inherit" />
-              </h3>
-              <ul>
-                <li>
-                  <a href="https://docs.aws.amazon.com/nova/latest/userguide/prompting-video-generation.html" target="_blank" rel="noopener noreferrer">
-                    Amazon Nova Reel prompting best practices
-                  </a>
-                </li>
-                <li>
-                  <a href="https://docs.aws.amazon.com/nova/latest/userguide/prompting-video-image-prompts.html" target="_blank" rel="noopener noreferrer">
-                    Image-based video generation prompts
-                  </a>
-                </li>
-                <li>
-                  <a href="https://docs.aws.amazon.com/nova/latest/userguide/prompting-video-camera-control.html" target="_blank" rel="noopener noreferrer">
-                    Camera controls
-                  </a>
-                </li>
-              </ul>
-            </div>
-          }
+          header={<h2>Amazon Nova Chat</h2>}
         >
-          <div>
-            <p>
-              <b>Tips for Effective Prompting:</b>
-            </p>
-            
-            <h3>Prompt Structure</h3>
-            <ul>
-              <li>Describe the scene as a caption rather than a command</li>
-              <li>Separate details with semicolons (;)</li>
-              <li>Add camera movements at the beginning or end of your prompt</li>
-              <li>Keep prompts under 512 characters</li>
-              <li>Avoid negation words like "no", "not", "without"</li>
-            </ul>
-
-            <h3>Recommended Keywords</h3>
-            <p>
-              <code>4k</code>, <code>cinematic</code>, <code>high quality</code>, <code>detailed</code>, 
-              <code>realistic</code>, <code>slow motion</code>, <code>dolly zoom</code>
-            </p>
-
-            <h3>Refinement Techniques</h3>
-            <ul>
-              <li>Use consistent seed values when making small prompt changes</li>
-              <li>Generate multiple variations with different seeds once you're satisfied</li>
-            </ul>
-
-            <h3>Example Prompts</h3>
-            <pre>
-Slow cam of a man middle age; 4k; Cinematic; in a sunny day; peaceful; highest quality; dolly in;
-            </pre>
-            <pre>
-Closeup of a large seashell in the sand. Gentle waves flow around the shell. Camera zoom in.
-            </pre>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            height: 'calc(100vh - 120px)', 
+            justifyContent: 'space-between' 
+          }}>
+            <div style={{ overflowY: 'auto' }}>
+              {/* 여기에 채팅 내용이 표시될 수 있습니다 */}
+            </div>
+            <div style={{ position: 'sticky', bottom: 0, backgroundColor: 'white', paddingTop: '16px' }}>
+              <PromptInput
+                onChange={({ detail }) => setChatValue(detail.value)}
+                value={chatValue}
+                actionButtonAriaLabel="Send message"
+                actionButtonIconName="send"
+                ariaLabel="Prompt input with min and max rows"
+                maxRows={8}
+                minRows={3}
+                placeholder="Ask a question"
+              />
+            </div>
           </div>
         </HelpPanel>
       }
