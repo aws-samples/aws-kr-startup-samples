@@ -174,9 +174,39 @@ class VideoMakerWithNovaReelStack(Stack):
         self.generate_resource = self.videos_resource.add_resource("generate")
         self.video_with_id_resource = self.videos_resource.add_resource("{invocation_id}")
         
-        # 상위 리소스인 videos_resource에 CORS 설정 적용
-        # 이렇게 하면 generate_resource와 video_with_id_resource에 모두 적용됨
+        # API Gateway의 모든 엔드포인트에 개별적으로 CORS 설정 적용
         self.videos_resource.add_cors_preflight(
+            allow_origins=["*"],
+            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Amz-Date",
+                "Authorization",
+                "X-Api-Key",
+                "X-Amz-Security-Token",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Methods"
+            ],
+        )
+        
+        # 각 리소스에 개별적으로 CORS 설정 적용
+        self.generate_resource.add_cors_preflight(
+            allow_origins=["*"],
+            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Amz-Date",
+                "Authorization",
+                "X-Api-Key",
+                "X-Amz-Security-Token",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Methods"
+            ],
+        )
+        
+        self.video_with_id_resource.add_cors_preflight(
             allow_origins=["*"],
             allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
             allow_headers=[
@@ -262,8 +292,8 @@ class VideoMakerWithNovaReelStack(Stack):
         self.delete_video_lambda.add_to_role_policy(
             PolicyStatement(
                 effect=Effect.ALLOW,
-                actions=["s3:DeleteObject"],
-                resources=[f"{self.s3_base_bucket.bucket_arn}/*"],
+                actions=["s3:DeleteObject", "s3:GetObject", "s3:ListBucket"],
+                resources=[f"{self.s3_base_bucket.bucket_arn}/*", f"{self.s3_base_bucket.bucket_arn}"],
             )
         )
         
@@ -442,7 +472,7 @@ class VideoMakerWithNovaReelStack(Stack):
                 'responseParameters': {
                     'method.response.header.Access-Control-Allow-Origin': "'*'",
                     'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
-                    'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS,DELETE'"
+                    'method.response.header.Access-Control-Allow-Methods': "'GET,OPTIONS,POST,DELETE'"
                 }
             }]
         )

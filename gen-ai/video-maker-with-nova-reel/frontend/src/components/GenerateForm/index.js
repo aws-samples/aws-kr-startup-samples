@@ -168,6 +168,7 @@ export default function GenerateForm() {
         tools={
           <HelpPanel
             header={<h2>Amazon Nova Chat</h2>}
+            iconName="gen-ai"
           >
             <div style={{ 
               display: 'flex', 

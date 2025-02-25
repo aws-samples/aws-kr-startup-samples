@@ -20,12 +20,12 @@ def create_response(status_code, body):
     """
     return {
         'statusCode': status_code,
-        'body': json.dumps(body),
         'headers': {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-            'Access-Control-Allow-Methods': 'DELETE,OPTIONS'
-        }
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,Access-Control-Allow-Origin',
+                'Access-Control-Allow-Methods': 'GET,OPTIONS,POST,DELETE'
+            },
+        'body': json.dumps(body)
     }
 
 def parse_body(body):
@@ -53,7 +53,7 @@ def lambda_handler(event, context):
             'headers': {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-                'Access-Control-Allow-Methods': 'DELETE,OPTIONS'
+                'Access-Control-Allow-Methods': 'GET,OPTIONS,POST,DELETE'
             },
             'body': json.dumps({})
         }
@@ -108,14 +108,17 @@ def lambda_handler(event, context):
                         directory_key = '/'.join(key.split('/')[:-1]) if '/' in key else key
                     else:
                         logger.warning(f"Unsupported S3 URL format: {s3_url}")
-                        continue
+                        bucket = None
+                        directory_key = None
                     
-                    # S3 리소스를 사용하여 디렉토리 내 모든 객체 삭제
-                    logger.info(f"Deleting all objects in directory: bucket={bucket}, directory={directory_key}")
-                    s3_resource = boto3.resource('s3')
-                    bucket_resource = s3_resource.Bucket(bucket)
-                    bucket_resource.objects.filter(Prefix=directory_key).delete()
-                    logger.info(f"Successfully deleted all objects with prefix {directory_key}")
+                    # S3에서 오브젝트 삭제 (지원되지 않는 URL 형식인 경우 건너뜀)
+                    if bucket and directory_key:
+                        # S3 리소스를 사용하여 디렉토리 내 모든 객체 삭제
+                        logger.info(f"Deleting all objects in directory: bucket={bucket}, directory={directory_key}")
+                        s3_resource = boto3.resource('s3')
+                        bucket_resource = s3_resource.Bucket(bucket)
+                        bucket_resource.objects.filter(Prefix=directory_key).delete()
+                        logger.info(f"Successfully deleted all objects with prefix {directory_key}")
                 
                 # DynamoDB 아이템 삭제
                 logger.info(f"Deleting DynamoDB item with invocation_id: {invocation_id}")
