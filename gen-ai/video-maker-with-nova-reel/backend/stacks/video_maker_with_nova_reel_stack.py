@@ -173,6 +173,23 @@ class VideoMakerWithNovaReelStack(Stack):
         self.videos_resource = apis_resource.add_resource("videos")
         self.generate_resource = self.videos_resource.add_resource("generate")
         self.video_with_id_resource = self.videos_resource.add_resource("{invocation_id}")
+        
+        # 상위 리소스인 videos_resource에 CORS 설정 적용
+        # 이렇게 하면 generate_resource와 video_with_id_resource에 모두 적용됨
+        self.videos_resource.add_cors_preflight(
+            allow_origins=["*"],
+            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Amz-Date",
+                "Authorization",
+                "X-Api-Key",
+                "X-Amz-Security-Token",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Methods"
+            ],
+        )
 
     def _create_dependencies_layer(self) -> LayerVersion:
         """
@@ -414,11 +431,6 @@ class VideoMakerWithNovaReelStack(Stack):
             authorization_type=AuthorizationType.NONE,
             method_responses=self._default_method_response()
         )
-        self.videos_resource.add_cors_preflight(
-            allow_origins=["*"],
-            allow_methods=["GET", "OPTIONS"],
-            allow_headers=["Content-Type", "X-Amz-Date", "Authorization", "X-Api-Key", "X-Amz-Security-Token", "Access-Control-Allow-Origin", "Access-Control-Allow-Headers", "Access-Control-Allow-Methods"]
-        )
     
     def _setup_get_video_by_invocation_id_integration(self) -> None:
         """Connects API Gateway to the get video Lambda function using Lambda integration."""
@@ -439,21 +451,6 @@ class VideoMakerWithNovaReelStack(Stack):
             integration,
             authorization_type=AuthorizationType.NONE,
             method_responses=self._default_method_response()
-        )
-        # CORS preflight 설정 개선
-        self.video_with_id_resource.add_cors_preflight(
-            allow_origins=["*"],
-            allow_methods=["GET", "DELETE", "OPTIONS"],
-            allow_headers=[
-                "Content-Type",
-                "X-Amz-Date",
-                "Authorization",
-                "X-Api-Key",
-                "X-Amz-Security-Token",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Headers",
-                "Access-Control-Allow-Methods"
-            ],
         )
     
     def _setup_delete_video_lambda_integration(self) -> None:
