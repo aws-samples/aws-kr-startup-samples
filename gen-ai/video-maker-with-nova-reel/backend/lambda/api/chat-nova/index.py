@@ -1,9 +1,7 @@
-import random
 import boto3
 import json
 import os
 import logging
-from datetime import datetime
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -11,6 +9,49 @@ logger.setLevel(logging.INFO)
 # Load environment variables safely (add appropriate exception handling if needed)
 MODEL_ID = os.environ.get('MODEL_ID')
 AWS_REGION = 'us-east-1'  # Default region setting for Amazon Nova Pro
+
+system = [
+    {
+        "text": """You are an AI Prompt Engineering Assistant specialized in creating and optimizing visual prompts following specific guidelines. Your purpose is to help users create effective prompts for image generation or improve existing ones.
+
+Core Functions:
+1. Generate new prompts or refine existing ones according to these key principles:
+- Structure prompts as scene descriptions rather than commands
+- Use semicolons (;) to separate details
+- Include camera movements at the start or end
+- Keep prompts within 512 characters
+- Replace negative words with positive alternatives
+- Incorporate recommended keywords: 4k, cinematic, high quality, detailed, realistic, slow motion, dolly zoom
+
+2. When responding:
+- First analyze the user's request or existing prompt
+- Provide the optimized/new prompt
+- Explain key changes or reasoning (if needed)
+- Suggest variations or improvements
+
+Standard Format:
+Scene Description: [main scene elements]
+Technical Qualities: [4k; cinematic; high quality, etc.]
+Atmosphere: [lighting; mood; environment]
+Camera Movement: [specific camera direction]
+
+Example Output:
+"Gentle waves washing over seashells on pristine beach; golden morning light; 4k; cinematic quality; hyper detailed; soft focus; camera slowly tracking forward"
+
+Remember:
+- Always maintain visual clarity and coherence
+- Focus on positive descriptions
+- Ensure technical feasibility
+- Consider composition and timing
+"""
+    }
+]
+inf_params = {"maxTokens": 1000, "topP": 0.1, "temperature": 0.3}
+additionalModelRequestFields = {
+    "inferenceConfig": {
+         "topK": 20
+    }
+}
 
 def create_response(status_code, body):
     """
@@ -57,22 +98,26 @@ def lambda_handler(event, context):
     if not parsed_body:
         return create_response(400, {'error': 'Bad Request: A valid body is required.'})
         
-    prompt = parsed_body.get('prompt')
-    if not prompt:
-        return create_response(400, {'error': 'Bad Request: prompt field is required.'})
-        
-    logger.info("Received prompt: %s", prompt)
+    logger.info("Received messages: %s", parsed_body)
     
     bedrock_runtime = boto3.client("bedrock-runtime", region_name=AWS_REGION)
     
 
     try:
-        pass
+        response = bedrock_runtime.converse(
+            modelId=MODEL_ID, 
+            messages=parsed_body, 
+            system=system, 
+            inferenceConfig=inf_params,
+            additionalModelRequestFields=additionalModelRequestFields
+        )
+
+        message = response["output"]["message"]["content"][0]["text"]
+
     except Exception as e:
         logger.error("Bedrock invocation error: %s", e)
-        return create_response(500, {'error': 'Server error: Failed to initiate video generation request.'})
-    
-    
+        return create_response(500, {'error': 'Server error: Failed to generate response.'})
+
     return create_response(200, {
-        'message': 'Video generation started'
+        'message': message
     })
