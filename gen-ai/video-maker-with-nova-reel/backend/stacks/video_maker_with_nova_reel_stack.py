@@ -24,7 +24,8 @@ class VideoMakerWithNovaReelStack(Stack):
 
         # Get context information
         self.video_generation_model_id = self.node.try_get_context("video_generation_model_id")
-        self.s3_stack_bucket_name = self.node.try_get_context("s3_base_bucket_name")
+        self.chat_nova_model_id = self.node.try_get_context("chat_nova_model_id")
+        self.s3_stack_bucket_name = f"{self.node.try_get_context('s3_base_bucket_name')}-{Aws.ACCOUNT_ID}"
         self.ddb_table_name = self.node.try_get_context("video_maker_with_nova_reel_process_table")
 
         # Create DynamoDB table
@@ -119,6 +120,12 @@ class VideoMakerWithNovaReelStack(Stack):
         # Grant permissions to status check Lambda function
         self._attach_status_videos_lambda_permissions(self.s3_stack_bucket_name)
 
+        self.chat_nova_lambda = self._create_chat_nova_lambda(model_id=self.chat_nova_model_id)
+        
+        self._attach_chat_nova_lambda_permissions()
+
+        self._setup_chat_nova_lambda_integration()
+
         # Create EventBridge rule for status check
         self._create_status_check_rule()
         
@@ -173,6 +180,7 @@ class VideoMakerWithNovaReelStack(Stack):
         self.videos_resource = apis_resource.add_resource("videos")
         self.generate_resource = self.videos_resource.add_resource("generate")
         self.video_with_id_resource = self.videos_resource.add_resource("{invocation_id}")
+        self.chat_resource = apis_resource.add_resource("chat")
         
         # API Gateway의 모든 엔드포인트에 개별적으로 CORS 설정 적용
         self.videos_resource.add_cors_preflight(
@@ -207,6 +215,21 @@ class VideoMakerWithNovaReelStack(Stack):
         )
         
         self.video_with_id_resource.add_cors_preflight(
+            allow_origins=["*"],
+            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Amz-Date",
+                "Authorization",
+                "X-Api-Key",
+                "X-Amz-Security-Token",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Methods"
+            ],
+        )
+
+        self.chat_resource.add_cors_preflight(
             allow_origins=["*"],
             allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
             allow_headers=[
@@ -441,6 +464,33 @@ class VideoMakerWithNovaReelStack(Stack):
             )
         )
 
+    def _create_chat_nova_lambda(self, model_id: str) -> Function:
+        """Create and configure Lambda function for chat with Nova."""
+        return Function(
+            self,
+            "VideoMakerWithChatNovaLambda",
+            function_name="VideoMakerWithChatNovaLambda",
+            runtime=Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=Code.from_asset("lambda/api/chat-nova"),
+            environment={
+                "MODEL_ID": model_id,
+            },
+            timeout=Duration.seconds(60),
+        )
+    
+    def _attach_chat_nova_lambda_permissions(self) -> None:
+        """Grants Bedrock InvokeModel permission to the get video Lambda function."""
+        self.chat_nova_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=[
+                    "bedrock:InvokeModel"
+                ],
+                resources=["*"],
+            )
+        )
+
     def _setup_list_videos_lambda_integration(self) -> None:
         """Connects API Gateway to the video listing Lambda function using Lambda integration."""
         integration = LambdaIntegration(
@@ -499,6 +549,27 @@ class VideoMakerWithNovaReelStack(Stack):
         )
         self.video_with_id_resource.add_method(
             "DELETE",
+            integration,
+            authorization_type=AuthorizationType.NONE,
+            method_responses=self._default_method_response()
+        )
+
+    def _setup_chat_nova_lambda_integration(self) -> None:
+        """Connects API Gateway to the delete video Lambda function using Lambda integration."""
+        integration = LambdaIntegration(
+            self.chat_nova_lambda,
+            proxy=True,
+            integration_responses=[{
+                'statusCode': '200',
+                'responseParameters': {
+                    'method.response.header.Access-Control-Allow-Origin': "'*'",
+                    'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                    'method.response.header.Access-Control-Allow-Methods': "'GET,POST,OPTIONS,DELETE'"
+                }
+            }]
+        )
+        self.chat_resource.add_method(
+            "POST",
             integration,
             authorization_type=AuthorizationType.NONE,
             method_responses=self._default_method_response()
