@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@cloudscape-design/chat-components": "^1.0.25",
     "@cloudscape-design/components": "^3.0.903",
     "@cloudscape-design/global-styles": "^1.0.36",
     "@testing-library/dom": "^10.4.0",
@@ -11,6 +12,7 @@
     "@testing-library/user-event": "^13.5.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
+    "react-markdown": "^10.0.0",
     "react-router-dom": "^7.2.0",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"

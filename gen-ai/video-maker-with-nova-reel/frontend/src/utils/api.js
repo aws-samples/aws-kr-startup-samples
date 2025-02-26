@@ -123,3 +123,33 @@ export const deleteVideos = async (invocationIds) => {
     throw error;
   }
 };
+
+export const chatNova = async (messages) => {
+
+  const body = []
+  messages.forEach(msg => {
+    body.push({
+      role: msg.role,
+      content: [{
+        "text": msg.content
+      }]
+    });
+  });
+
+  const response = await fetch(`${API_HOST}/apis/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    },
+    mode: 'cors',
+    body: JSON.stringify( body )
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};

@@ -11,7 +11,10 @@ import Icon from "@cloudscape-design/components/icon";
 import AppLayout from "@cloudscape-design/components/app-layout";
 import PromptInput from "@cloudscape-design/components/prompt-input";
 import Modal from "@cloudscape-design/components/modal";
-import { generateVideo } from "../../utils/api";
+import ChatBubble from "@cloudscape-design/chat-components/chat-bubble";
+import Avatar from "@cloudscape-design/chat-components/avatar";
+import ReactMarkdown from 'react-markdown';
+import { generateVideo, chatNova } from "../../utils/api";
 
 export default function GenerateForm() {
   const [prompt, setPrompt] = React.useState("");
@@ -19,6 +22,7 @@ export default function GenerateForm() {
   const [showSuccess, setShowSuccess] = React.useState(false);
   const [toolsOpen, setToolsOpen] = React.useState(false);
   const [chatValue, setChatValue] = React.useState("");
+  const [chatMessages, setChatMessages] = React.useState([]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,11 +42,37 @@ export default function GenerateForm() {
     }
   };
 
-  const handleChatSubmit = () => {
+  const handleChatSubmit = async (e) => {
+    
+    e.preventDefault();
+
     if (chatValue.trim()) {
+
+
+      const newMsgs = [...chatMessages];
+      newMsgs.push({
+        role: 'user',
+        content: chatValue,
+        loading: false
+      });
+      newMsgs.push({
+        role: 'assistant',
+        content: "Generating response",
+        loading: true
+      });
+
+      setChatMessages(newMsgs)
+
+      const res = await chatNova(newMsgs);
+      newMsgs[newMsgs.length-1].content = res.message
+      newMsgs[newMsgs.length-1].loading = false
+
+      setChatMessages(newMsgs)
+
       setChatValue("");
     }
   };
+
 
   return (
     <>
@@ -177,13 +207,24 @@ export default function GenerateForm() {
               justifyContent: 'space-between' 
             }}>
               <div style={{ overflowY: 'auto' }}>
-                {/* Chat messages will be displayed here */}
+                {chatMessages.map((message, index) => (
+                  <span key={`br-${index}`}>
+                  <ChatBubble
+                    key={`chat-${index}`}
+                    avatar={message.role === 'user' ? <Avatar /> : <Avatar color="gen-ai" initials="AI" loading={message.loading}/>}
+                    type='incoming'
+                  >
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </ChatBubble>
+                  <br />
+                  </span>
+                ))}
               </div>
               <div style={{ position: 'sticky', bottom: 0, backgroundColor: 'white', paddingTop: '16px' }}>
                 <PromptInput
                   onChange={({ detail }) => setChatValue(detail.value)}
                   value={chatValue}
-                  onSubmit={handleChatSubmit}
+                  onAction={handleChatSubmit}
                   actionButtonAriaLabel="Send message"
                   actionButtonIconName="send"
                   ariaLabel="Prompt input with min and max rows"

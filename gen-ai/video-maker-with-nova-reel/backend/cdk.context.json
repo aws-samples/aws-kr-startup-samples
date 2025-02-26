@@ -2,6 +2,7 @@
   "s3_base_bucket_name": "video-maker-with-nova-reel-stack",
   "video_generation_model_id": "amazon.nova-reel-v1:0",
   "video_maker_with_nova_reel_process_table": "VideoMakerWithNovaReelProcessTable",
+  "chat_nova_model_id": "us.amazon.nova-pro-v1:0",
   "acknowledged-issue-numbers": [
     32775,
     32775

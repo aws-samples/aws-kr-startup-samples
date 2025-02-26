@@ -10,11 +10,7 @@ logger.setLevel(logging.INFO)
 
 # Load environment variables safely (add appropriate exception handling if needed)
 MODEL_ID = os.environ.get('MODEL_ID')
-S3_DESTINATION_BUCKET = os.environ.get('S3_DESTINATION_BUCKET')
-VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME = os.environ.get('VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME')
-AWS_REGION = 'us-east-1'  # Default region setting for Amazon Nova Reel
-
-ddb_client = boto3.client('dynamodb')
+AWS_REGION = 'us-east-1'  # Default region setting for Amazon Nova Pro
 
 def create_response(status_code, body):
     """
@@ -69,56 +65,14 @@ def lambda_handler(event, context):
     
     bedrock_runtime = boto3.client("bedrock-runtime", region_name=AWS_REGION)
     
-    model_input = {
-        "taskType": "TEXT_VIDEO",
-        "textToVideoParams": {"text": prompt},
-        "videoGenerationConfig": {
-            "durationSeconds": 6,
-            "fps": 24,
-            "dimension": "1280x720",
-            "seed": random.randint(0, 2147483648)
-        }
-    }
-    
+
     try:
-        invocation = bedrock_runtime.start_async_invoke(
-            modelId=MODEL_ID,
-            modelInput=model_input,
-            outputDataConfig={"s3OutputDataConfig": {"s3Uri": f"s3://{S3_DESTINATION_BUCKET}"}}
-        )
+        pass
     except Exception as e:
-        logger.error("Bedrock asynchronous invocation error: %s", e)
+        logger.error("Bedrock invocation error: %s", e)
         return create_response(500, {'error': 'Server error: Failed to initiate video generation request.'})
     
-    invocation_arn = invocation.get("invocationArn")
-    invocation_id = invocation_arn.split('/')[-1]
-    
-    print("Invocation ARN:", invocation_arn)
-    print("Invocation ID:", invocation_id)
-
-    if not invocation_arn:
-        logger.error("invocationArn missing")
-        return create_response(500, {'error': 'Server error: Failed to initiate video generation request.'})
-        
-    s3_prefix = invocation_arn.split('/')[-1]
-    s3_location = f"s3://{S3_DESTINATION_BUCKET}/{s3_prefix}/output.mp4"
-
-    # Save the invocation ARN to the DynamoDB table
-    response = ddb_client.put_item(
-        TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
-        Item={
-            'invocation_id': {"S": invocation_id},
-            'invocation_arn': {"S": invocation_arn},
-            'prompt': {"S": prompt},
-            'status': {"S": 'InProgress'},
-            'location': {"S": s3_location},
-            'updated_at': {"S": datetime.now().isoformat()},
-            'created_at': {"S": datetime.now().isoformat()}
-        }
-    )
     
     return create_response(200, {
-        'message': 'Video generation started',
-        'invocationArn': invocation_arn,
-        'location': f"{s3_location}/output.mp4"
+        'message': 'Video generation started'
     })
