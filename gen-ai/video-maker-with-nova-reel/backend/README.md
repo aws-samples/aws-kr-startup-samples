@@ -1,58 +1,82 @@
 
-# Welcome to your CDK Python project!
+# Backend forVideo Maker with Amazon Bedrock(Nova Reel)
 
-This is a blank project for CDK development with Python.
+## Prerequisites
+- AWS CDK latest version
+- AWS account and credentials
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+## Setup
 
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
-
-To manually create a virtualenv on MacOS and Linux:
-
-```
-$ python3 -m venv .venv
+1. Clone the repository:
+```bash
+git clone https://github.com/aws-samples/aws-kr-startup-samples.git
+cd aws-kr-startup-samples
+git sparse-checkout init --cone
+git sparse-checkout set gen-ai/video-maker-with-nova-reel
 ```
 
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
-
-```
-$ source .venv/bin/activate
-```
-
-If you are a Windows platform, you would activate the virtualenv like this:
-
-```
-% .venv\Scripts\activate.bat
+2. Create virtual environment:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate  # Windows: `.venv\Scripts\activate`
 ```
 
-Once the virtualenv is activated, you can install the required dependencies.
-
-```
-$ pip install -r requirements.txt
-```
-
-At this point you can now synthesize the CloudFormation template for this code.
-
-```
-$ cdk synth
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
 ```
 
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
+4. Configure AWS credentials:
+```bash
+aws configure
+```
 
-## Useful commands
+## Deployment
 
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
+1. Synthesize CloudFormation template:
+```bash
+cdk synth
+```
 
-Enjoy!
+2. Deploy stack:
+```bash
+cdk deploy
+```
+
+## Project Structure
+```
+backend
+├── README.md
+├── app.py
+├── cdk.context.json
+├── cdk.json
+├── lambda
+│   └── api
+│       ├── delete-video
+│       │   └── index.py
+│       ├── generate-video
+│       │   ├── index.py
+│       │   └── requirements.txt
+│       ├── get-video
+│       │   └── index.py
+│       ├── list-video
+│       │   └── index.py
+│       ├── prompt-assist
+│       └── status-video
+│           └── index.py
+├── requirements.txt
+└── stacks
+    └── video_maker_with_nova_reel_stack.py
+```
+
+## Architecture
+- Amazon API Gateway for API management
+- AWS Lambda for serverless execution
+- Amazon S3 for media storage
+- Amazon Bedrock (Nova Reel) for video generation
+- AWS IAM roles for service permissions
+
+## Cleanup
+```bash
+cdk destroy
+```
