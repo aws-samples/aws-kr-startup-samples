@@ -1,5 +1,23 @@
 const API_HOST = process.env.REACT_APP_API_HOST;
 
+export const fetchVideoDetails = async (invocationId) => {
+  const response = await fetch(`${API_HOST}/apis/videos/${invocationId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    },
+    mode: 'cors'
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+};
+
 export const fetchVideos = async (limit, nextToken) => {
   let url = `${API_HOST}/apis/videos?limit=${limit}&sort=created_at&order=desc`;
   if (nextToken) {

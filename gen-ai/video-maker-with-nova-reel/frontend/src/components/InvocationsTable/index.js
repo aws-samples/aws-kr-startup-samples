@@ -5,10 +5,11 @@ import Pagination from "@cloudscape-design/components/pagination";
 import Button from "@cloudscape-design/components/button";
 import { useCollection } from '@cloudscape-design/collection-hooks';
 import { TABLE_CONFIG } from '../../constants/table';
-import { fetchVideos, downloadVideo, deleteVideo } from '../../utils/api';
+import { fetchVideos, downloadVideo, deleteVideo, fetchVideoDetails } from '../../utils/api';
 import TableHeader from './TableHeader';
 import TablePreferences from './TablePreferences';
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
+import VideoPreviewModal from "../VideoPreviewModal";
 
 export default function InvocationsTable() {
   // State management for pagination
@@ -18,9 +19,38 @@ export default function InvocationsTable() {
   const [nextToken, setNextToken] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [selectedItems, setSelectedItems] = React.useState([]);
+  
+  // 비디오 미리보기를 위한 상태 추가
+  const [selectedVideoId, setSelectedVideoId] = React.useState(null);
+  const [videoModalVisible, setVideoModalVisible] = React.useState(false);
+  const [videoDetails, setVideoDetails] = React.useState(null);
+  const [videoLoading, setVideoLoading] = React.useState(false);
 
   // Current page data (empty array if no data)
   const currentPageData = pageData[currentPage] || [];
+
+  // 비디오 ID 클릭 핸들러
+  const handleInvocationClick = async (invocationId) => {
+    setSelectedVideoId(invocationId);
+    setVideoModalVisible(true);
+    setVideoLoading(true);
+    
+    try {
+      const details = await fetchVideoDetails(invocationId);
+      setVideoDetails(details);
+    } catch (error) {
+      console.error("Failed to load video details:", error);
+    } finally {
+      setVideoLoading(false);
+    }
+  };
+  
+  // 모달 닫기 핸들러
+  const handleCloseVideoModal = () => {
+    setVideoModalVisible(false);
+    setSelectedVideoId(null);
+    setVideoDetails(null);
+  };
 
   const { items, filteredItemsCount, collectionProps, filterProps } = useCollection(
     currentPageData,
@@ -142,7 +172,27 @@ export default function InvocationsTable() {
   };
 
   const columnDefinitions = [
-    ...TABLE_CONFIG.BASE_COLUMN_DEFINITIONS.slice(0, 2),
+    {
+      id: "invocation_id",
+      header: "Invocation ID",
+      cell: item => (
+        <Button
+          variant="link"
+          onClick={() => handleInvocationClick(item.invocation_id)}
+          disabled={item.status !== 'Completed'} // Completed 상태일 때만 활성화
+          ariaLabel={
+            item.status === 'Completed' 
+              ? `View preview for ${item.invocation_id}` 
+              : `Preview not available for ${item.invocation_id} (status: ${item.status})`
+          }
+        >
+          {item.invocation_id}
+        </Button>
+      ),
+      sortingField: "invocation_id",
+      minWidth: 180
+    },
+    ...TABLE_CONFIG.BASE_COLUMN_DEFINITIONS.slice(1, 2),
     {
       id: "status",
       header: "Status",
@@ -186,52 +236,61 @@ export default function InvocationsTable() {
   ];
 
   return (
-    <Table
-      {...collectionProps}
-      items={items}
-      loading={loading}
-      loadingText="Loading resources"
-      selectionType="multi"
-      selectedItems={selectedItems}
-      onSelectionChange={({ detail }) => setSelectedItems(detail.selectedItems)}
-      columnDefinitions={columnDefinitions}
-      resizableColumns
-      header={
-        <TableHeader
-          selectedItems={selectedItems}
-          totalItems={currentPageData.length}
-          loading={loading}
-          onRefresh={handleRefresh}
-          onBulkDownload={handleBulkDownload}
-          onBulkDelete={handleBulkDelete}
-        />
-      }
-      filter={
-        <TextFilter
-          {...filterProps}
-          countText={`${filteredItemsCount} matches`}
-          filteringPlaceholder="Find resources"
-        />
-      }
-      pagination={
-        <Pagination
-          currentPageIndex={currentPage}
-          pagesCount={pagesCount}
-          onChange={handlePageChange}
-        />
-      }
-      preferences={<TablePreferences />}
-      ariaLabels={{
-        selectionGroupLabel: "Resource selection",
-        allItemsSelectionLabel: ({ selectedItems }) =>
-          `${selectedItems.length} ${
-            selectedItems.length === 1 ? "item" : "items"
-          } selected`,
-        itemSelectionLabel: ({ selectedItems }, item) =>
-          `${item.invocation_id} is ${
-            selectedItems.includes(item) ? "" : "not "
-          }selected`
-      }}
-    />
+    <>
+      <Table
+        {...collectionProps}
+        items={items}
+        loading={loading}
+        loadingText="Loading resources"
+        selectionType="multi"
+        selectedItems={selectedItems}
+        onSelectionChange={({ detail }) => setSelectedItems(detail.selectedItems)}
+        columnDefinitions={columnDefinitions}
+        resizableColumns
+        header={
+          <TableHeader
+            selectedItems={selectedItems}
+            totalItems={currentPageData.length}
+            loading={loading}
+            onRefresh={handleRefresh}
+            onBulkDownload={handleBulkDownload}
+            onBulkDelete={handleBulkDelete}
+          />
+        }
+        filter={
+          <TextFilter
+            {...filterProps}
+            countText={`${filteredItemsCount} matches`}
+            filteringPlaceholder="Find resources"
+          />
+        }
+        pagination={
+          <Pagination
+            currentPageIndex={currentPage}
+            pagesCount={pagesCount}
+            onChange={handlePageChange}
+          />
+        }
+        preferences={<TablePreferences />}
+        ariaLabels={{
+          selectionGroupLabel: "Resource selection",
+          allItemsSelectionLabel: ({ selectedItems }) =>
+            `${selectedItems.length} ${
+              selectedItems.length === 1 ? "item" : "items"
+            } selected`,
+          itemSelectionLabel: ({ selectedItems }, item) =>
+            `${item.invocation_id} is ${
+              selectedItems.includes(item) ? "" : "not "
+            }selected`
+        }}
+      />
+      <VideoPreviewModal
+        videoId={selectedVideoId}
+        videoDetails={videoDetails}
+        loading={videoLoading}
+        visible={videoModalVisible}
+        onClose={handleCloseVideoModal}
+      />
+    </>
   );
-} 
+}
