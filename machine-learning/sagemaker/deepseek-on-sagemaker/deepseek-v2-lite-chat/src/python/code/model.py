@@ -6,8 +6,7 @@ from djl_python.huggingface import HuggingFaceService
 from djl_python.chat_completions.chat_utils import is_chat_completions_request
 from djl_python.chat_completions.chat_properties import ChatProperties
 from djl_python.inputs import Input
-from djl_python.outputs import Output
-from djl_python.encode_decode import encode, decode
+from djl_python.encode_decode import decode
 import logging
 import types
 
@@ -64,9 +63,8 @@ def custom_input_formatter(self, inputs: Input, tokenizer, output_formatter) -> 
     input_data = []
     input_size = []
     parameters = []
-    adapters = []
     errors = {}
-    found_adapters = False
+
     batch = inputs.get_batches()
 
     # only for dynamic batch
