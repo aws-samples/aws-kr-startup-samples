@@ -104,6 +104,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# Misc
 .DS_Store
 .idea/
 bin/
@@ -118,3 +119,7 @@ zap/
 .gitignore
 */setup.py
 */source.bat
+
+model
+model*/
+model.tar.gz

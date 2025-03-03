@@ -8,3 +8,8 @@ __pycache__
 # CDK asset staging directory
 .cdk.staging
 cdk.out
+
+# Misc
+model
+model*/
+model.tar.gz
