@@ -4,8 +4,9 @@
 This project is a video creation automation system using Amazon Bedrock(Nova Reel). It is built using AWS CDK for infrastructure and consists of frontend and backend components.
 
 ![screenshot1](./docs/images/video-generation-service-1.jpeg)
-
-![screenshot2](./docs/images/video-generation-service-2.jpeg)
+You can get help from “Generative AI Assist” to get suggested prompts based on best practices from Amazon Nova Reel.
+![screenshot1](./docs/images/video-generation-service-2.jpeg)
+![screenshot2](./docs/images/video-generation-service-3.jpeg)
 
 ## System Architecture
 - Frontend: React-based web application
@@ -37,6 +38,10 @@ Follow these steps to deploy the frontend:
 # Navigate to frontend directory
 cd frontend
 
+# change API Gateway Endpoint from CDK Outputs(VideoMakerWithNovaReelStack.VideoMakerWithNovaReelAPIGateway)
+vi .env
+REACT_APP_API_HOST=https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod
+
 # Install dependencies
 npm install
 
@@ -48,6 +53,9 @@ npm run build
 
 # Deploy to production
 npm run deploy
+
+# Start on Localhost
+npm start
 ```
 
 ## Prerequisites
