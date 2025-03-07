@@ -45,14 +45,8 @@ REACT_APP_API_HOST=https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/prod
 # Install dependencies
 npm install
 
-# Run development server
-npm run dev
-
 # Build for production
 npm run build
-
-# Deploy to production
-npm run deploy
 
 # Start on Localhost
 npm start
