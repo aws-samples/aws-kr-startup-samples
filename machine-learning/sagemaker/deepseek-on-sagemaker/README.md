@@ -7,6 +7,7 @@ You can deploy the model to SageMaker hosting services and get an endpoint that 
 | CDK Project  | Hugging Face Model Card | Description | Deployment |
 |--------------|-------------------------|-------------|------------|
 | [deepseek-r1-distill-llama-8b](../scale-to-zero-sagemaker-endpoint/) | [deepseek-ai/DeepSeek-R1-Distill-Llama-8B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B) | Reasoning model | <ul><li>using LMI(Large Model Inference) container</li><li>SageMaker Endpoint with Scale-to-Zero capability</li></ul> |
+| [deepseek-r1-distill-llama-8b with SGLang](./deepseek-r1-llama-8b-sglang/) | [deepseek-ai/DeepSeek-R1-Distill-Llama-8B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Llama-8B) | Reasoning model | using [SGLang](https://github.com/sgl-project/sglang) container |
 | [deepseek-r1-distill-qwen-14b](./deepseek-r1-distill-qwen-14b/) | [deepseek-ai/DeepSeek-R1-Distill-Qwen-14B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-14B) | Reasoning model | using LMI(Large Model Inference) container |
 | [deepseek-r1-distill-qwen-32b](./deepseek-r1-distill-qwen-32b/) | [deepseek-ai/DeepSeek-R1-Distill-Qwen-32B](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-14B) | Reasoning model | using SageMaker JumpStart |
 | [deepseek-v2-lite-chat](./deepseek-v2-lite-chat/) | [deepseek-ai/DeepSeek-V2-Lite-Chat](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat) | Mixture-of-Experts (MoE) Language model | using LMI(Large Model Inference) container |
