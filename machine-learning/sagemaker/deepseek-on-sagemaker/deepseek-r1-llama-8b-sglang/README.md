@@ -129,33 +129,6 @@ To host the model on Amazon SageMaker with a BYOC(Bring Your Own Container) for 
    (.venv) $ cdk bootstrap
    ```
 
-## Set up `cdk.context.json`
-
-Then, you should set approperly the cdk context configuration file, `cdk.context.json`.
-
-For example,
-<pre>
-{
-  "ecr": {
-    "repository_name": "sglang-sagemaker",
-    "tag": "latest"
-  },
-  "model_id": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
-  "model_data_source": {
-    "s3_bucket_name": "jumpstart-cache-prod-<i>{region_name}</i>",
-    "s3_object_key_name": "deepseek-llm/deepseek-llm-r1-distill-llama-8b/artifacts/inference-prepack/v1.0.0/"
-  },
-  "sagemaker_endpoint_settings": {
-    "environment": {
-      "TENSOR_PARALLEL_DEGREE": "1"
-    },
-    "min_capacity": 1,
-    "max_capacity": 4
-  },
-  "sagemaker_instance_type": "ml.g5.2xlarge"
-}
-</pre>
-
 ## Deploy
 
 At this point you can now synthesize the CloudFormation template for this code.
