@@ -7,7 +7,6 @@ import os
 import aws_cdk as cdk
 
 from cdk_stacks import (
-  # ECRStack,
   DeepSeekR1SGLangRealtimeEndpointStack
 )
 
@@ -17,10 +16,6 @@ APP_ENV = cdk.Environment(
 )
 
 app = cdk.App()
-
-# ecr_stack = ECRStack(app, "SGLangECRStack",
-#   env=AWS_ENV
-# )
 
 sm_realtime_endpoint = DeepSeekR1SGLangRealtimeEndpointStack(
   app,

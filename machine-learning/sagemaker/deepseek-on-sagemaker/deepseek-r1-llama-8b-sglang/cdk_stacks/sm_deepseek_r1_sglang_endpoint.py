@@ -16,8 +16,6 @@ from constructs import Construct
 from cdklabs.generative_ai_cdk_constructs import (
   CustomSageMakerEndpoint,
   ContainerImage,
-  DeepLearningContainerImage,
-  # EcrImage,
   SageMakerInstanceType,
 )
 

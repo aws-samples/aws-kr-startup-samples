@@ -9,14 +9,14 @@
   "model_id": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
   "model_data_source": {
     "s3_bucket_name": "jumpstart-cache-prod-{region_name}",
-    "s3_object_key_name": "deepseek-llm-r1-distill-llama-8b/artifacts/inference-prepack/v1.0.0/"
+    "s3_object_key_name": "deepseek-llm/deepseek-llm-r1-distill-llama-8b/artifacts/inference-prepack/v1.0.0/"
   },
   "sagemaker_endpoint_settings": {
     "environment": {
       "TENSOR_PARALLEL_DEGREE": "1"
     },
     "min_capacity": 1,
-    "max_capacity": 4
+    "max_capacity": 2
   },
   "sagemaker_instance_type": "ml.g5.2xlarge"
 }
