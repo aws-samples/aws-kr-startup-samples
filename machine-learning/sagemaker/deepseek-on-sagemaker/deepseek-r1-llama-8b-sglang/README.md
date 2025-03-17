@@ -113,7 +113,7 @@ To host the model on Amazon SageMaker with a BYOC(Bring Your Own Container) for 
          "TENSOR_PARALLEL_DEGREE": "1"
        },
        "min_capacity": 1,
-       "max_capacity": 4
+       "max_capacity": 2
      },
      "sagemaker_instance_type": "ml.g5.2xlarge"
    }
@@ -188,3 +188,4 @@ Following [deepseek_r1_llama_8b_sglang_realtime_endpoint.ipynb](src/notebook/dee
  * [(AWS Blog) Announcing Generative AI CDK Constructs (2024-01-31)](https://aws.amazon.com/blogs/devops/announcing-generative-ai-cdk-constructs/)
  * [Available AWS Deep Learning Containers (DLC) images](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
  * [SGLang](https://github.com/sgl-project/sglang) - A fast serving framework for large language models and vision language models.
+   * [SGLang Backend Tutorial: DeepSeek Usage](https://docs.sglang.ai/references/deepseek.html)
