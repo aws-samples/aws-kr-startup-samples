@@ -7,7 +7,8 @@ import os
 import aws_cdk as cdk
 
 from cdk_stacks import (
-  DeepSeekR1SGLangRealtimeEndpointStack
+  DeepSeekR1SGLangRealtimeEndpointStack,
+  ECRStack
 )
 
 APP_ENV = cdk.Environment(
@@ -17,10 +18,14 @@ APP_ENV = cdk.Environment(
 
 app = cdk.App()
 
-sm_realtime_endpoint = DeepSeekR1SGLangRealtimeEndpointStack(
-  app,
+ecr_stack = ECRStack(app, 'SGLangECRStack',
+  env=APP_ENV
+)
+
+sm_realtime_endpoint = DeepSeekR1SGLangRealtimeEndpointStack(app,
   'DeepSeekR1SGLangEndpointStack',
   env=APP_ENV
 )
+sm_realtime_endpoint.add_dependency(ecr_stack)
 
 app.synth()

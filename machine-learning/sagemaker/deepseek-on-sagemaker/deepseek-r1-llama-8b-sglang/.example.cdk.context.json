@@ -2,6 +2,10 @@
   "acknowledged-issue-numbers": [
     32775
   ],
+  "base_docker_image": {
+    "name": "lmsysorg/sglang",
+    "tag": "v0.4.4.post1-cu125"
+  },
   "ecr": {
     "repository_name": "sglang-sagemaker",
     "tag": "latest"
