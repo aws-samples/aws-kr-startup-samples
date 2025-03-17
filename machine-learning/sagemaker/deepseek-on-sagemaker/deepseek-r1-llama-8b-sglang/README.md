@@ -87,18 +87,17 @@ To host the model on Amazon SageMaker with a BYOC(Bring Your Own Container) for 
    ```
    :information_source: The above codes work well on either `Ubuntu` or `SageMaker Studio`.
 
-3. Prepare the SGLang SageMaker container
-
-   We need to create a custom docker image of SGLang for SageMaker Endpoint and push it to the ECR repository.
-   To do this, run [build_sglang_docker_image.ipynb](src/notebook/build_sglang_docker_image.ipynb) on the SageMaker Studio
-
-4. Set up `cdk.context.json`
+3. Set up `cdk.context.json`
 
    Then, we should set approperly the cdk context configuration file, `cdk.context.json`.
 
    For example,
    <pre>
    {
+     "base_docker_image": {
+       "name": "lmsysorg/sglang",
+       "tag": "v0.4.4.post1-cu125"
+     },
      "ecr": {
        "repository_name": "sglang-sagemaker",
        "tag": "latest"
@@ -119,7 +118,7 @@ To host the model on Amazon SageMaker with a BYOC(Bring Your Own Container) for 
    }
    </pre>
 
-5. (Optional) Bootstrap AWS environment for AWS CDK app
+4. (Optional) Bootstrap AWS environment for AWS CDK app
 
    Also, before any AWS CDK app can be deployed, you have to bootstrap your AWS environment to create certain AWS resources that the AWS CDK CLI (Command Line Interface) uses to deploy your AWS CDK app.
 
@@ -189,3 +188,4 @@ Following [deepseek_r1_llama_8b_sglang_realtime_endpoint.ipynb](src/notebook/dee
  * [Available AWS Deep Learning Containers (DLC) images](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
  * [SGLang](https://github.com/sgl-project/sglang) - A fast serving framework for large language models and vision language models.
    * [SGLang Backend Tutorial: DeepSeek Usage](https://docs.sglang.ai/references/deepseek.html)
+   * [Docker Hub Link for SGLang](https://hub.docker.com/r/lmsysorg/sglang/) - Docker images for https://github.com/sgl-project/sglang
