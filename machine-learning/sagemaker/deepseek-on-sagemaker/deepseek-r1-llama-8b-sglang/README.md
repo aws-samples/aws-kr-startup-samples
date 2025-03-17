@@ -32,8 +32,8 @@ To manually create a virtualenv on MacOS and Linux:
 $ git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
 $ cd aws-kr-startup-samples
 $ git sparse-checkout init --cone
-$ git sparse-checkout set machine-learning/sagemaker/deepseek-on-sagemaker/deepseek-r1-distill-llama-8b-sglang
-$ cd machine-learning/sagemaker/deepseek-on-sagemaker/deepseek-r1-distill-llama-8b-sglang
+$ git sparse-checkout set machine-learning/sagemaker/deepseek-on-sagemaker/deepseek-r1-llama-8b-sglang
+$ cd machine-learning/sagemaker/deepseek-on-sagemaker/deepseek-r1-llama-8b-sglang
 
 $ python3 -m venv .venv
 ```
