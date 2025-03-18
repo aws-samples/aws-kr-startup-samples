@@ -143,6 +143,14 @@ Use `cdk deploy` command to create the stack shown above.
 ```
 (.venv) $ cdk deploy --require-approval never --all
 ```
+> :warning: **Important**: Make sure you need to make sure `docker daemon` is running.<br/>
+> Otherwise you will encounter the following errors:
+
+  ```
+  ERROR: Cannot connect to the Docker daemon at unix://$HOME/.docker/run/docker.sock. Is the docker daemon running?
+  jsii.errors.JavaScriptError:
+    Error: docker exited with status 1
+  ```
 
 We can list all the CDK stacks by using the `cdk list` command prior to deployment.
 
