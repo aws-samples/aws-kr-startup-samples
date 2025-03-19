@@ -80,7 +80,7 @@ To host the model on Amazon SageMaker with a BYOC(Bring Your Own Container) for 
    (.venv) mkdir -p model
    ```
 
-   (2) Run the following python code to download OpenAI Whisper model artifacts from Hugging Face model hub.
+   (2) Run the following python code to download the model artifacts from Hugging Face model hub.
    ```python
    from huggingface_hub import snapshot_download
    from pathlib import Path
