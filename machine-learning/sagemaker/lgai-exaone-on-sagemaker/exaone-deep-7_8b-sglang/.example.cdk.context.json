@@ -1,0 +1,26 @@
+{
+  "acknowledged-issue-numbers": [
+    32775
+  ],
+  "base_docker_image": {
+    "name": "lmsysorg/sglang",
+    "tag": "v0.4.4.post1-cu125"
+  },
+  "ecr": {
+    "repository_name": "sglang-sagemaker",
+    "tag": "latest"
+  },
+  "model_id": "LGAI-EXAONE/EXAONE-Deep-7.8B",
+  "model_data_source": {
+    "s3_bucket_name": "{bucket_name}",
+    "s3_object_key_name": "{key_prefix}/"
+  },
+  "sagemaker_endpoint_settings": {
+    "environment": {
+      "TENSOR_PARALLEL_DEGREE": "1"
+    },
+    "min_capacity": 1,
+    "max_capacity": 2
+  },
+  "sagemaker_instance_type": "ml.g5.2xlarge"
+}
