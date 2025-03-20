@@ -208,5 +208,5 @@ Following [exaone_deep_7_8b_sglang_realtime_endpoint.ipynb](src/notebook/exaone_
  * [(AWS Blog) Announcing Generative AI CDK Constructs (2024-01-31)](https://aws.amazon.com/blogs/devops/announcing-generative-ai-cdk-constructs/)
  * [Available AWS Deep Learning Containers (DLC) images](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)
  * [SGLang](https://github.com/sgl-project/sglang) - A fast serving framework for large language models and vision language models.
-   * [SGLang Backend Tutorial: DeepSeek Usage](https://docs.sglang.ai/references/deepseek.html)
+   * [SGLang Backend Tutorial](https://docs.sglang.ai/index.html)
    * [Docker Hub Link for SGLang](https://hub.docker.com/r/lmsysorg/sglang/) - Docker images for https://github.com/sgl-project/sglang
