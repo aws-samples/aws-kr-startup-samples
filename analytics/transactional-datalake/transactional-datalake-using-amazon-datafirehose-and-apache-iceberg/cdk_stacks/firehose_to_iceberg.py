@@ -110,7 +110,6 @@ class FirehoseToIcebergStack(Stack):
         cfn.DestinationTableConfigurationProperty(
           destination_database_name=dest_iceberg_table_config["database_name"],
           destination_table_name=dest_iceberg_table_config["table_name"],
-          s3_error_output_prefix=s3_error_output_prefix,
           unique_keys=dest_iceberg_table_config["unique_keys"]
         )
       ],
@@ -118,7 +117,7 @@ class FirehoseToIcebergStack(Stack):
       s3_backup_mode='FailedDataOnly'
     )
 
-    delivery_stream = aws_kinesisfirehose.CfnDeliveryStream(self, "FirehoseToIceberg",
+    _ = aws_kinesisfirehose.CfnDeliveryStream(self, "FirehoseToIceberg",
       delivery_stream_name=firehose_stream_name,
       delivery_stream_type="KinesisStreamAsSource",
       kinesis_stream_source_configuration={
