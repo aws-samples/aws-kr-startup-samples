@@ -3,6 +3,7 @@
 A comparative translation demo application for English ↔ Korean translation. Compare and review translation results across different models.
 ![screenshot1](./images/translator-1.png)
 ![screenshot2](./images/translator-2.png)
+The translated text is reviewed through the Claude Sonnet 3.7 model.
 ![screenshot3](./images/translator-3.png)
 ## Local Execution
 
@@ -22,7 +23,7 @@ streamlit run app.py
 ## Docker Execution
 
 ```bash
-# Build the image
+# Build the image and running it on localhost
 docker build -t bedrock-translator .
 docker run -p 8501:8501 bedrock-translator
 ```
@@ -50,18 +51,13 @@ pip install -r requirements.txt
 ```bash
 cdk bootstrap
 ```
-3. Fix ingress rule about security group ("YOUR_IP/32")
-```bash
-cd cdk/
-vi cdk.context.json
-```
 
-4. Deploy CDK Stack:
+3. Deploy CDK Stack:
 ```bash
 cdk deploy
 ```
 
-5. Access the application using cloudformation output:
+4. Access the application using cloudformation output:
 ```bash
 TranslatorFargateStack.DockerImageUri = xxxxxxxxxx.dkr.ecr.<region>.amazonaws.com/<ecr_repo>:<tag>
 ```
@@ -69,7 +65,7 @@ TranslatorFargateStack.DockerImageUri = xxxxxxxxxx.dkr.ecr.<region>.amazonaws.co
 ## Models Used
 
 - Amazon Nova Pro
-- Anthropic Claude 3.7 Sonnet
+- Anthropic Claude 3.7 Sonnet (The translated text is reviewed through this model.)
 - Anthropic Claude 3.5 Sonnet
 - Anthropic Claude 3 Sonnet
 - Anthropic Claude 3 Haiku
