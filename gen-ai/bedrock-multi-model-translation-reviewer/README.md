@@ -57,7 +57,9 @@ cdk bootstrap
 cdk deploy
 ```
 
-4. Access the application using cloudformation output:
+4. To enhance security, specify the inbound rule of the Application Load Balancer security group created in the AWS Console as myip.
+
+5. Access the application using cloudformation output:
 ```bash
 TranslatorFargateStack.DockerImageUri = xxxxxxxxxx.dkr.ecr.<region>.amazonaws.com/<ecr_repo>:<tag>
 ```
