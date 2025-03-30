@@ -64,21 +64,37 @@ def lambda_handler(event, context):
     prompt = parsed_body.get('prompt')
     if not prompt:
         return create_response(400, {'error': 'Bad Request: prompt field is required.'})
-        
-    logger.info("Received prompt: %s", prompt)
+    
+    # 이미지 데이터가 있는지 확인
+    image_data = parsed_body.get('image_data')  # Base64로 인코딩된 이미지 데이터
+    image_format = parsed_body.get('image_format', 'jpeg')  # 이미지 형식 (png 또는 jpeg)
     
     bedrock_runtime = boto3.client("bedrock-runtime", region_name=AWS_REGION)
     
+    # 기본 모델 입력 구성
     model_input = {
         "taskType": "TEXT_VIDEO",
-        "textToVideoParams": {"text": prompt},
+        "textToVideoParams": {
+            "text": prompt
+        },
         "videoGenerationConfig": {
             "durationSeconds": 6,
             "fps": 24,
             "dimension": "1280x720",
-            "seed": random.randint(0, 2147483648)
+            "seed": random.randint(0, 2147483646)  # 범위 수정: 0-2,147,483,646
         }
     }
+    
+    # 이미지 데이터가 있을 경우에만 images 필드 추가
+    if image_data:
+        model_input["textToVideoParams"]["images"] = [
+            {
+                "format": image_format,  # "png" 또는 "jpeg"
+                "source": {
+                    "bytes": image_data  # 이미 Base64로 인코딩된 문자열
+                }
+            }
+        ]
     
     try:
         invocation = bedrock_runtime.start_async_invoke(
@@ -88,7 +104,7 @@ def lambda_handler(event, context):
         )
     except Exception as e:
         logger.error("Bedrock asynchronous invocation error: %s", e)
-        return create_response(500, {'error': 'Server error: Failed to initiate video generation request.'})
+        return create_response(500, {'error': f'Server error: Failed to initiate video generation request. {str(e)}'})
     
     invocation_arn = invocation.get("invocationArn")
     invocation_id = invocation_arn.split('/')[-1]

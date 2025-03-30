@@ -5,6 +5,7 @@
   "dependencies": {
     "@cloudscape-design/chat-components": "^1.0.25",
     "@cloudscape-design/components": "^3.0.903",
+    "@cloudscape-design/design-tokens": "^3.0.52",
     "@cloudscape-design/global-styles": "^1.0.36",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",

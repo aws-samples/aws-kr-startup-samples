@@ -2,6 +2,7 @@ import * as React from "react";
 import Layout from "./components/Layout";
 import InvocationsTable from "./components/InvocationsTable";
 import GenerateForm from "./components/GenerateForm";
+import Storyboard from "./components/Storyboard";
 
 export default function App() {
   const [activeHref, setActiveHref] = React.useState("#/outputs");
@@ -21,6 +22,8 @@ export default function App() {
         return <InvocationsTable />;
       case "#/generate":
         return <GenerateForm />;
+      case "#/storyboard":
+        return <Storyboard />;
       default:
         return null;
     }

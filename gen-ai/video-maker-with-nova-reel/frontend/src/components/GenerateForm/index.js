@@ -10,7 +10,7 @@ import HelpPanel from "@cloudscape-design/components/help-panel";
 import Icon from "@cloudscape-design/components/icon";
 import AppLayout from "@cloudscape-design/components/app-layout";
 import PromptInput from "@cloudscape-design/components/prompt-input";
-import Modal from "@cloudscape-design/components/modal";
+import FileUpload from "@cloudscape-design/components/file-upload";
 import ChatBubble from "@cloudscape-design/chat-components/chat-bubble";
 import Avatar from "@cloudscape-design/chat-components/avatar";
 import ReactMarkdown from 'react-markdown';
@@ -23,13 +23,85 @@ export default function GenerateForm() {
   const [toolsOpen, setToolsOpen] = React.useState(false);
   const [chatValue, setChatValue] = React.useState("");
   const [chatMessages, setChatMessages] = React.useState([]);
+  const [imageData, setImageData] = React.useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = React.useState(null);
+  const [selectedFiles, setSelectedFiles] = React.useState([]);
+  const [imageError, setImageError] = React.useState(null);
+
+  const validateImageDimensions = (dataUrl) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.width === 1280 && img.height === 720) {
+          setImageError(null);
+          resolve(true);
+        } else {
+          const errorMsg = `이미지 해상도가 1280x720이 아닙니다. 현재 해상도: ${img.width}x${img.height}`;
+          setImageError(errorMsg);
+          reject(new Error(errorMsg));
+        }
+      };
+      img.onerror = () => {
+        setImageError("이미지를 불러오는 중 오류가 발생했습니다.");
+        reject(new Error("Image load error"));
+      };
+      img.src = dataUrl;
+    });
+  };
+
+  const handleFileChange = (event) => {
+    const files = event.detail.value;
+    setSelectedFiles(files);
+    setImageError(null);
+    
+    if (files && files.length > 0) {
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        // Set preview URL first
+        setImagePreviewUrl(dataUrl);
+        
+        // Validate image dimensions
+        validateImageDimensions(dataUrl)
+          .then(() => {
+            // Get base64 encoded image data only if dimensions are valid
+            const base64Image = dataUrl.split(',')[1];
+            setImageData(base64Image);
+          })
+          .catch((error) => {
+            console.error("Image validation error:", error.message);
+            // Reset image data on error, but keep preview to show the user what's wrong
+            setImageData(null);
+          });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setImageData(null);
+      setImagePreviewUrl(null);
+      setImageError(null);
+    }
+  };
+
+  const handleFileRemove = (event) => {
+    setSelectedFiles([]);
+    setImageData(null);
+    setImagePreviewUrl(null);
+    setImageError(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check if image is selected but invalid
+    if (imagePreviewUrl && !imageData) {
+      return; // Prevent submission if there's an invalid image
+    }
+    
     setLoading(true);
     
     try {
-      await generateVideo(prompt);
+      await generateVideo(prompt, imageData);
       setShowSuccess(true);
       // Redirect to Outputs page after 3 seconds
       setTimeout(() => {
@@ -110,6 +182,63 @@ export default function GenerateForm() {
                     />
                   </FormField>
 
+                  <FormField
+                    label="Reference Image (Optional)"
+                    description="Upload an image to use as a reference for video generation"
+                    stretch
+                  >
+                    <SpaceBetween size="m">
+                      <FileUpload
+                        onChange={handleFileChange}
+                        onFileRemove={handleFileRemove}
+                        value={selectedFiles}
+                        i18nStrings={{
+                          uploadButtonText: e =>
+                            e ? "Choose different file" : "Choose file",
+                          dropzoneText: e =>
+                            e
+                              ? "Drop file to replace"
+                              : "Drop file here or select one",
+                          removeFileAriaLabel: e => `Remove file ${e}`,
+                          limitShowFewer: "Show fewer files",
+                          limitShowMore: "Show more files",
+                          errorIconAriaLabel: "Error",
+                          readButtonText: "View file name",
+                          selectedFileLabel: (e, n) => `Selected file: ${e}`,
+                          selectedFilesLabel: (e, n) => `Selected files: ${e}`,
+                          previewLabel: "Preview image"
+                        }}
+                        accept="image/*"
+                        multiple={false}
+                        constraintText="Only image files are supported."
+                      />
+                      
+                      {imagePreviewUrl && (
+                        <div style={{ marginTop: '10px' }}>
+                          <p>Preview:</p>
+                          <img 
+                            src={imagePreviewUrl} 
+                            alt="Upload preview" 
+                            style={{ maxWidth: '100%', maxHeight: '200px', marginTop: '5px' }} 
+                          />
+                          {imageError && (
+                            <Alert
+                              type="error"
+                              statusIconAriaLabel="Error"
+                              header="이미지 해상도 오류"
+                              dismissible={false}
+                            >
+                              {imageError}
+                              <div style={{ marginTop: '5px' }}>
+                                Image resolution must be 1280x720.
+                              </div>
+                            </Alert>
+                          )}
+                        </div>
+                      )}
+                    </SpaceBetween>
+                  </FormField>
+
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <SpaceBetween direction="horizontal" size="xs">
                       <Button 
@@ -125,7 +254,7 @@ export default function GenerateForm() {
                         variant="primary" 
                         type="submit"
                         loading={loading}
-                        disabled={!prompt.trim() || loading}
+                        disabled={(!prompt.trim() && !imageData) || loading || (imagePreviewUrl && !imageData)}
                       >
                         Generate
                       </Button>
@@ -144,6 +273,14 @@ export default function GenerateForm() {
                       <li>Add camera movements at the beginning or end of your prompt</li>
                       <li>Keep prompts under 512 characters</li>
                       <li>Avoid negation words like "no", "not", "without"</li>
+                      </ul>
+
+                      <h3>Image-to-Video Generation</h3>
+                      <ul>
+                      <li>Upload a reference image to create videos with similar visual style</li>
+                      <li>Use clear, high-quality images for better results</li>
+                      <li>Combine with descriptive prompts to guide the video direction</li>
+                      <li>The image influences visual style, while the prompt controls content and movement</li>
                       </ul>
 
                       <h3>Recommended Keywords</h3>

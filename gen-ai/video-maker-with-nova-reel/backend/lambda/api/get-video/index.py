@@ -82,19 +82,30 @@ def lambda_handler(event, context):
             bucket = s3_url.split('/')[2]
             key = '/'.join(s3_url.split('/')[3:])
 
-            print(s3_url)
-            print(bucket)
-            print(key)
+            logger.info(f"Parsed S3 URL: {s3_url}")
+            logger.info(f"Bucket: {bucket}, Key: {key}")
             
-            # presigned URL 생성 (5분 = 300초)
-            presigned_url = s3_client.generate_presigned_url(
-                'get_object',
-                Params={'Bucket': bucket, 'Key': key},
-                ExpiresIn=300
-            )
-            
-            # 응답에 presigned URL 추가
-            item['presigned_url'] = presigned_url
+            try:
+                # S3 객체 존재 여부 확인
+                s3_client.head_object(Bucket=bucket, Key=key)
+                
+                # presigned URL 생성 (5분 = 300초)
+                presigned_url = s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': bucket, 'Key': key},
+                    ExpiresIn=300
+                )
+                
+                # 응답에 presigned URL 추가
+                item['presigned_url'] = presigned_url
+                logger.info(f"Generated presigned URL (truncated): {presigned_url[:50]}...")
+            except Exception as s3_error:
+                logger.error(f"Error accessing S3 object: {s3_error}")
+                logger.error(f"S3 path seems invalid or object doesn't exist: {s3_url}")
+                # 비디오 파일이 실제로 존재하지 않는 경우, location 필드가 있더라도 presigned_url은 생성하지 않음
+                # 상태코드는 200으로 유지하고 클라이언트에서 presigned_url 필드 부재로 처리하도록 함
+        else:
+            logger.warning(f"No location field in item for invocation_id: {invocation_id}")
         
         return create_response(200, item)
         

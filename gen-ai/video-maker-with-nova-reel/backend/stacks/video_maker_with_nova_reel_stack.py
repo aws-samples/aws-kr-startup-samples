@@ -6,16 +6,19 @@ from aws_cdk import (
     Stack,
     RemovalPolicy,
     Duration,
-    CfnOutput
+    CfnOutput,
+    CustomResource
 )
 from aws_cdk.aws_s3 import Bucket, CorsRule, HttpMethods
 from aws_cdk.aws_lambda import Function, Code, LayerVersion, Runtime
 from aws_cdk.aws_apigateway import RestApi, LambdaIntegration, AuthorizationType, MethodResponse
-from aws_cdk.aws_iam import PolicyStatement, Effect
+from aws_cdk.aws_iam import PolicyStatement, Effect, Role, ServicePrincipal
 from aws_cdk.aws_dynamodb import Table, Attribute, AttributeType, BillingMode
 from constructs import Construct
 from aws_cdk.aws_events import Rule, Schedule
 from aws_cdk.aws_events_targets import LambdaFunction
+from aws_cdk.aws_sam import CfnApplication
+from aws_cdk.custom_resources import Provider
 
 
 class VideoMakerWithNovaReelStack(Stack):
@@ -25,6 +28,7 @@ class VideoMakerWithNovaReelStack(Stack):
         # Get context information
         self.video_generation_model_id = self.node.try_get_context("video_generation_model_id")
         self.chat_nova_model_id = self.node.try_get_context("chat_nova_model_id")
+        self.claude_model_id = self.node.try_get_context("claude_model_id") or "anthropic.claude-3-sonnet-20240229-v1:0"
         self.s3_stack_bucket_name = f"{self.node.try_get_context('s3_base_bucket_name')}-{Aws.ACCOUNT_ID}"
         self.ddb_table_name = self.node.try_get_context("video_maker_with_nova_reel_process_table")
 
@@ -48,6 +52,35 @@ class VideoMakerWithNovaReelStack(Stack):
             self, "VideoMakerWithNovaReelS3Bucket",
             value=self.s3_base_bucket.bucket_name,
             description="The name of the S3 bucket used by the VideoMakerWithNovaReel application"
+        )
+
+        # Deploy FFmpeg Layer as SAM application
+        self.ffmpeg_layer_app = CfnApplication(
+            self, "FFmpegLambdaLayerApp",
+            location={
+                "applicationId": "arn:aws:serverlessrepo:us-east-1:145266761615:applications/ffmpeg-lambda-layer",
+                "semanticVersion": "1.0.0"
+            }
+        )
+
+        # Create a custom resource to get the layer ARN from the deployed application
+        ffmpeg_layer_provider = self._create_layer_arn_provider()
+        
+        ffmpeg_layer_custom_resource = CustomResource(
+            self, "FFmpegLayerArnResource",
+            service_token=ffmpeg_layer_provider.service_token,
+            properties={
+                "StackName": self.ffmpeg_layer_app.ref
+            }
+        )
+        
+        # Retrieve the layer ARN from the custom resource
+        ffmpeg_layer_arn = ffmpeg_layer_custom_resource.get_att_string("LayerArn")
+        
+        # Create Lambda layer reference
+        self.ffmpeg_layer = LayerVersion.from_layer_version_arn(
+            self, "FFmpegLayer",
+            ffmpeg_layer_arn
         )
 
         # Create API Gateway and resources
@@ -126,6 +159,31 @@ class VideoMakerWithNovaReelStack(Stack):
 
         self._setup_chat_nova_lambda_integration()
 
+        # 스토리보드 Lambda 함수 생성
+        self.storyboard_generate_lambda = self._create_storyboard_generate_lambda(
+            model_id=self.claude_model_id
+        )
+        self._attach_storyboard_generate_lambda_permissions()
+        self._setup_storyboard_generate_lambda_integration()
+
+        self.storyboard_videos_lambda = self._create_storyboard_videos_lambda(
+            model_id=self.video_generation_model_id,
+            bucket_name=self.s3_stack_bucket_name
+        )
+        self._attach_storyboard_videos_lambda_permissions(self.s3_stack_bucket_name)
+        self._setup_storyboard_videos_lambda_integration()
+
+        # 비디오 병합 Lambda 함수를 생성하기 전에 FFmpeg 레이어 생성이 필요
+        self.merge_videos_lambda = self._create_merge_videos_lambda(
+            bucket_name=self.s3_stack_bucket_name
+        )
+        
+        # FFmpeg 레이어 배포에 의존성 추가
+        self.merge_videos_lambda.node.add_dependency(ffmpeg_layer_custom_resource)
+        
+        self._attach_merge_videos_lambda_permissions(self.s3_stack_bucket_name)
+        self._setup_merge_videos_lambda_integration()
+
         # Create EventBridge rule for status check
         self._create_status_check_rule()
         
@@ -134,6 +192,110 @@ class VideoMakerWithNovaReelStack(Stack):
             self, "VideoMakerWithNovaReelAPIGateway",
             value=self.api_gateway.url,
             description="The URL of the API Gateway"
+        )
+        
+        # Output FFmpeg Layer ARN
+        CfnOutput(
+            self, "FFmpegLayerArnOutput",
+            value=ffmpeg_layer_arn,
+            description="ARN of the FFmpeg Lambda Layer"
+        )
+
+    def _create_layer_arn_provider(self):
+        """
+        CloudFormation 스택에서 Lambda 레이어 ARN을 가져오는 커스텀 리소스 제공자 생성
+        """
+        provider_lambda = Function(
+            self, "LayerArnProviderFunction",
+            runtime=Runtime.PYTHON_3_11,
+            handler="index.handler",
+            code=Code.from_inline("""
+import boto3
+import cfnresponse
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+def handler(event, context):
+    logger.info('Event: %s', event)
+    
+    # Initialize response data
+    response_data = {}
+    
+    try:
+        if event['RequestType'] == 'Delete':
+            cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+            return
+        
+        properties = event['ResourceProperties']
+        stack_name = properties['StackName']
+        
+        # Get CloudFormation stack outputs
+        cfn_client = boto3.client('cloudformation')
+        response = cfn_client.describe_stacks(StackName=stack_name)
+        
+        stack = response['Stacks'][0]
+        
+        # Find the layer ARN in the outputs
+        layer_arn = None
+        for output in stack.get('Outputs', []):
+            if output.get('OutputKey') == 'LayerArn':
+                layer_arn = output.get('OutputValue')
+                break
+        
+        if not layer_arn:
+            # If no output with key 'LayerArn', try to find any output that contains 'layer'
+            for output in stack.get('Outputs', []):
+                if 'layer' in output.get('OutputKey', '').lower():
+                    layer_arn = output.get('OutputValue')
+                    break
+        
+        if not layer_arn:
+            # Last resort: try to construct the ARN using the stack resources
+            resources = cfn_client.list_stack_resources(StackName=stack_name)
+            for resource in resources.get('StackResourceSummaries', []):
+                if resource.get('ResourceType') == 'AWS::Lambda::LayerVersion':
+                    logical_id = resource.get('LogicalResourceId')
+                    physical_id = resource.get('PhysicalResourceId')
+                    
+                    if 'ffmpeg' in logical_id.lower():
+                        # PhysicalResourceId for LayerVersion is the ARN
+                        layer_arn = physical_id
+                        break
+        
+        if layer_arn:
+            logger.info(f"Found Layer ARN: {layer_arn}")
+            response_data['LayerArn'] = layer_arn
+            cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
+        else:
+            logger.error("Could not find Layer ARN in stack outputs or resources")
+            cfnresponse.send(event, context, cfnresponse.FAILED, 
+                            {"Error": "Layer ARN not found in stack outputs or resources"})
+    
+    except Exception as e:
+        logger.error(f"Exception: {str(e)}")
+        cfnresponse.send(event, context, cfnresponse.FAILED, 
+                        {"Error": str(e)})
+"""),
+            timeout=Duration.minutes(2)
+        )
+        
+        # 필요한 권한 추가
+        provider_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=[
+                    "cloudformation:DescribeStacks",
+                    "cloudformation:ListStackResources"
+                ],
+                resources=["*"]
+            )
+        )
+        
+        return Provider(
+            self, "LayerArnProvider",
+            on_event_handler=provider_lambda
         )
 
     def _create_status_check_rule(self) -> None:
@@ -181,6 +343,10 @@ class VideoMakerWithNovaReelStack(Stack):
         self.generate_resource = self.videos_resource.add_resource("generate")
         self.video_with_id_resource = self.videos_resource.add_resource("{invocation_id}")
         self.chat_resource = apis_resource.add_resource("chat")
+        self.storyboard_resource = apis_resource.add_resource("storyboard")
+        self.storyboard_generate_resource = self.storyboard_resource.add_resource("generate")
+        self.storyboard_videos_resource = self.storyboard_resource.add_resource("videos")
+        self.merge_resource = self.videos_resource.add_resource("merge")
         
         # API Gateway의 모든 엔드포인트에 개별적으로 CORS 설정 적용
         self.videos_resource.add_cors_preflight(
@@ -198,10 +364,9 @@ class VideoMakerWithNovaReelStack(Stack):
             ],
         )
         
-        # 각 리소스에 개별적으로 CORS 설정 적용
-        self.generate_resource.add_cors_preflight(
+        self.video_with_id_resource.add_cors_preflight(
             allow_origins=["*"],
-            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_methods=["GET", "DELETE", "OPTIONS"],
             allow_headers=[
                 "Content-Type",
                 "X-Amz-Date",
@@ -214,9 +379,10 @@ class VideoMakerWithNovaReelStack(Stack):
             ],
         )
         
-        self.video_with_id_resource.add_cors_preflight(
+        # 스토리보드 관련 CORS 설정
+        self.storyboard_resource.add_cors_preflight(
             allow_origins=["*"],
-            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_methods=["GET", "POST", "OPTIONS"],
             allow_headers=[
                 "Content-Type",
                 "X-Amz-Date",
@@ -228,10 +394,40 @@ class VideoMakerWithNovaReelStack(Stack):
                 "Access-Control-Allow-Methods"
             ],
         )
-
-        self.chat_resource.add_cors_preflight(
+        
+        self.storyboard_generate_resource.add_cors_preflight(
             allow_origins=["*"],
-            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+            allow_methods=["POST", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Amz-Date",
+                "Authorization",
+                "X-Api-Key",
+                "X-Amz-Security-Token",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Methods"
+            ],
+        )
+        
+        self.storyboard_videos_resource.add_cors_preflight(
+            allow_origins=["*"],
+            allow_methods=["POST", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Amz-Date",
+                "Authorization",
+                "X-Api-Key",
+                "X-Amz-Security-Token",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Methods"
+            ],
+        )
+        
+        self.merge_resource.add_cors_preflight(
+            allow_origins=["*"],
+            allow_methods=["POST", "OPTIONS"],
             allow_headers=[
                 "Content-Type",
                 "X-Amz-Date",
@@ -572,6 +768,220 @@ class VideoMakerWithNovaReelStack(Stack):
             "POST",
             integration,
             authorization_type=AuthorizationType.NONE,
+            method_responses=self._default_method_response()
+        )
+    
+    def _create_storyboard_generate_lambda(self, model_id: str) -> Function:
+        """Creates the Lambda function for storyboard generation."""
+        return Function(
+            self, "StoryboardGenerateLambda",
+            runtime=Runtime.PYTHON_3_11,
+            code=Code.from_asset("./lambda/api/storyboard-generate"),
+            handler="index.lambda_handler",
+            timeout=Duration.seconds(30),
+            memory_size=256,
+            environment={
+                "CLAUDE_MODEL_ID": model_id
+            }
+        )
+    
+    def _create_storyboard_videos_lambda(self, model_id: str, bucket_name: str) -> Function:
+        """Creates the Lambda function for storyboard videos generation."""
+        return Function(
+            self, "StoryboardVideosLambda",
+            runtime=Runtime.PYTHON_3_11,
+            code=Code.from_asset("./lambda/api/storyboard-videos"),
+            handler="index.lambda_handler",
+            timeout=Duration.seconds(30),
+            memory_size=256,
+            environment={
+                "MODEL_ID": model_id,
+                "S3_DESTINATION_BUCKET": bucket_name,
+                "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name
+            }
+        )
+    
+    def _create_merge_videos_lambda(self, bucket_name: str) -> Function:
+        """Creates the Lambda function for merging videos."""
+        return Function(
+            self, "MergeVideosLambda",
+            runtime=Runtime.PYTHON_3_11,
+            code=Code.from_asset("./lambda/api/merge-videos"),
+            handler="index.lambda_handler",
+            timeout=Duration.seconds(300),  # 비디오 병합은 시간이 더 필요할 수 있음
+            memory_size=1024,  # 비디오 처리를 위해 메모리 증가
+            environment={
+                "S3_DESTINATION_BUCKET": bucket_name,
+                "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name
+            },
+            layers=[self.ffmpeg_layer]
+        )
+
+    def _attach_storyboard_generate_lambda_permissions(self) -> None:
+        """Attaches permission to storyboard generate Lambda to use Bedrock."""
+        # 모델 호출 권한 추가
+        self.storyboard_generate_lambda.add_to_role_policy(
+            PolicyStatement(
+                actions=[
+                    "bedrock:InvokeModel"
+                ],
+                resources=[
+                    f"arn:aws:bedrock:{Aws.REGION}::foundation-model/*"
+                ],
+                effect=Effect.ALLOW
+            )
+        )
+    
+    def _attach_storyboard_videos_lambda_permissions(self, bucket_name: str) -> None:
+        """Attaches permissions to storyboard videos Lambda."""
+        # S3 버킷 접근 권한 추가
+        self.storyboard_videos_lambda.add_to_role_policy(
+            PolicyStatement(
+                actions=[
+                    "s3:PutObject",
+                    "s3:GetObject",
+                    "s3:ListBucket"
+                ],
+                resources=[
+                    f"arn:aws:s3:::{bucket_name}",
+                    f"arn:aws:s3:::{bucket_name}/*"
+                ],
+                effect=Effect.ALLOW
+            )
+        )
+        
+        # DynamoDB 테이블 접근 권한 추가
+        self.storyboard_videos_lambda.add_to_role_policy(
+            PolicyStatement(
+                actions=[
+                    "dynamodb:PutItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:Query",
+                    "dynamodb:Scan"
+                ],
+                resources=[
+                    self.video_maker_with_nova_reel_process_table.table_arn
+                ],
+                effect=Effect.ALLOW
+            )
+        )
+        
+        # Bedrock 모델 호출 권한 추가
+        self.storyboard_videos_lambda.add_to_role_policy(
+            PolicyStatement(
+                actions=[
+                    "bedrock:GetAsyncInvoke",
+                    "bedrock:InvokeModel"
+                ],
+                resources=[
+                    "*"
+                ],
+                effect=Effect.ALLOW
+            )
+        )
+    
+    def _attach_merge_videos_lambda_permissions(self, bucket_name: str) -> None:
+        """Attaches permissions to merge videos Lambda."""
+        # S3 버킷 접근 권한 추가
+        self.merge_videos_lambda.add_to_role_policy(
+            PolicyStatement(
+                actions=[
+                    "s3:PutObject",
+                    "s3:GetObject",
+                    "s3:ListBucket"
+                ],
+                resources=[
+                    f"arn:aws:s3:::{bucket_name}",
+                    f"arn:aws:s3:::{bucket_name}/*"
+                ],
+                effect=Effect.ALLOW
+            )
+        )
+        
+        # DynamoDB 테이블 접근 권한 추가
+        self.merge_videos_lambda.add_to_role_policy(
+            PolicyStatement(
+                actions=[
+                    "dynamodb:PutItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:Query",
+                    "dynamodb:Scan"
+                ],
+                resources=[
+                    self.video_maker_with_nova_reel_process_table.table_arn
+                ],
+                effect=Effect.ALLOW
+            )
+        )
+
+    def _setup_storyboard_generate_lambda_integration(self) -> None:
+        """Integrates storyboard generate Lambda with API Gateway."""
+        storyboard_generate_lambda_integration = LambdaIntegration(
+            self.storyboard_generate_lambda,
+            proxy=True,
+            integration_responses=[
+                {
+                    "statusCode": "200",
+                    "responseParameters": {
+                        "method.response.header.Access-Control-Allow-Origin": "'*'",
+                        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                        "method.response.header.Access-Control-Allow-Methods": "'POST,OPTIONS'",
+                    }
+                }
+            ]
+        )
+        
+        self.storyboard_generate_resource.add_method(
+            "POST",
+            storyboard_generate_lambda_integration,
+            method_responses=self._default_method_response()
+        )
+    
+    def _setup_storyboard_videos_lambda_integration(self) -> None:
+        """Integrates storyboard videos Lambda with API Gateway."""
+        storyboard_videos_lambda_integration = LambdaIntegration(
+            self.storyboard_videos_lambda,
+            proxy=True,
+            integration_responses=[
+                {
+                    "statusCode": "200",
+                    "responseParameters": {
+                        "method.response.header.Access-Control-Allow-Origin": "'*'",
+                        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                        "method.response.header.Access-Control-Allow-Methods": "'POST,OPTIONS'",
+                    }
+                }
+            ]
+        )
+        
+        self.storyboard_videos_resource.add_method(
+            "POST",
+            storyboard_videos_lambda_integration,
+            method_responses=self._default_method_response()
+        )
+    
+    def _setup_merge_videos_lambda_integration(self) -> None:
+        """Integrates merge videos Lambda with API Gateway."""
+        merge_videos_lambda_integration = LambdaIntegration(
+            self.merge_videos_lambda,
+            proxy=True,
+            integration_responses=[
+                {
+                    "statusCode": "200",
+                    "responseParameters": {
+                        "method.response.header.Access-Control-Allow-Origin": "'*'",
+                        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                        "method.response.header.Access-Control-Allow-Methods": "'POST,OPTIONS'",
+                    }
+                }
+            ]
+        )
+        
+        self.merge_resource.add_method(
+            "POST",
+            merge_videos_lambda_integration,
             method_responses=self._default_method_response()
         )
     

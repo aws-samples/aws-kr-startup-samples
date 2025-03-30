@@ -11,6 +11,7 @@ export default function Layout({ activeHref, onNavigate, children }) {
           onFollow={onNavigate}
           items={[
             { type: "link", text: "Generate", href: "#/generate" },
+            { type: "link", text: "Storyboard", href: "#/storyboard" },
             { type: "link", text: "Outputs", href: "#/outputs" }
           ]}
         />
