@@ -17,7 +17,6 @@ Simply enter a topic and create your own story.
 ![screenshot4](./docs/images/storyboard-2.png)
 Check out the suggested prompts and stories for Nova Reel Best Practices Prompts.
 ![screenshot4](./docs/images/storyboard-3.png)
-Select "Generate Videos" and once the video is generated, merge the videos with "Merge Videos".
 
 Select "Generate Videos" and once the video is generated, merge the videos with "Merge Videos". After that, you can check the 30-second video starting with merged_ in the Outputs category.
 
