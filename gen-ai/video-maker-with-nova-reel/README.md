@@ -22,6 +22,7 @@ Select "Generate Videos" and once the video is generated, merge the videos with 
 Select "Generate Videos" and once the video is generated, merge the videos with "Merge Videos". After that, you can check the 30-second video starting with merged_ in the Outputs category.
 
 example - Lovers watching the Northern Lights in Ireland
+
 ![example video](./docs/images/Lovers.gif)
 
 ## System Architecture
