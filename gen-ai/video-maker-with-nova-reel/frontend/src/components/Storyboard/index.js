@@ -92,6 +92,9 @@ export default function Storyboard() {
   const [videoDetails, setVideoDetails] = React.useState(null);
   const [videoLoading, setVideoLoading] = React.useState(false);
   const [regeneratingSceneIndex, setRegeneratingSceneIndex] = React.useState(null);
+  // 비디오 상태 폴링을 위한 상태 추가
+  const [pollingVideoId, setPollingVideoId] = React.useState(null);
+  const [pollingInterval, setPollingInterval] = React.useState(null);
 
   // Load storyboards from local storage
   React.useEffect(() => {
@@ -259,6 +262,56 @@ export default function Storyboard() {
     setSuccess("Storyboard has been deleted.");
   };
 
+  // 비디오 상태를 확인하는 폴링 함수 추가
+  const startPollingVideoStatus = React.useCallback((videoId, sceneIndex) => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+    }
+    
+    setPollingVideoId(videoId);
+    
+    const interval = setInterval(async () => {
+      try {
+        const details = await fetchVideoDetails(videoId);
+        if (details && details.status === 'Completed') {
+          // 폴링 중지 및 상태 업데이트
+          clearInterval(interval);
+          setPollingInterval(null);
+          setPollingVideoId(null);
+          
+          // 비디오 상세 정보 업데이트
+          setVideoDetails(details);
+          
+          // 성공 메시지 표시
+          setSuccess(`Scene ${sceneIndex + 1} video has been successfully generated!`);
+        }
+      } catch (error) {
+        console.error('Error polling video status:', error);
+      }
+    }, 5000); // 5초마다 폴링
+    
+    setPollingInterval(interval);
+  }, [pollingInterval]);
+
+  // 비디오 폴링 중지 함수
+  const stopPollingVideoStatus = React.useCallback(() => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+      setPollingVideoId(null);
+    }
+  }, [pollingInterval]);
+
+  // 컴포넌트 언마운트 시 폴링 중지
+  React.useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
+
+  // 비디오 미리보기 함수 수정
   const handleVideoPreview = async (videoId, sceneIndex) => {
     if (!videoId) return;
     
@@ -270,6 +323,11 @@ export default function Storyboard() {
     try {
       const details = await fetchVideoDetails(videoId);
       setVideoDetails(details);
+      
+      // 비디오가 아직 생성 중이면 폴링 시작
+      if (details && details.status !== 'Completed') {
+        startPollingVideoStatus(videoId, sceneIndex);
+      }
     } catch (error) {
       console.error("Failed to load video details:", error);
       setError("An error occurred while loading video details.");
@@ -278,15 +336,16 @@ export default function Storyboard() {
     }
   };
   
-  // Modal close handler
+  // 모달 닫기 함수 수정
   const handleCloseVideoModal = () => {
     setVideoModalVisible(false);
     setSelectedVideoId(null);
     setSelectedSceneIndex(null);
     setVideoDetails(null);
+    stopPollingVideoStatus(); // 모달 닫을 때 폴링 중지
   };
   
-  // Scene video regeneration handler
+  // 비디오 재생성 함수 수정
   const handleRegenerateSceneVideo = async (videoId) => {
     if (!activeStoryboard || selectedSceneIndex === null) return;
     
@@ -294,6 +353,7 @@ export default function Storyboard() {
     setSuccess(null);
     setRegeneratingSceneIndex(selectedSceneIndex);
     setVideoModalVisible(false);
+    stopPollingVideoStatus(); // 기존 폴링 중지
     
     try {
       const scene = activeStoryboard.storyboard.scenes[selectedSceneIndex];
@@ -314,13 +374,16 @@ export default function Storyboard() {
       setStoryboards(updatedStoryboards);
       localStorage.setItem(STORYBOARDS_STORAGE_KEY, JSON.stringify(updatedStoryboards));
       
-      setActiveStoryboard({
-        ...activeStoryboard,
+      setActiveStoryboard(prevState => ({
+        ...prevState,
         videoIds: updatedVideoIds,
         videosGenerated: true
-      });
+      }));
       
       setSuccess(`Scene ${selectedSceneIndex + 1} video regeneration has been requested. You can check it in the preview after completion.`);
+      
+      // 새로운 비디오 상태 폴링 시작
+      startPollingVideoStatus(newVideoId, selectedSceneIndex);
     } catch (error) {
       console.error("Failed to regenerate scene video:", error);
       setError("An error occurred while regenerating the scene video. Please try again.");
@@ -364,10 +427,10 @@ export default function Storyboard() {
                     <Box>
                       <Button
                         onClick={() => handleVideoPreview(activeStoryboard.videoIds[item.index], item.index)}
-                        loading={regeneratingSceneIndex === item.index}
+                        loading={regeneratingSceneIndex === item.index || (pollingVideoId === activeStoryboard.videoIds[item.index])}
                         disabled={regeneratingSceneIndex === item.index}
                       >
-                        Video Preview
+                        {pollingVideoId === activeStoryboard.videoIds[item.index] ? "Generating..." : "Video Preview"}
                       </Button>
                     </Box>
                   ) : (

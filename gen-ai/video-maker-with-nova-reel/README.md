@@ -8,6 +8,23 @@ You can get help from “Generative AI Assist” to get suggested prompts based 
 ![screenshot1](./docs/images/video-generation-service-2.jpeg)
 ![screenshot2](./docs/images/video-generation-service-3.jpeg)
 
+## Storyboard
+Simply enter a topic and create your own story.
+
+![screenshot3](./docs/images/storyboard-1.png)
+
+ The Claude Sonnet 3.5 will determine the scenario with just prompts, and you can merge the step-by-step videos that are created.
+![screenshot4](./docs/images/storyboard-2.png)
+Check out the suggested prompts and stories for Nova Reel Best Practices Prompts.
+![screenshot4](./docs/images/storyboard-3.png)
+Select "Generate Videos" and once the video is generated, merge the videos with "Merge Videos".
+
+Select "Generate Videos" and once the video is generated, merge the videos with "Merge Videos". After that, you can check the 30-second video starting with merged_ in the Outputs category.
+
+* example
+  * Lovers watching the Northern Lights in Ireland
+  ![example video](./docs/images/Lovers watching the Northern Lights in Ireland.mp4)
+
 ## System Architecture
 - Frontend: React-based web application
 - Backend: Serverless architecture using AWS CDK
