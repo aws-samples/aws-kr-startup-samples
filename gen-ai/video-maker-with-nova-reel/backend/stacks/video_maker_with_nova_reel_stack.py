@@ -440,6 +440,21 @@ def handler(event, context):
             ],
         )
 
+        self.chat_resource.add_cors_preflight(
+            allow_origins=["*"],
+            allow_methods=["POST", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Amz-Date",
+                "Authorization",
+                "X-Api-Key",
+                "X-Amz-Security-Token",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Methods"
+            ],
+        )
+
     def _create_dependencies_layer(self) -> LayerVersion:
         """
         Creates a Lambda layer containing required dependencies.
