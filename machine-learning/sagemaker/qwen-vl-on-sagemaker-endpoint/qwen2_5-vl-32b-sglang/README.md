@@ -121,13 +121,12 @@ To host the model on Amazon SageMaker with a BYOC(Bring Your Own Container) for 
      "sagemaker_endpoint_settings": {
        "environment": {
          "CHAT_TEMPLATE": "qwen2-vl",
-         "SM_NUM_GPUS": "4",
          "TENSOR_PARALLEL_DEGREE": "4"
        },
        "min_capacity": 1,
        "max_capacity": 2
      },
-     "sagemaker_instance_type": "ml.g5.48xlarge"
+     "sagemaker_instance_type": "ml.g5.24xlarge"
    }
    </pre>
 
