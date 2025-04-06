@@ -3,7 +3,9 @@
 
 This is a CDK Python project to host [Qwen2.5-VL](https://huggingface.co/collections/Qwen/qwen25-vl-6795ffac22b334a837c0f9a5) on Amazon SageMaker Real-time Inference Endpoint.
 
-> For more details, please refer to the [blog](https://qwenlm.github.io/blog/qwen2.5-vl/) and [GitHub](https://github.com/QwenLM/Qwen2.5-VL).
+Qwen2.5-VL is a multimodal vision-language model developed by Alibaba Cloud's Qwen team, designed for tasks like visual recognition, object localization, document parsing, and video comprehension. It features an advanced Vision Transformer (ViT) architecture with dynamic resolution processing and temporal alignment for enhanced video understanding. Available in sizes ranging from 3B to 72B parameters, the model excels in benchmarks for visual reasoning and multimodal tasks, outperforming state-of-the-art models. Its capabilities include generating structured outputs for applications in finance and commerce and providing accurate bounding boxes for object detection.
+
+> For more details, please refer to the [Blog](https://qwenlm.github.io/blog/qwen2.5-vl/) and [GitHub](https://github.com/QwenLM/Qwen2.5-VL).
 
 Note that SageMaker provides [pre-built SageMaker AI Docker images](https://docs.aws.amazon.com/sagemaker/latest/dg/pre-built-containers-frameworks-deep-learning.html) that can help you quickly start with the model inference on SageMaker. It also allows you to [bring your own Docker container](https://docs.aws.amazon.com/sagemaker/latest/dg/adapt-inference-container.html) and use it inside SageMaker AI for training and inference. To be compatible with SageMaker AI, your container must have the following characteristics:
 
