@@ -113,7 +113,7 @@ To host the model on Amazon SageMaker with a BYOC(Bring Your Own Container) for 
        "repository_name": "sglang-sagemaker",
        "tag": "latest"
      },
-     "model_id": "Qwen/Qwen2.5-VL-3B-Instruct",
+     "model_id": "Qwen/Qwen2.5-VL-32B-Instruct",
      "model_data_source": {
        "s3_bucket_name": "<i>{bucket_name}</i>",
        "s3_object_key_name": "<i>{key_prefix}</i>/"
@@ -121,12 +121,13 @@ To host the model on Amazon SageMaker with a BYOC(Bring Your Own Container) for 
      "sagemaker_endpoint_settings": {
        "environment": {
          "CHAT_TEMPLATE": "qwen2-vl",
-         "TENSOR_PARALLEL_DEGREE": "1"
+         "SM_NUM_GPUS": "4",
+         "TENSOR_PARALLEL_DEGREE": "4"
        },
        "min_capacity": 1,
        "max_capacity": 2
      },
-     "sagemaker_instance_type": "ml.g5.2xlarge"
+     "sagemaker_instance_type": "ml.g5.48xlarge"
    }
    </pre>
 
