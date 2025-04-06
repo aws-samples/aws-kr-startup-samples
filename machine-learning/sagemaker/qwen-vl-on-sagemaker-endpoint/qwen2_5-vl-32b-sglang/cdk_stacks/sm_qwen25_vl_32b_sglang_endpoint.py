@@ -29,7 +29,7 @@ def name_from_base(base, max_length=63):
   return "{}-{}".format(trimmed_base, unique)
 
 
-class ExaoneDeepSGLangRealtimeEndpointStack(Stack):
+class QwenVLSGLangRealtimeEndpointStack(Stack):
 
   def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
     super().__init__(scope, construct_id, **kwargs)
@@ -43,10 +43,10 @@ class ExaoneDeepSGLangRealtimeEndpointStack(Stack):
 
     model_data_url = f's3://{s3_bucket_name}/{s3_object_key_name}'
 
-    model_id = self.node.try_get_context('model_id') or 'LGAI-EXAONE/EXAONE-Deep-7.8B'
+    model_id = self.node.try_get_context('model_id') or 'Qwen/Qwen2.5-VL-32B-Instruct'
     sagemaker_endpoint_name = name_from_base(model_id.lower().replace('/', '-').replace('.', '-'))
 
-    instance_type = self.node.try_get_context('sagemaker_instance_type') or 'ml.g5.2xlarge'
+    instance_type = self.node.try_get_context('sagemaker_instance_type') or 'ml.g5.8xlarge'
     endpoint_settings = self.node.try_get_context('sagemaker_endpoint_settings') or {}
 
     ecr_info = self.node.try_get_context('ecr')
