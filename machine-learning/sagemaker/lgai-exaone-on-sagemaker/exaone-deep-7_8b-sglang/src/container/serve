@@ -43,7 +43,11 @@ if [ -n "$TORCHAO_CONFIG" ]; then
 fi
 
 if [ -n "$KV_CACHE_DTYPE" ]; then
-    SERVER_ARGS="{$SERVER_ARGS} --kv-cache-dtype ${KV_CACHE_DTYPE}"
+    SERVER_ARGS="${SERVER_ARGS} --kv-cache-dtype ${KV_CACHE_DTYPE}"
+fi
+
+if [ -n "$CHAT_TEMPLATE" ]; then
+    SERVER_ARGS="${SERVER_ARGS} --chat-template ${CHAT_TEMPLATE}"
 fi
 
 python3 -m sglang.launch_server $SERVER_ARGS
