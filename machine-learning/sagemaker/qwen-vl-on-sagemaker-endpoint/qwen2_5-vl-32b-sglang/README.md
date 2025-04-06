@@ -86,7 +86,7 @@ To host the model on Amazon SageMaker with a BYOC(Bring Your Own Container) for 
    model_dir = Path('model')
    model_dir.mkdir(exist_ok=True)
 
-   model_id = "Qwen/Qwen2.5-VL-3B-Instruct"
+   model_id = "Qwen/Qwen2.5-VL-32B-Instruct"
    snapshot_download(model_id, local_dir=model_dir)
    ```
 
