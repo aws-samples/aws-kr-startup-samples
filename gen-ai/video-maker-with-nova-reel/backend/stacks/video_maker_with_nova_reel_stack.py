@@ -40,6 +40,10 @@ class VideoMakerWithNovaReelStack(Stack):
                 name="invocation_id",
                 type=AttributeType.STRING
             ),
+            sort_key=Attribute(
+                name="created_at",
+                type=AttributeType.STRING
+            ),
             removal_policy=RemovalPolicy.DESTROY,
             billing_mode=BillingMode.PAY_PER_REQUEST,
         )

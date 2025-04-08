@@ -62,6 +62,9 @@ def lambda_handler(event, context):
         return create_response(400, {'error': 'Bad Request: A valid body is required.'})
         
     prompt = parsed_body.get('prompt')
+    num_shots = parsed_body.get('num_shots', 1)
+    durationSeconds = num_shots * 6
+
     if not prompt:
         return create_response(400, {'error': 'Bad Request: prompt field is required.'})
     
@@ -73,15 +76,15 @@ def lambda_handler(event, context):
     
     # 기본 모델 입력 구성
     model_input = {
-        "taskType": "TEXT_VIDEO",
-        "textToVideoParams": {
+        "taskType": "MULTI_SHOT_AUTOMATED",
+        "multiShotAutomatedParams": {
             "text": prompt
         },
         "videoGenerationConfig": {
-            "durationSeconds": 6,
+            "durationSeconds": durationSeconds,
             "fps": 24,
             "dimension": "1280x720",
-            "seed": random.randint(0, 2147483646)  # 범위 수정: 0-2,147,483,646
+            "seed": random.randint(0, 2147483648)
         }
     }
     
