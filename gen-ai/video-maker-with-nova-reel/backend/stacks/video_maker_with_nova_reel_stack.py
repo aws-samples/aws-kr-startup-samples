@@ -30,7 +30,7 @@ class VideoMakerWithNovaReelStack(Stack):
         self.chat_nova_model_id = self.node.try_get_context("chat_nova_model_id")
         self.claude_model_id = self.node.try_get_context("claude_model_id") or "anthropic.claude-3-sonnet-20240229-v1:0"
         self.s3_stack_bucket_name = f"{self.node.try_get_context('s3_base_bucket_name')}-{Aws.ACCOUNT_ID}"
-        self.ddb_table_name = self.node.try_get_context("video_maker_with_nova_reel_process_table")
+        self.ddb_table_name = f"{self.node.try_get_context('video_maker_with_nova_reel_process_table')}-{uuid.uuid4().hex[:8]}"
 
         # Create DynamoDB table
         self.video_maker_with_nova_reel_process_table = Table(
@@ -632,7 +632,8 @@ def handler(event, context):
                 actions=[
                     "dynamodb:PutItem",
                     "dynamodb:Scan",
-                    "dynamodb:UpdateItem"
+                    "dynamodb:UpdateItem",
+                    "dynamodb:Query"
                 ],
                 resources=[self.video_maker_with_nova_reel_process_table.table_arn],
             )
