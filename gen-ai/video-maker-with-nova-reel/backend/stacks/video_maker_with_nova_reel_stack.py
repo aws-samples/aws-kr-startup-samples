@@ -664,7 +664,7 @@ def handler(event, context):
         self.get_video_lambda.add_to_role_policy(
             PolicyStatement(
                 effect=Effect.ALLOW,
-                actions=["dynamodb:GetItem"],
+                actions=["dynamodb:GetItem", "dynamodb:Query"],
                 resources=[self.video_maker_with_nova_reel_process_table.table_arn],
             )
         )

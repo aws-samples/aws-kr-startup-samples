@@ -62,8 +62,8 @@ def lambda_handler(event, context):
         return create_response(400, {'error': 'Bad Request: A valid body is required.'})
         
     prompt = parsed_body.get('prompt')
-    num_shots = parsed_body.get('num_shots', 1)
-    durationSeconds = num_shots * 6
+    num_shots = parsed_body.get('num_shots', 2)  # 기본값을 2로 변경
+    durationSeconds = max(num_shots * 6, 12)  # 최소 12초 보장
 
     if not prompt:
         return create_response(400, {'error': 'Bad Request: prompt field is required.'})
@@ -90,7 +90,7 @@ def lambda_handler(event, context):
     
     # 이미지 데이터가 있을 경우에만 images 필드 추가
     if image_data:
-        model_input["textToVideoParams"]["images"] = [
+        model_input["multiShotAutomatedParams"]["images"] = [
             {
                 "format": image_format,  # "png" 또는 "jpeg"
                 "source": {

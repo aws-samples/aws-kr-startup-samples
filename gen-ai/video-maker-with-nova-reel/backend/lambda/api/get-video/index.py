@@ -61,19 +61,25 @@ def lambda_handler(event, context):
         return create_response(400, {'error': 'invocation_id is required'})
     
     try:
-        # DynamoDB에서 해당 invocation_id로 아이템 조회
-        response = ddb_client.get_item(
+        # 먼저 Query를 사용하여 invocation_id에 해당하는 항목 검색
+        query_response = ddb_client.query(
             TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
-            Key={'invocation_id': {'S': invocation_id}}
+            KeyConditionExpression="invocation_id = :id",
+            ExpressionAttributeValues={
+                ":id": {"S": invocation_id}
+            }
         )
         
         # 아이템이 존재하지 않는 경우
-        if 'Item' not in response:
+        if not query_response.get('Items'):
             return create_response(404, {'error': 'Video not found'})
+        
+        # 첫 번째 항목 가져오기 (일반적으로 하나만 있을 것임)
+        item_data = query_response['Items'][0]
         
         # DynamoDB 응답을 파이썬 딕셔너리로 변환
         deserializer = TypeDeserializer()
-        item = {k: deserializer.deserialize(v) for k, v in response['Item'].items()}
+        item = {k: deserializer.deserialize(v) for k, v in item_data.items()}
         
         # location에서 S3 버킷과 키 추출
         if 'location' in item:
