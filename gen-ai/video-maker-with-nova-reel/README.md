@@ -4,7 +4,7 @@
 This project is a video creation automation system using Amazon Bedrock(Nova Reel). It is built using AWS CDK for infrastructure and consists of frontend and backend components.
 
 ![screenshot1](./docs/images/video-generation-service-1.jpeg)
-You can get help from “Generative AI Assist” to get suggested prompts based on best practices from Amazon Nova Reel.
+You can get help from "Generative AI Assist" to get suggested prompts based on best practices from Amazon Nova Reel.
 ![screenshot1](./docs/images/video-generation-service-2.jpeg)
 ![screenshot2](./docs/images/video-generation-service-3.jpeg)
 
@@ -46,6 +46,16 @@ pip install -r requirements.txt
 # Deploy using AWS CDK
 cdk deploy
 ```
+
+### FFmpeg Lambda Layer Installation (Storyboard Video Merge)
+For the video merging functionality of the storyboard feature, you'll need the FFmpeg Lambda Layer. Follow these steps to install it:
+
+1. Visit the [FFmpeg Lambda Layer link.](https://serverlessrepo.aws.amazon.com/applications/us-east-1/145266761615/ffmpeg-lambda-layer)
+2. Click the "Deploy" button to deploy the application.
+3. Once deployment is complete, find the "VideoMakerWithNovaReelSta-MergeVideosLambda" function in the Lambda console.
+4. Select "Layers" from the "Configuration" tab.
+5. Click the "Add a layer" button.
+6. Select "AWS layers" and add the FFmpeg Layer you deployed.
 
 ### Frontend Deployment
 Follow these steps to deploy the frontend:
