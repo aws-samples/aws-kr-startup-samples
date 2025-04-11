@@ -8,11 +8,15 @@ export default function Layout({ activeHref, onNavigate, children }) {
         <SideNavigation
           activeHref={activeHref}
           header={{ href: "#/", text: "Video Generation Service" }}
-          onFollow={onNavigate}
+          onFollow={(event) => {
+            console.log('Menu clicked:', event.detail.href);
+            onNavigate(event);
+          }}
           items={[
-            { type: "link", text: "Generate", href: "#/generate" },
-            { type: "link", text: "Storyboard", href: "#/storyboard" },
-            { type: "link", text: "Outputs", href: "#/outputs" }
+            { type: "link", text: "Image Generate", href: "#/image/generate" },
+            { type: "link", text: "Video Generate", href: "#/video/generate" },
+            { type: "link", text: "Video Storyboard", href: "#/video/storyboard" },
+            { type: "link", text: "Video Outputs", href: "#/video/outputs" }
           ]}
         />
       </div>

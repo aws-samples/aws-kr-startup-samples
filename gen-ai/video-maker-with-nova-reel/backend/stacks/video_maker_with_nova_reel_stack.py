@@ -205,6 +205,11 @@ class VideoMakerWithNovaReelStack(Stack):
             description="ARN of the FFmpeg Lambda Layer"
         )
 
+        # 이미지 생성 Lambda 함수 생성 및 설정
+        self.generate_image_lambda = self._create_generate_image_lambda()
+        self._attach_generate_image_lambda_permissions()
+        self._setup_generate_image_lambda_integration()
+
     def _create_layer_arn_provider(self):
         """
         CloudFormation 스택에서 Lambda 레이어 ARN을 가져오는 커스텀 리소스 제공자 생성
@@ -351,6 +356,9 @@ def handler(event, context):
         self.storyboard_generate_resource = self.storyboard_resource.add_resource("generate")
         self.storyboard_videos_resource = self.storyboard_resource.add_resource("videos")
         self.merge_resource = self.videos_resource.add_resource("merge")
+        # 이미지 생성 리소스 추가
+        self.images_resource = apis_resource.add_resource("images")
+        self.generate_image_resource = self.images_resource.add_resource("generate")
         
         # API Gateway의 모든 엔드포인트에 개별적으로 CORS 설정 적용
         self.videos_resource.add_cors_preflight(
@@ -445,6 +453,21 @@ def handler(event, context):
         )
 
         self.chat_resource.add_cors_preflight(
+            allow_origins=["*"],
+            allow_methods=["POST", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Amz-Date",
+                "Authorization",
+                "X-Api-Key",
+                "X-Amz-Security-Token",
+                "Access-Control-Allow-Origin",
+                "Access-Control-Allow-Headers",
+                "Access-Control-Allow-Methods"
+            ],
+        )
+
+        self.generate_image_resource.add_cors_preflight(
             allow_origins=["*"],
             allow_methods=["POST", "OPTIONS"],
             allow_headers=[
@@ -1005,6 +1028,72 @@ def handler(event, context):
             method_responses=self._default_method_response()
         )
     
+    def _create_generate_image_lambda(self) -> Function:
+        """Create and configure Lambda function for image generation."""
+        return Function(
+            self,
+            "VideoMakerWithNovaReelGenerateImageLambda",
+            function_name="VideoMakerWithNovaReelGenerateImageLambda",
+            runtime=Runtime.PYTHON_3_11,
+            handler="index.handler",
+            code=Code.from_asset("lambda/api/generate-image"),
+            environment={
+                "BUCKET_NAME": self.s3_stack_bucket_name,
+            },
+            timeout=Duration.seconds(300),
+            memory_size=1024,
+        )
+
+    def _attach_generate_image_lambda_permissions(self) -> None:
+        """Grants S3 and Bedrock permissions to the image generation Lambda function."""
+        # S3 권한 부여
+        self.generate_image_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=[
+                    "s3:PutObject",
+                    "s3:GetObject",
+                    "s3:PutObjectAcl"
+                ],
+                resources=[
+                    f"{self.s3_base_bucket.bucket_arn}/*",
+                    self.s3_base_bucket.bucket_arn
+                ],
+            )
+        )
+        
+        # Bedrock 권한 부여
+        self.generate_image_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=[
+                    "bedrock:InvokeModel"
+                ],
+                resources=["*"],
+            )
+        )
+
+    def _setup_generate_image_lambda_integration(self) -> None:
+        """Connects API Gateway to the image generation Lambda function using Lambda integration."""
+        integration = LambdaIntegration(
+            self.generate_image_lambda,
+            proxy=True,
+            integration_responses=[{
+                'statusCode': '200',
+                'responseParameters': {
+                    'method.response.header.Access-Control-Allow-Origin': "'*'",
+                    'method.response.header.Access-Control-Allow-Headers': "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+                    'method.response.header.Access-Control-Allow-Methods': "'POST,OPTIONS'"
+                }
+            }]
+        )
+        self.generate_image_resource.add_method(
+            "POST",
+            integration,
+            authorization_type=AuthorizationType.NONE,
+            method_responses=self._default_method_response()
+        )
+
     def _default_method_response(self):
         """Returns a default MethodResponse configuration for CORS."""
         return [

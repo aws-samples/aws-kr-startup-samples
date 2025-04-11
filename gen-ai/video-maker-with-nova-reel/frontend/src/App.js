@@ -1,11 +1,12 @@
 import * as React from "react";
 import Layout from "./components/Layout";
+import ImageGenerateForm from "./components/ImageGenerateForm";
 import InvocationsTable from "./components/InvocationsTable";
 import GenerateForm from "./components/GenerateForm";
 import Storyboard from "./components/Storyboard";
 
 export default function App() {
-  const [activeHref, setActiveHref] = React.useState("#/outputs");
+  const [activeHref, setActiveHref] = React.useState("#/video/outputs");
 
   // Handle navigation
   const handleNavigation = (event) => {
@@ -18,14 +19,19 @@ export default function App() {
   // Render content based on active route
   const renderContent = () => {
     switch (activeHref) {
-      case "#/outputs":
+      case "#/":
+      case "#/image":
+      case "#/image/generate":
+        return <ImageGenerateForm />;
+      case "#/video":
+      case "#/video/outputs":
         return <InvocationsTable />;
-      case "#/generate":
+      case "#/video/generate":
         return <GenerateForm />;
-      case "#/storyboard":
+      case "#/video/storyboard":
         return <Storyboard />;
       default:
-        return null;
+        return <InvocationsTable />; // 기본값을 Outputs로 설정
     }
   };
 
