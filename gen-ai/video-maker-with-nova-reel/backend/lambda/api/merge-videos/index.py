@@ -57,49 +57,76 @@ def download_videos(invocation_ids, temp_dir):
     video_paths = []
     
     for invocation_id in invocation_ids:
-        # Look up video information in DynamoDB
-        response = ddb_client.get_item(
-            TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
-            Key={'invocation_id': {'S': invocation_id}}
-        )
-        
-        if 'Item' not in response:
-            logger.error(f"Video information not found: {invocation_id}")
-            continue
-            
-        video_item = response['Item']
-        status = video_item.get('status', {}).get('S')
-        
-        if status != 'Completed':
-            logger.error(f"Video not yet completed: {invocation_id}, status: {status}")
-            continue
-            
-        # Parse S3 path
-        s3_location = video_item.get('location', {}).get('S', '')
-        if not s3_location or not s3_location.startswith('s3://'):
-            logger.error(f"Invalid S3 path: {s3_location}")
-            continue
-            
-        # Extract bucket and key from s3://bucket/key format
-        s3_parts = s3_location[5:].split('/', 1)
-        if len(s3_parts) != 2:
-            logger.error(f"Failed to parse S3 path: {s3_location}")
-            continue
-            
-        bucket = s3_parts[0]
-        key = s3_parts[1]
-        
-        # Path to save the video file
-        local_path = os.path.join(temp_dir, f"{invocation_id}.mp4")
-        
         try:
-            logger.info(f"Attempting to download video from S3: s3://{bucket}/{key}")
-            # Download video from S3
-            s3_client.download_file(bucket, key, local_path)
-            video_paths.append(local_path)
-            logger.info(f"Video download successful: {local_path}")
+            # 먼저 invocation_id로 항목을 쿼리하여 created_at 값을 얻습니다
+            query_response = ddb_client.query(
+                TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
+                KeyConditionExpression='invocation_id = :invocation_id',
+                ExpressionAttributeValues={
+                    ':invocation_id': {'S': invocation_id}
+                },
+                Limit=1
+            )
+            
+            items = query_response.get('Items', [])
+            if not items:
+                logger.error(f"Video information not found: {invocation_id}")
+                continue
+                
+            created_at = items[0].get('created_at', {}).get('S')
+            if not created_at:
+                logger.error(f"No created_at found for invocation_id {invocation_id}")
+                continue
+                
+            # 파티션 키와 정렬 키를 모두 포함하여 get_item 호출
+            response = ddb_client.get_item(
+                TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
+                Key={
+                    'invocation_id': {'S': invocation_id},
+                    'created_at': {'S': created_at}
+                }
+            )
+            
+            if 'Item' not in response:
+                logger.error(f"Video information not found: {invocation_id}")
+                continue
+                
+            video_item = response['Item']
+            status = video_item.get('status', {}).get('S')
+            
+            if status != 'Completed':
+                logger.error(f"Video not yet completed: {invocation_id}, status: {status}")
+                continue
+                
+            # Parse S3 path
+            s3_location = video_item.get('location', {}).get('S', '')
+            if not s3_location or not s3_location.startswith('s3://'):
+                logger.error(f"Invalid S3 path: {s3_location}")
+                continue
+                
+            # Extract bucket and key from s3://bucket/key format
+            s3_parts = s3_location[5:].split('/', 1)
+            if len(s3_parts) != 2:
+                logger.error(f"Failed to parse S3 path: {s3_location}")
+                continue
+                
+            bucket = s3_parts[0]
+            key = s3_parts[1]
+            
+            # Path to save the video file
+            local_path = os.path.join(temp_dir, f"{invocation_id}.mp4")
+            
+            try:
+                logger.info(f"Attempting to download video from S3: s3://{bucket}/{key}")
+                # Download video from S3
+                s3_client.download_file(bucket, key, local_path)
+                video_paths.append(local_path)
+                logger.info(f"Video download successful: {local_path}")
+            except Exception as e:
+                logger.error(f"Video download failed: {invocation_id}, error: {str(e)}")
         except Exception as e:
-            logger.error(f"Video download failed: {invocation_id}, error: {str(e)}")
+            logger.error(f"Error processing invocation_id {invocation_id}: {str(e)}")
+            continue
     
     return video_paths
 

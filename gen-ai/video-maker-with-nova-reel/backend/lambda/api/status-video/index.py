@@ -34,7 +34,10 @@ def update_dynamo_status(invocation_id, new_status, s3_uri=None):
     try:
         ddb_client.update_item(
             TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
-            Key={'invocation_id': {'S': invocation_id}},
+            Key={
+                'invocation_id': {'S': invocation_id},
+                'created_at': {'S': created_at}
+            },
             UpdateExpression=update_expression,
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues=expression_values
