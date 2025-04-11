@@ -58,35 +58,6 @@ class VideoMakerWithNovaReelStack(Stack):
             description="The name of the S3 bucket used by the VideoMakerWithNovaReel application"
         )
 
-        # Deploy FFmpeg Layer as SAM application
-        self.ffmpeg_layer_app = CfnApplication(
-            self, "FFmpegLambdaLayerApp",
-            location={
-                "applicationId": "arn:aws:serverlessrepo:us-east-1:145266761615:applications/ffmpeg-lambda-layer",
-                "semanticVersion": "1.0.0"
-            }
-        )
-
-        # Create a custom resource to get the layer ARN from the deployed application
-        ffmpeg_layer_provider = self._create_layer_arn_provider()
-        
-        ffmpeg_layer_custom_resource = CustomResource(
-            self, "FFmpegLayerArnResource",
-            service_token=ffmpeg_layer_provider.service_token,
-            properties={
-                "StackName": self.ffmpeg_layer_app.ref
-            }
-        )
-        
-        # Retrieve the layer ARN from the custom resource
-        ffmpeg_layer_arn = ffmpeg_layer_custom_resource.get_att_string("LayerArn")
-        
-        # Create Lambda layer reference
-        self.ffmpeg_layer = LayerVersion.from_layer_version_arn(
-            self, "FFmpegLayer",
-            ffmpeg_layer_arn
-        )
-
         # Create API Gateway and resources
         self.api_gateway = self._create_api_gateway()
         self._create_api_resources()
@@ -177,13 +148,9 @@ class VideoMakerWithNovaReelStack(Stack):
         self._attach_storyboard_videos_lambda_permissions(self.s3_stack_bucket_name)
         self._setup_storyboard_videos_lambda_integration()
 
-        # 비디오 병합 Lambda 함수를 생성하기 전에 FFmpeg 레이어 생성이 필요
         self.merge_videos_lambda = self._create_merge_videos_lambda(
             bucket_name=self.s3_stack_bucket_name
         )
-        
-        # FFmpeg 레이어 배포에 의존성 추가
-        self.merge_videos_lambda.node.add_dependency(ffmpeg_layer_custom_resource)
         
         self._attach_merge_videos_lambda_permissions(self.s3_stack_bucket_name)
         self._setup_merge_videos_lambda_integration()
@@ -197,124 +164,10 @@ class VideoMakerWithNovaReelStack(Stack):
             value=self.api_gateway.url,
             description="The URL of the API Gateway"
         )
-        
-        # Output FFmpeg Layer ARN
-        CfnOutput(
-            self, "FFmpegLayerArnOutput",
-            value=ffmpeg_layer_arn,
-            description="ARN of the FFmpeg Lambda Layer"
-        )
 
-        # 이미지 생성 Lambda 함수 생성 및 설정
         self.generate_image_lambda = self._create_generate_image_lambda()
         self._attach_generate_image_lambda_permissions()
         self._setup_generate_image_lambda_integration()
-
-    def _create_layer_arn_provider(self):
-        """
-        CloudFormation 스택에서 Lambda 레이어 ARN을 가져오는 커스텀 리소스 제공자 생성
-        """
-        provider_lambda = Function(
-            self, "LayerArnProviderFunction",
-            runtime=Runtime.PYTHON_3_11,
-            handler="index.handler",
-            code=Code.from_inline("""
-import boto3
-import cfnresponse
-import logging
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-def handler(event, context):
-    logger.info('Event: %s', event)
-    
-    # Initialize response data
-    response_data = {}
-    
-    try:
-        if event['RequestType'] == 'Delete':
-            cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
-            return
-        
-        properties = event['ResourceProperties']
-        stack_name = properties['StackName']
-        
-        # Get CloudFormation stack outputs
-        cfn_client = boto3.client('cloudformation')
-        response = cfn_client.describe_stacks(StackName=stack_name)
-        
-        stack = response['Stacks'][0]
-        
-        # Find the layer ARN in the outputs
-        layer_arn = None
-        for output in stack.get('Outputs', []):
-            if output.get('OutputKey') == 'LayerArn':
-                layer_arn = output.get('OutputValue')
-                break
-        
-        if not layer_arn:
-            # If no output with key 'LayerArn', try to find any output that contains 'layer'
-            for output in stack.get('Outputs', []):
-                if 'layer' in output.get('OutputKey', '').lower():
-                    layer_arn = output.get('OutputValue')
-                    break
-        
-        if not layer_arn:
-            # Last resort: try to construct the ARN using the stack resources
-            resources = cfn_client.list_stack_resources(StackName=stack_name)
-            for resource in resources.get('StackResourceSummaries', []):
-                if resource.get('ResourceType') == 'AWS::Lambda::LayerVersion':
-                    logical_id = resource.get('LogicalResourceId')
-                    physical_id = resource.get('PhysicalResourceId')
-                    
-                    if 'ffmpeg' in logical_id.lower():
-                        # PhysicalResourceId for LayerVersion is the ARN
-                        layer_arn = physical_id
-                        break
-        
-        if layer_arn:
-            logger.info(f"Found Layer ARN: {layer_arn}")
-            response_data['LayerArn'] = layer_arn
-            cfnresponse.send(event, context, cfnresponse.SUCCESS, response_data)
-        else:
-            logger.error("Could not find Layer ARN in stack outputs or resources")
-            cfnresponse.send(event, context, cfnresponse.FAILED, 
-                            {"Error": "Layer ARN not found in stack outputs or resources"})
-    
-    except Exception as e:
-        logger.error(f"Exception: {str(e)}")
-        cfnresponse.send(event, context, cfnresponse.FAILED, 
-                        {"Error": str(e)})
-"""),
-            timeout=Duration.minutes(2)
-        )
-        
-        # 필요한 권한 추가
-        provider_lambda.add_to_role_policy(
-            PolicyStatement(
-                effect=Effect.ALLOW,
-                actions=[
-                    "cloudformation:DescribeStacks",
-                    "cloudformation:ListStackResources"
-                ],
-                resources=["*"]
-            )
-        )
-        
-        return Provider(
-            self, "LayerArnProvider",
-            on_event_handler=provider_lambda
-        )
-
-    def _create_status_check_rule(self) -> None:
-        """Creates EventBridge rule to trigger status check Lambda."""
-        Rule(
-            self,
-            "VideoStatusCheckRule",
-            schedule=Schedule.rate(Duration.minutes(1)),
-            targets=[LambdaFunction(self.status_videos_lambda)]
-        )
 
     def _create_s3_bucket(self, bucket_name: str) -> Bucket:
         """Creates an S3 bucket with CORS configuration."""
@@ -356,11 +209,8 @@ def handler(event, context):
         self.storyboard_generate_resource = self.storyboard_resource.add_resource("generate")
         self.storyboard_videos_resource = self.storyboard_resource.add_resource("videos")
         self.merge_resource = self.videos_resource.add_resource("merge")
-        # 이미지 생성 리소스 추가
         self.images_resource = apis_resource.add_resource("images")
         self.generate_image_resource = self.images_resource.add_resource("generate")
-        
-        # API Gateway의 모든 엔드포인트에 개별적으로 CORS 설정 적용
         self.videos_resource.add_cors_preflight(
             allow_origins=["*"],
             allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
@@ -391,7 +241,6 @@ def handler(event, context):
             ],
         )
         
-        # 스토리보드 관련 CORS 설정
         self.storyboard_resource.add_cors_preflight(
             allow_origins=["*"],
             allow_methods=["GET", "POST", "OPTIONS"],
@@ -615,7 +464,7 @@ def handler(event, context):
                 resources=["*"],
             )
         )
-        # Grant DynamoDB PutItem Permission (제한된 테이블 ARN으로 설정)
+        
         self.generate_video_lambda.add_to_role_policy(
             PolicyStatement(
                 effect=Effect.ALLOW,
@@ -851,18 +700,17 @@ def handler(event, context):
             runtime=Runtime.PYTHON_3_11,
             code=Code.from_asset("./lambda/api/merge-videos"),
             handler="index.lambda_handler",
-            timeout=Duration.seconds(300),  # 비디오 병합은 시간이 더 필요할 수 있음
-            memory_size=1024,  # 비디오 처리를 위해 메모리 증가
+            timeout=Duration.seconds(300),  
+            memory_size=1024, 
             environment={
                 "S3_DESTINATION_BUCKET": bucket_name,
                 "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name
-            },
-            layers=[self.ffmpeg_layer]
+            }
         )
 
     def _attach_storyboard_generate_lambda_permissions(self) -> None:
         """Attaches permission to storyboard generate Lambda to use Bedrock."""
-        # 모델 호출 권한 추가
+
         self.storyboard_generate_lambda.add_to_role_policy(
             PolicyStatement(
                 actions=[
@@ -877,7 +725,6 @@ def handler(event, context):
     
     def _attach_storyboard_videos_lambda_permissions(self, bucket_name: str) -> None:
         """Attaches permissions to storyboard videos Lambda."""
-        # S3 버킷 접근 권한 추가
         self.storyboard_videos_lambda.add_to_role_policy(
             PolicyStatement(
                 actions=[
@@ -910,7 +757,6 @@ def handler(event, context):
             )
         )
         
-        # Bedrock 모델 호출 권한 추가
         self.storyboard_videos_lambda.add_to_role_policy(
             PolicyStatement(
                 actions=[
@@ -926,7 +772,6 @@ def handler(event, context):
     
     def _attach_merge_videos_lambda_permissions(self, bucket_name: str) -> None:
         """Attaches permissions to merge videos Lambda."""
-        # S3 버킷 접근 권한 추가
         self.merge_videos_lambda.add_to_role_policy(
             PolicyStatement(
                 actions=[
@@ -942,7 +787,6 @@ def handler(event, context):
             )
         )
         
-        # DynamoDB 테이블 접근 권한 추가
         self.merge_videos_lambda.add_to_role_policy(
             PolicyStatement(
                 actions=[
@@ -1046,7 +890,6 @@ def handler(event, context):
 
     def _attach_generate_image_lambda_permissions(self) -> None:
         """Grants S3 and Bedrock permissions to the image generation Lambda function."""
-        # S3 권한 부여
         self.generate_image_lambda.add_to_role_policy(
             PolicyStatement(
                 effect=Effect.ALLOW,
@@ -1062,7 +905,6 @@ def handler(event, context):
             )
         )
         
-        # Bedrock 권한 부여
         self.generate_image_lambda.add_to_role_policy(
             PolicyStatement(
                 effect=Effect.ALLOW,
@@ -1105,7 +947,6 @@ def handler(event, context):
                     "method.response.header.Access-Control-Allow-Methods": True,
                 },
             ),
-            # 추가: 4xx 및 5xx 오류에 대한 CORS 헤더 설정
             MethodResponse(
                 status_code="400",
                 response_parameters={
@@ -1123,3 +964,12 @@ def handler(event, context):
                 },
             )
         ]
+
+    def _create_status_check_rule(self) -> None:
+        """Creates EventBridge rule to trigger status check Lambda."""
+        Rule(
+            self,
+            "VideoStatusCheckRule",
+            schedule=Schedule.rate(Duration.minutes(1)),
+            targets=[LambdaFunction(self.status_videos_lambda)]
+        )
