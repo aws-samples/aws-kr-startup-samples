@@ -20,37 +20,76 @@ export default function ImageGenerateForm() {
   const [negativePrompt, setNegativePrompt] = React.useState("");
   const [aspectRatio, setAspectRatio] = React.useState({ label: "1280 x 720 (9:16)", value: "1280x720" });
   const [imageCount, setImageCount] = React.useState(1);
-  const [loading, setLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
   const [showSuccess, setShowSuccess] = React.useState(false);
   const [selectedImages, setSelectedImages] = React.useState([]);
-  const [generatedImages, setGeneratedImages] = React.useState([
-    // 테스트용 더미 데이터
-    { id: '1', imageUrl: 'https://via.placeholder.com/400x300' },
-    { id: '2', imageUrl: 'https://via.placeholder.com/400x300' },
-    { id: '3', imageUrl: 'https://via.placeholder.com/400x300' },
-  ]);
+  const [generatedImages, setGeneratedImages] = React.useState([]);
+  const [error, setError] = React.useState(null);
+  const [promptError, setPromptError] = React.useState(null);
 
   const aspectRatioOptions = [
-    { label: "1280 x 720 (16:9)", value: "1280x720" },
-    { label: "720 x 1280 (9:16)", value: "720x1280" }
+    { label: "1280 x 720 (16:9)", value: "landscape" },
+    { label: "720 x 1280 (9:16)", value: "portrait" }
   ];
+
+  const validatePrompt = (text) => {
+    if (!text.trim()) {
+      return 'Prompt는 필수 입력 항목입니다.';
+    }
+    if (text.length < 1 || text.length > 1024) {
+      return 'Prompt는 1-1024자 사이여야 합니다.';
+    }
+    return null;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setIsLoading(true);
+    setError(null);
+    setShowSuccess(false);
+    setPromptError(null);
+
+    const promptValidationError = validatePrompt(prompt);
+    if (promptValidationError) {
+      setPromptError(promptValidationError);
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // TODO: API 호출 구현
-      console.log({
-        prompt,
-        negativePrompt,
-        aspectRatio: aspectRatio.value,
-        imageCount
+      const response = await fetch(`${process.env.REACT_APP_API_HOST}/apis/images/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          negative_prompt: negativePrompt,
+          height: aspectRatio.value === 'landscape' ? 720 : 1280,
+          width: aspectRatio.value === 'landscape' ? 1280 : 720,
+          number_of_images: imageCount
+        })
       });
+
+      if (!response.ok) {
+        throw new Error('이미지 생성에 실패했습니다.');
+      }
+
+      const data = await response.json();
+      const newImages = data.images.map((image, index) => ({
+        id: `image-${Date.now()}-${index}`,
+        imageUrl: image.url,
+        prompt: prompt,
+        negativePrompt: negativePrompt,
+        aspectRatio: aspectRatio.value,
+        createdAt: new Date().toISOString()
+      }));
+      setGeneratedImages(prevImages => [...prevImages, ...newImages]);
       setShowSuccess(true);
-    } catch (error) {
-      console.error("Failed to generate image:", error);
+    } catch (err) {
+      setError(err.message);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -179,12 +218,18 @@ export default function ImageGenerateForm() {
                 <FormField
                   label="Prompt"
                   description="Enter a description of the image you want to generate"
+                  errorText={promptError}
+                  stretch={true}
                 >
                   <Textarea
                     value={prompt}
-                    onChange={({ detail }) => setPrompt(detail.value)}
+                    onChange={({ detail }) => {
+                      setPrompt(detail.value);
+                      setPromptError(validatePrompt(detail.value));
+                    }}
                     placeholder="A beautiful landscape with mountains and a lake..."
-                    rows={5}
+                    rows={6}
+                    style={{ width: '100%', maxWidth: '100%' }}
                   />
                 </FormField>
 
@@ -192,14 +237,21 @@ export default function ImageGenerateForm() {
                   <Button
                     variant="primary"
                     type="submit"
-                    loading={loading}
-                    disabled={!prompt.trim() || loading}
+                    loading={isLoading}
+                    disabled={!prompt.trim() || isLoading || promptError}
                   >
                     Generate
                   </Button>
                 </Box>
 
-                {generatedImages.length > 0 && (
+                <div style={{ 
+                  maxHeight: '600px', 
+                  overflowY: 'auto',
+                  padding: '16px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}>
                   <SpaceBetween size="l">
                     <Cards
                       onSelectionChange={({ detail }) => setSelectedImages(detail.selectedItems)}
@@ -213,11 +265,41 @@ export default function ImageGenerateForm() {
                           {
                             id: "image",
                             content: item => (
-                              <img
-                                style={{ width: "100%", height: "auto" }}
-                                src={item.imageUrl}
-                                alt="Generated image"
-                              />
+                              <div style={{ 
+                                width: '100%', 
+                                height: '250px', 
+                                overflow: 'hidden',
+                                position: 'relative',
+                                backgroundColor: '#f5f5f5'
+                              }}>
+                                <img
+                                  style={{ 
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    width: item.aspectRatio === 'landscape' ? '100%' : 'auto',
+                                    height: item.aspectRatio === 'landscape' ? '100%' : '100%',
+                                    objectFit: item.aspectRatio === 'landscape' ? 'cover' : 'contain'
+                                  }}
+                                  src={item.imageUrl}
+                                  alt="Generated image"
+                                />
+                                <div style={{ 
+                                  position: 'absolute',
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  padding: '4px 8px',
+                                  backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                  color: 'white',
+                                  fontSize: '10px',
+                                  lineHeight: '1.2'
+                                }}>
+                                  <div style={{ marginBottom: '2px' }}>prompt: {item.prompt}</div>
+                                  {item.negativePrompt && <div style={{ marginBottom: '2px' }}>negative: {item.negativePrompt}</div>}
+                                </div>
+                              </div>
                             )
                           }
                         ]
@@ -239,16 +321,19 @@ export default function ImageGenerateForm() {
                         </Box>
                       }
                     />
-                    <Box float="right">
-                      <Button
-                        onClick={handleDownload}
-                        disabled={selectedImages.length === 0}
-                        iconName="download"
-                      >
-                        Download selected ({selectedImages.length})
-                      </Button>
-                    </Box>
                   </SpaceBetween>
+                </div>
+
+                {generatedImages.length > 0 && (
+                  <Box float="right">
+                    <Button
+                      onClick={handleDownload}
+                      disabled={selectedImages.length === 0}
+                      iconName="download"
+                    >
+                      Download selected ({selectedImages.length})
+                    </Button>
+                  </Box>
                 )}
               </SpaceBetween>
             </form>

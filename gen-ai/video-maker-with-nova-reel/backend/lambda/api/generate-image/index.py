@@ -90,7 +90,7 @@ def generate_image(model_id, body):
             
             # S3에 업로드할 키 생성
             file_id = str(uuid.uuid4())
-            key = f"generated-images/{timestamp}/{file_id}.png"
+            key = f"generated-images/{file_id}.png"
             
             # S3에 업로드하고 presigned URL 받기
             presigned_url = upload_to_s3(image_bytes, key)
@@ -119,8 +119,8 @@ def handler(event, context):
         # Extract parameters
         prompt = body.get('prompt')
         negative_prompt = body.get('negative_prompt', '')
-        height = int(body.get('height', 1024))
-        width = int(body.get('width', 1024))
+        height = int(body.get('height', 720))
+        width = int(body.get('width', 1280))
         number_of_images = int(body.get('number_of_images', 1))
 
         if not prompt:
@@ -134,16 +134,19 @@ def handler(event, context):
             "taskType": "TEXT_IMAGE",
             "textToImageParams": {
                 "text": prompt,
-                "negativeText": negative_prompt
             },
             "imageGenerationConfig": {
                 "numberOfImages": number_of_images,
                 "height": height,
                 "width": width,
                 "cfgScale": 8.0,
-                "seed": random.randint(0, 4294967295)  # Random seed between 0 and 2^32-1
+                "seed": random.randint(0, 858993459)
             }
         }
+
+        # negative_prompt가 있는 경우에만 추가
+        if negative_prompt and len(negative_prompt.strip()) > 0:
+            request_body["textToImageParams"]["negativeText"] = negative_prompt
 
         # Generate images
         model_id = 'amazon.nova-canvas-v1:0'

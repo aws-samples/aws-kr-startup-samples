@@ -896,7 +896,8 @@ class VideoMakerWithNovaReelStack(Stack):
                 actions=[
                     "s3:PutObject",
                     "s3:GetObject",
-                    "s3:PutObjectAcl"
+                    "s3:PutObjectAcl",
+                    "s3:ListBucket"
                 ],
                 resources=[
                     f"{self.s3_base_bucket.bucket_arn}/*",
