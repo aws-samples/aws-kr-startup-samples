@@ -19,7 +19,7 @@ def json_serial(obj):
         return obj.isoformat()
     raise TypeError("Type not serializable")
 
-def update_dynamo_status(invocation_id, new_status, s3_uri=None):
+def update_dynamo_status(invocation_id, new_status, created_at, s3_uri=None):
     """Function to update DynamoDB status"""
     update_expression = 'SET #status = :status, updated_at = :updated_at'
     expression_values = {
@@ -73,11 +73,14 @@ def lambda_handler(event, context):
             try:
                 invocation_arn = item.get('invocation_arn', {}).get('S')
                 invocation_id = item.get('invocation_id', {}).get('S')
+                created_at = item.get('created_at', {}).get('S')
                 
                 logger.info(f"Processing invocation_arn: {invocation_arn}")
                 logger.info(f"Processing invocation_id: {invocation_id}")
+                logger.info(f"Processing created_at: {created_at}")
                 
-                if not invocation_arn or not invocation_id:
+                if not invocation_arn or not invocation_id or not created_at:
+                    logger.warning(f"Missing required attributes for item: {item}")
                     continue
                     
                 # Check Bedrock invoke status
@@ -102,7 +105,7 @@ def lambda_handler(event, context):
                         s3_config = status_response['outputDataConfig'].get('s3OutputDataConfig', {})
                         s3_uri = s3_config.get('s3Uri')
                     
-                    update_dynamo_status(invocation_id, new_status, s3_uri)
+                    update_dynamo_status(invocation_id, new_status, created_at, s3_uri)
                     total_processed += 1
                 
             except Exception as e:
