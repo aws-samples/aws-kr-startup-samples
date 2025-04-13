@@ -184,6 +184,13 @@ FirehoseToS3TablesDeliveryStream
 
    ![](./assets/amazon_athena_query_results.png)
 
+## Clean Up
+
+Delete the CloudFormation stacks by running the below command.
+
+```
+(.venv) $ cdk destroy --all
+```
 
 ## Useful commands
 
