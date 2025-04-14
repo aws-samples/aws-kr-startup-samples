@@ -155,11 +155,11 @@ FirehoseToS3TablesDeliveryStream
 
    > To add describe permissions on the resource link, navigate to [Lake Formation](https://console.aws.amazon.com/lakeformation/) in the Console. Choose **Databases** on the left menu, and then choose the resource link you created in Step 4. Choose **Actions**, choose **Grant**, and then grant **Describe** permission to the Data Firehose role, as shown in the following figures.<br/>
    ![](./assets/aws_lakeformation_data_catalog_grant.png)
-   > In this example, the Data Firehose role is named `KinesisFirehoseServiceRole-firehose-s3tables-<region>`.<br/>
+   > <br/>In this example, the Data Firehose role is named `KinesisFirehoseServiceRole-firehose-s3tables-<region>`.<br/>
    > ![](./assets/aws_lakeformation_grant_permissions_on_resource_link.png)
-   > To provide read and write permission on specific tables, go back and choose **Databases** on the left menu, then choose the resource link you created in Step 4. First, choose **Actions**, and then choose **Grant on target**.<br/>
+   > <br/>To provide read and write permission on specific tables, go back and choose **Databases** on the left menu, then choose the resource link you created in Step 4. First, choose **Actions**, and then choose **Grant on target**.<br/>
    > ![](./assets/aws_lakeformation_data_catalog_grant_on_target.png)
-   > Choose the Data Firehose role, databases, and tables, then grant **Super** permission to the Data Firehose role, as shown in the following figures.<br/>
+   > <br/>Choose the Data Firehose role, databases, and tables, then grant **Super** permission to the Data Firehose role, as shown in the following figures.<br/>
    > ![](./assets/aws_lakeformation_grant_permissions_on_s3table.png)
 7. Set up a Data Firehose stream
    <pre>
