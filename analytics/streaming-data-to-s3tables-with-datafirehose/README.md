@@ -214,3 +214,6 @@ Enjoy!
  * [Tutorial: Getting started with S3 Tables](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-getting-started.html)
  * [Creating an Amazon S3 table](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-create.html)
  * [(GitHub) aws-samples/sample-for-transactional-datalake-using-s3tables](https://github.com/aws-samples/sample-for-transactional-datalake-using-s3tables.git)
+ * [AWS CLI Command Reference](https://awscli.amazonaws.com/v2/documentation/api/latest/index.html)
+   * [aws s3tables](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/s3tables/index.html)
+   * [aws glue](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/glue/index.html)
