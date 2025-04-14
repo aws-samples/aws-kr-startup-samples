@@ -4,12 +4,11 @@ FROM ghcr.io/astral-sh/uv:python3.11-alpine
 WORKDIR /app
 
 # Copy requirements first for better caching
-COPY requirements.txt .
-RUN uv pip install --system -r requirements.txt
+COPY mcp-weather-app/ .
 
-# Copy the rest of the application
-COPY main.py .
+RUN uv venv --python 3.11 && \
+    uv pip install --system -r pyproject.toml
 
 EXPOSE 8000
 
-CMD ["python", "main.py"]
+CMD ["python", "server.py"]
