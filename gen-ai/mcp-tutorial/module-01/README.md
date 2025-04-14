@@ -97,7 +97,7 @@ dependencies = [
 ]
 ```
 
-main.py 파일에 [main.py](./src/example-2/mcp-nova-canvas.py)를 붙여넣습니다. 이제 Claude Desktop에서 확인하기 위해 `/Library/Application\ Support/Claude/claude_desktop_config.json` 파일에 아래 내용을 추가합니다. AWS_PROFILE이 로컬에 없는 경우, ENV에 Credential("AWS_ACCESS_KEY_ID, "AWS_SECRET_ACCESS_KEY")을 추가하여 진행할 수 있습니다. 가급적 Profile을 활용해야하며 Credential을 활용할 경우 외부에 노출되지 않도록 유의하세요.
+main.py 파일에 [mcp-nova-canvas.py](./src/example-2/mcp-nova-canvas.py)를 붙여넣습니다. 이제 Claude Desktop에서 확인하기 위해 `/Library/Application\ Support/Claude/claude_desktop_config.json` 파일에 아래 내용을 추가합니다. AWS_PROFILE이 로컬에 없는 경우, ENV에 Credential("AWS_ACCESS_KEY_ID, "AWS_SECRET_ACCESS_KEY")을 추가하여 진행할 수 있습니다. 가급적 Profile을 활용해야하며 Credential을 활용할 경우 외부에 노출되지 않도록 유의하세요.
 
 ```json
 {
