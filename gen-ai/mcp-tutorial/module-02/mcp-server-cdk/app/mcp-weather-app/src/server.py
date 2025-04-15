@@ -1,6 +1,6 @@
 import uvicorn
 import os
-from app import app
+from main import app
 
 # Environment variable configuration
 HOST = os.getenv("HOST", "0.0.0.0")
