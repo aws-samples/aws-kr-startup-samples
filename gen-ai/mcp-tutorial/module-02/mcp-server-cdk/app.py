@@ -3,11 +3,11 @@ import os
 
 import aws_cdk as cdk
 
-from stacks.mcp_server_cdk_stack import McpServerCdkStack
+from stacks.mcp_server_amazon_ecs_stack import McpServerAmazonECSStack
 
 
 app = cdk.App()
 
-# TBD
+mcp_server_amazon_ecs_stack = McpServerAmazonECSStack(app, "McpServerAmazonECSStack")
 
 app.synth()

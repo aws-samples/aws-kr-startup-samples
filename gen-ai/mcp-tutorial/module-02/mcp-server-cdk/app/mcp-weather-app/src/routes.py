@@ -1,6 +1,6 @@
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi import APIRouter
-from app import app
+from main import app
 
 router = APIRouter(tags=["General"])
 
