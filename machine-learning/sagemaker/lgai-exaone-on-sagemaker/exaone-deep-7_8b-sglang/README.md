@@ -68,7 +68,7 @@ To host the model on Amazon SageMaker with a BYOC(Bring Your Own Container) for 
 
 1. Install required packages
    ```
-   (.venv) $ pip install -U huggingface-hub==0.23.5
+   (.venv) $ pip install -U huggingface-hub==0.26.2
    ```
 
 2. Save model artifacts
