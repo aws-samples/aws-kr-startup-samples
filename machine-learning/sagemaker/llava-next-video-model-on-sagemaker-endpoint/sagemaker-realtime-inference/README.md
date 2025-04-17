@@ -84,7 +84,7 @@ as well as metadata, such as version details, authorship, and any notes related 
 
     2 directories, 2 files
 
-   $ tar --exclude=".ipynb_checkpoints" -czf model.tar.gz --use-compress-program=pigz -C model .
+   $ tar --exclude=".ipynb_checkpoints" -cvf model.tar.gz --use-compress-program=pigz -C model .
    $ tar -tvf model.tar.gz
     drwxr-xr-x  0 wheel staff       0 Jul 19 13:44 ./
     drwxr-xr-x  0 wheel staff       0 Jul 19 10:33 ./code/
