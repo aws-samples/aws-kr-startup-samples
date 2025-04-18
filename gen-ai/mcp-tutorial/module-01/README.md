@@ -22,37 +22,8 @@ MCP(Model Context Protocol) 서버는 LLM(Large Language Model)과 외부 데이
 ### 2. uv 설치
 [uv](https://github.com/astral-sh/uv)는 Python 패키지 설치 및 가상 환경 관리를 위한 빠른 도구입니다. 터미널에서 다음 명령어를 실행합니다:
 ```bash
-uv init weather
-cd weather
-
-uv venv
-source .venv/bin/activate
-
-uv add "mcp[cli]" httpx
-
-touch weather.py
-```
-생성한 `weather.py`의 내용은 [weather.py](./src/example-1/weather.py) 파일을 복사하여 붙여 넣습니다.
-위 스크립트는 미국 국립 기상 서비스 API를 통해 날씨 정보를 가져오는 MCP 서버를 구현합니다. 사용자의 프롬프트로부터 날씨를 받을 때, `get_alerts`, `get_forecast`를 활용하여 위도와 경보를 파악하고 기상 정보를 가져오도록 동작합니다.
-
-이제 Claude Desktop에서 확인하기 위해 `/Library/Application\ Support/Claude/claude_desktop_config.json` 파일을 수정해야합니다. Claude는 해당 설정 파일로부터 MCP 서버의 정보를 읽고 실행합니다.
-
-`args` 경로에 `weather.py`가 위치한 절대 경로로 변경합니다.
-
-```json
-{
-    "mcpServers": {
-        "weather": {
-            "command": "uv",
-            "args": [
-                "--directory",
-                "/ABSOLUTE/PATH/TO/PARENT/FOLDER/weather",
-                "run",
-                "weather.py"
-            ]
-        }
-    }
-}
+# On macOS and Linux.
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 설치가 완료되면 다음 명령어로 설치 여부를 확인합니다:
