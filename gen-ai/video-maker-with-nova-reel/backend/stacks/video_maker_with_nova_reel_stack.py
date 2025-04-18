@@ -7,18 +7,22 @@ from aws_cdk import (
     RemovalPolicy,
     Duration,
     CfnOutput,
-    CustomResource
+    CustomResource,
+    aws_lambda as lambda_ # alias lambda module
 )
 from aws_cdk.aws_s3 import Bucket, CorsRule, HttpMethods
 from aws_cdk.aws_lambda import Function, Code, LayerVersion, Runtime
 from aws_cdk.aws_apigateway import RestApi, LambdaIntegration, AuthorizationType, MethodResponse
-from aws_cdk.aws_iam import PolicyStatement, Effect, Role, ServicePrincipal
+from aws_cdk.aws_iam import PolicyStatement, Effect, Role, ServicePrincipal, ManagedPolicy, PolicyDocument
 from aws_cdk.aws_dynamodb import Table, Attribute, AttributeType, BillingMode
 from constructs import Construct
-from aws_cdk.aws_events import Rule, Schedule
-from aws_cdk.aws_events_targets import LambdaFunction
+from aws_cdk.aws_events import Rule, Schedule as EventsSchedule # 기존 Events Schedule과 구분
+from aws_cdk.aws_events_targets import LambdaFunction as EventsLambdaTarget # 기존 Events Target과 구분
 from aws_cdk.aws_sam import CfnApplication
 from aws_cdk.custom_resources import Provider
+from aws_cdk import aws_ssm as ssm
+from aws_cdk import aws_scheduler as scheduler
+from aws_cdk import aws_scheduler_targets as scheduler_targets
 
 
 class VideoMakerWithNovaReelStack(Stack):
@@ -26,11 +30,11 @@ class VideoMakerWithNovaReelStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         # Get context information
-        self.video_generation_model_id = self.node.try_get_context("video_generation_model_id")
+        self.video_generation_model_id = self.node.try_get_context("video_generation_model_id") or "amazon.nova-reel-v1:1"
         self.chat_nova_model_id = self.node.try_get_context("chat_nova_model_id")
         self.claude_model_id = self.node.try_get_context("claude_model_id") or "anthropic.claude-3-sonnet-20240229-v1:0"
-        self.s3_stack_bucket_name = f"{self.node.try_get_context('s3_base_bucket_name')}-{Aws.ACCOUNT_ID}"
-        self.ddb_table_name = f"{self.node.try_get_context('video_maker_with_nova_reel_process_table')}-{uuid.uuid4().hex[:8]}"
+        self.ddb_table_name = f"{(self.node.try_get_context('video_maker_with_nova_reel_process_table') or 'VideoMakerProcess')}-{uuid.uuid4().hex[:8]}"
+        self.scheduled_prompt = self.node.try_get_context("scheduled_prompt") or "a beautiful sunrise over mountains"
 
         # Create DynamoDB table
         self.video_maker_with_nova_reel_process_table = Table(
@@ -49,7 +53,7 @@ class VideoMakerWithNovaReelStack(Stack):
         )
 
         # Create S3 bucket with CORS configuration
-        self.s3_base_bucket = self._create_s3_bucket(self.s3_stack_bucket_name)
+        self.s3_base_bucket = self._create_s3_bucket()
 
         # Output S3 bucket name (CFN Output)
         CfnOutput(
@@ -65,20 +69,20 @@ class VideoMakerWithNovaReelStack(Stack):
         # Create Lambda layer (dependencies)
         dependencies_layer = self._create_dependencies_layer()
 
-        # Create video generation Lambda function
+        # Create video generation Lambda function (added environment variables)
         self.generate_video_lambda = self._create_generate_video_lambda(
             model_id=self.video_generation_model_id,
-            bucket_name=self.s3_stack_bucket_name,
+            bucket_name=self.s3_base_bucket.bucket_name,
             layer=dependencies_layer
         )
 
         # Add dependency to ensure Lambda function is created after S3 bucket
         self.generate_video_lambda.node.add_dependency(self.s3_base_bucket)
-        self.generate_video_lambda.node.add_dependency(self.video_maker_with_nova_reel_process_table)  # DynamoDB 의존성 추가
+        self.generate_video_lambda.node.add_dependency(self.video_maker_with_nova_reel_process_table)
         self.api_gateway.node.add_dependency(self.generate_video_lambda)
 
-        # Grant S3, AWS Bedrock, and DynamoDB permissions to Lambda function
-        self._attach_generate_video_lambda_permissions(self.s3_stack_bucket_name)
+        # Grant S3, AWS Bedrock, DynamoDB, and SSM permissions to Lambda function
+        self._attach_generate_video_lambda_permissions(self.s3_base_bucket.bucket_name)
 
         # Set up Lambda integration with API Gateway for video generation
         self._setup_generate_video_lambda_integration()
@@ -126,7 +130,7 @@ class VideoMakerWithNovaReelStack(Stack):
         self.status_videos_lambda.node.add_dependency(self.s3_base_bucket)
 
         # Grant permissions to status check Lambda function
-        self._attach_status_videos_lambda_permissions(self.s3_stack_bucket_name)
+        self._attach_status_videos_lambda_permissions(self.s3_base_bucket.bucket_name)
 
         self.chat_nova_lambda = self._create_chat_nova_lambda(model_id=self.chat_nova_model_id)
         
@@ -143,16 +147,16 @@ class VideoMakerWithNovaReelStack(Stack):
 
         self.storyboard_videos_lambda = self._create_storyboard_videos_lambda(
             model_id=self.video_generation_model_id,
-            bucket_name=self.s3_stack_bucket_name
+            bucket_name=self.s3_base_bucket.bucket_name
         )
-        self._attach_storyboard_videos_lambda_permissions(self.s3_stack_bucket_name)
+        self._attach_storyboard_videos_lambda_permissions(self.s3_base_bucket.bucket_name)
         self._setup_storyboard_videos_lambda_integration()
 
         self.merge_videos_lambda = self._create_merge_videos_lambda(
-            bucket_name=self.s3_stack_bucket_name
+            bucket_name=self.s3_base_bucket.bucket_name
         )
         
-        self._attach_merge_videos_lambda_permissions(self.s3_stack_bucket_name)
+        self._attach_merge_videos_lambda_permissions(self.s3_base_bucket.bucket_name)
         self._setup_merge_videos_lambda_integration()
 
         # Create EventBridge rule for status check
@@ -169,12 +173,29 @@ class VideoMakerWithNovaReelStack(Stack):
         self._attach_generate_image_lambda_permissions()
         self._setup_generate_image_lambda_integration()
 
-    def _create_s3_bucket(self, bucket_name: str) -> Bucket:
-        """Creates an S3 bucket with CORS configuration."""
+        # --- 스케줄러 실행 역할 정의 --- 
+        scheduler_execution_role = Role(
+            self, "SchedulerExecutionRole",
+            assumed_by=ServicePrincipal("scheduler.amazonaws.com"),
+            description="Execution role for EventBridge Scheduler to invoke GenerateVideoLambda"
+        )
+        self.generate_video_lambda.grant_invoke(scheduler_execution_role)
+
+        # --- 스케줄 관리 Lambda 정의 --- 
+        manage_video_schedule_lambda = self._create_manage_video_schedule_lambda(
+            target_lambda_arn=self.generate_video_lambda.function_arn,
+            scheduler_role_arn=scheduler_execution_role.role_arn,
+            dependencies_layer=dependencies_layer
+        )
+        self._attach_manage_video_schedule_lambda_permissions(manage_video_schedule_lambda, scheduler_execution_role.role_arn)
+        self._setup_manage_video_schedule_lambda_integration(manage_video_schedule_lambda)
+
+    def _create_s3_bucket(self) -> Bucket:
+        """Creates an S3 bucket with a CDK-generated unique name."""
         return Bucket(
             self, "VideoMakerWithNovaReelBucket",
-            bucket_name=bucket_name,
             removal_policy=RemovalPolicy.RETAIN,
+            auto_delete_objects=False,
             cors=[
                 CorsRule(
                     allowed_methods=[
@@ -196,140 +217,37 @@ class VideoMakerWithNovaReelStack(Stack):
             self, "VideoMakerWithNovaReelApiGateway",
             rest_api_name="VideoMakerWithNovaReelApi",
             deploy_options={"stage_name": "prod"},
+            default_cors_preflight_options={
+                "allow_origins": ["*"],
+                "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                "allow_headers": [
+                    "Content-Type",
+                    "X-Amz-Date",
+                    "Authorization",
+                    "X-Api-Key",
+                    "X-Amz-Security-Token",
+                    "Access-Control-Allow-Origin",
+                    "Access-Control-Allow-Headers",
+                    "Access-Control-Allow-Methods"
+                ]
+            }
         )
 
     def _create_api_resources(self) -> None:
-        """Configures API resources for video generation endpoint and video listing."""
+        """Configures API resources, adding schedule endpoint."""
         apis_resource = self.api_gateway.root.add_resource("apis")
         self.videos_resource = apis_resource.add_resource("videos")
         self.generate_resource = self.videos_resource.add_resource("generate")
         self.video_with_id_resource = self.videos_resource.add_resource("{invocation_id}")
+        self.merge_resource = self.videos_resource.add_resource("merge")
+        self.schedule_resource = self.videos_resource.add_resource("schedule")
+        self.schedule_with_id_resource = self.schedule_resource.add_resource("{schedule_id}")
         self.chat_resource = apis_resource.add_resource("chat")
         self.storyboard_resource = apis_resource.add_resource("storyboard")
         self.storyboard_generate_resource = self.storyboard_resource.add_resource("generate")
         self.storyboard_videos_resource = self.storyboard_resource.add_resource("videos")
-        self.merge_resource = self.videos_resource.add_resource("merge")
         self.images_resource = apis_resource.add_resource("images")
         self.generate_image_resource = self.images_resource.add_resource("generate")
-        self.videos_resource.add_cors_preflight(
-            allow_origins=["*"],
-            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-            allow_headers=[
-                "Content-Type",
-                "X-Amz-Date",
-                "Authorization",
-                "X-Api-Key",
-                "X-Amz-Security-Token",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Headers",
-                "Access-Control-Allow-Methods"
-            ],
-        )
-        
-        self.video_with_id_resource.add_cors_preflight(
-            allow_origins=["*"],
-            allow_methods=["GET", "DELETE", "OPTIONS"],
-            allow_headers=[
-                "Content-Type",
-                "X-Amz-Date",
-                "Authorization",
-                "X-Api-Key",
-                "X-Amz-Security-Token",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Headers",
-                "Access-Control-Allow-Methods"
-            ],
-        )
-        
-        self.storyboard_resource.add_cors_preflight(
-            allow_origins=["*"],
-            allow_methods=["GET", "POST", "OPTIONS"],
-            allow_headers=[
-                "Content-Type",
-                "X-Amz-Date",
-                "Authorization",
-                "X-Api-Key",
-                "X-Amz-Security-Token",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Headers",
-                "Access-Control-Allow-Methods"
-            ],
-        )
-        
-        self.storyboard_generate_resource.add_cors_preflight(
-            allow_origins=["*"],
-            allow_methods=["POST", "OPTIONS"],
-            allow_headers=[
-                "Content-Type",
-                "X-Amz-Date",
-                "Authorization",
-                "X-Api-Key",
-                "X-Amz-Security-Token",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Headers",
-                "Access-Control-Allow-Methods"
-            ],
-        )
-        
-        self.storyboard_videos_resource.add_cors_preflight(
-            allow_origins=["*"],
-            allow_methods=["POST", "OPTIONS"],
-            allow_headers=[
-                "Content-Type",
-                "X-Amz-Date",
-                "Authorization",
-                "X-Api-Key",
-                "X-Amz-Security-Token",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Headers",
-                "Access-Control-Allow-Methods"
-            ],
-        )
-        
-        self.merge_resource.add_cors_preflight(
-            allow_origins=["*"],
-            allow_methods=["POST", "OPTIONS"],
-            allow_headers=[
-                "Content-Type",
-                "X-Amz-Date",
-                "Authorization",
-                "X-Api-Key",
-                "X-Amz-Security-Token",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Headers",
-                "Access-Control-Allow-Methods"
-            ],
-        )
-
-        self.chat_resource.add_cors_preflight(
-            allow_origins=["*"],
-            allow_methods=["POST", "OPTIONS"],
-            allow_headers=[
-                "Content-Type",
-                "X-Amz-Date",
-                "Authorization",
-                "X-Api-Key",
-                "X-Amz-Security-Token",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Headers",
-                "Access-Control-Allow-Methods"
-            ],
-        )
-
-        self.generate_image_resource.add_cors_preflight(
-            allow_origins=["*"],
-            allow_methods=["POST", "OPTIONS"],
-            allow_headers=[
-                "Content-Type",
-                "X-Amz-Date",
-                "Authorization",
-                "X-Api-Key",
-                "X-Amz-Security-Token",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Headers",
-                "Access-Control-Allow-Methods"
-            ],
-        )
 
     def _create_dependencies_layer(self) -> LayerVersion:
         """
@@ -337,61 +255,69 @@ class VideoMakerWithNovaReelStack(Stack):
         Installs packages defined in requirements file to a local directory,
         then uses that directory as the source for the Lambda layer.
         """
-        requirements_file = "lambda/api/generate-video/requirements.txt"
+        requirements_file = "lambda/layer/requirements.txt"
         output_dir = ".build/layer"
-        python_dir = os.path.join(output_dir, "python")
-        os.makedirs(python_dir, exist_ok=True)
-        subprocess.check_call(
-            ["pip", "install", "-r", requirements_file, "-t", python_dir]
-        )
-        return LayerVersion(
-            self,
-            "DependenciesLayer",
-            layer_version_name="dependencies-layer",
-            code=Code.from_asset(output_dir),
+
+        # Check if requirements.txt exists and has content
+        if os.path.exists(requirements_file) and os.path.getsize(requirements_file) > 0:
+            # Install dependencies locally
+            subprocess.check_call(
+                f"pip install -r {requirements_file} -t {output_dir}/python".split()
+            )
+        else:
+            # Create the output directory structure if requirements.txt is empty or missing
+            os.makedirs(os.path.join(output_dir, "python"), exist_ok=True)
+
+        # Create the Lambda layer
+        return lambda_.LayerVersion(
+            self, "DependenciesLayer",
+            code=lambda_.Code.from_asset(output_dir),
+            compatible_runtimes=[lambda_.Runtime.PYTHON_3_11],
+            description="Lambda Dependencies Layer"
         )
 
-    def _create_generate_video_lambda(self, model_id: str, bucket_name: str, layer: LayerVersion) -> Function:
+    def _create_generate_video_lambda(self, model_id: str, bucket_name: str, layer: lambda_.LayerVersion) -> lambda_.Function:
         """Generate video and configures Lambda function for video generation."""
-        return Function(
+        return lambda_.Function(
             self,
             "VideoMakerWithNovaReelGenerateVideoLambda",
             function_name="VideoMakerWithNovaReelGenerateVideoLambda",
-            runtime=Runtime.PYTHON_3_11,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
-            code=Code.from_asset("lambda/api/generate-video"),
+            code=lambda_.Code.from_asset("lambda/api/generate-video"),
+            layers=[layer],
+            timeout=Duration.minutes(15),
+            memory_size=512,
             environment={
                 "MODEL_ID": model_id,
                 "S3_DESTINATION_BUCKET": bucket_name,
                 "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name,
             },
-            timeout=Duration.seconds(30),
-            layers=[layer],
         )
 
-    def _create_list_videos_lambda(self) -> Function:
+    def _create_list_videos_lambda(self) -> lambda_.Function:
         """Create and configure Lambda function for video listing."""
-        return Function(
+        return lambda_.Function(
             self,
             "VideoMakerWithNovaReelListVideosLambda",
             function_name="VideoMakerWithNovaReelListVideosLambda",
-            runtime=Runtime.PYTHON_3_11,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
-            code=Code.from_asset("lambda/api/list-video"),
+            code=lambda_.Code.from_asset("lambda/api/list-video"),
             environment={
                 "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name,
             },
         )
     
-    def _create_delete_video_lambda(self) -> Function:
+    def _create_delete_video_lambda(self) -> lambda_.Function:
         """Create and configure Lambda function for deleting video."""
-        return Function(
+        return lambda_.Function(
             self,
             "VideoMakerWithNovaReelDeleteVideoLambda",
             function_name="VideoMakerWithNovaReelDeleteVideoLambda",
-            runtime=Runtime.PYTHON_3_11,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
-            code=Code.from_asset("lambda/api/delete-video"),
+            code=lambda_.Code.from_asset("lambda/api/delete-video"),
             environment={
                 "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name,
             },
@@ -416,31 +342,32 @@ class VideoMakerWithNovaReelStack(Stack):
             )
         )
 
-    def _create_status_videos_lambda(self, layer: LayerVersion) -> Function:
+    def _create_status_videos_lambda(self, layer: lambda_.LayerVersion) -> lambda_.Function:
         """Create and configure Lambda function for checking video status."""
-        return Function(
+        return lambda_.Function(
             self,
             "VideoMakerWithNovaReelStatusVideosLambda",
             function_name="VideoMakerWithNovaReelStatusVideosLambda",
-            runtime=Runtime.PYTHON_3_11,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
-            code=Code.from_asset("lambda/api/status-video"),
+            code=lambda_.Code.from_asset("lambda/api/status-video"),
             environment={
                 "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name,
+                "S3_DESTINATION_BUCKET": self.s3_base_bucket.bucket_name
             },
             timeout=Duration.minutes(1),
             layers=[layer],
         )
 
-    def _create_get_video_lambda(self) -> Function:
+    def _create_get_video_lambda(self) -> lambda_.Function:
         """Create and configure Lambda function for getting video."""
-        return Function(
+        return lambda_.Function(
             self,
             "VideoMakerWithNovaReelGetVideoLambda",
             function_name="VideoMakerWithNovaReelGetVideoLambda",
-            runtime=Runtime.PYTHON_3_11,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
-            code=Code.from_asset("lambda/api/get-video"),
+            code=lambda_.Code.from_asset("lambda/api/get-video"),
             environment={
                 "VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME": self.ddb_table_name
             },
@@ -448,30 +375,24 @@ class VideoMakerWithNovaReelStack(Stack):
     
     def _attach_generate_video_lambda_permissions(self, bucket_name: str) -> None:
         """Grants S3, AWS Bedrock, and DynamoDB access permissions to the video generation Lambda function."""
-        # Grant permissions for S3 PutObject and GetObject operations
-        self.generate_video_lambda.add_to_role_policy(
-            PolicyStatement(
-                effect=Effect.ALLOW,
-                actions=["s3:PutObject", "s3:GetObject"],
-                resources=[f"arn:aws:s3:::{bucket_name}/*"],
-            )
+        s3_policy = PolicyStatement(
+            effect=Effect.ALLOW,
+            actions=["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+            resources=[f"arn:aws:s3:::{bucket_name}", f"arn:aws:s3:::{bucket_name}/*"],
         )
-        # Grant permissions to call video generation model through AWS Bedrock
-        self.generate_video_lambda.add_to_role_policy(
-            PolicyStatement(
-                effect=Effect.ALLOW,
-                actions=["bedrock:InvokeModel"],
-                resources=["*"],
-            )
+        bedrock_policy = PolicyStatement(
+            effect=Effect.ALLOW,
+            actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream", "bedrock:StartAsyncInvoke", "bedrock:GetAsyncInvoke"],
+            resources=["*"],
         )
-        
-        self.generate_video_lambda.add_to_role_policy(
-            PolicyStatement(
-                effect=Effect.ALLOW,
-                actions=["dynamodb:PutItem"],
-                resources=[self.video_maker_with_nova_reel_process_table.table_arn],
-            )
+        dynamodb_policy = PolicyStatement(
+            effect=Effect.ALLOW,
+            actions=["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem"],
+            resources=[self.video_maker_with_nova_reel_process_table.table_arn],
         )
+        self.generate_video_lambda.add_to_role_policy(s3_policy)
+        self.generate_video_lambda.add_to_role_policy(bedrock_policy)
+        self.generate_video_lambda.add_to_role_policy(dynamodb_policy)
 
     def _attach_status_videos_lambda_permissions(self, bucket_name: str) -> None:
         """Grants required permissions to the status check Lambda function."""
@@ -552,15 +473,15 @@ class VideoMakerWithNovaReelStack(Stack):
             )
         )
 
-    def _create_chat_nova_lambda(self, model_id: str) -> Function:
+    def _create_chat_nova_lambda(self, model_id: str) -> lambda_.Function:
         """Create and configure Lambda function for chat with Nova."""
-        return Function(
+        return lambda_.Function(
             self,
             "VideoMakerWithChatNovaLambda",
             function_name="VideoMakerWithChatNovaLambda",
-            runtime=Runtime.PYTHON_3_11,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
-            code=Code.from_asset("lambda/api/chat-nova"),
+            code=lambda_.Code.from_asset("lambda/api/chat-nova"),
             environment={
                 "MODEL_ID": model_id,
             },
@@ -663,12 +584,12 @@ class VideoMakerWithNovaReelStack(Stack):
             method_responses=self._default_method_response()
         )
     
-    def _create_storyboard_generate_lambda(self, model_id: str) -> Function:
+    def _create_storyboard_generate_lambda(self, model_id: str) -> lambda_.Function:
         """Creates the Lambda function for storyboard generation."""
-        return Function(
+        return lambda_.Function(
             self, "StoryboardGenerateLambda",
-            runtime=Runtime.PYTHON_3_11,
-            code=Code.from_asset("./lambda/api/storyboard-generate"),
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            code=lambda_.Code.from_asset("./lambda/api/storyboard-generate"),
             handler="index.lambda_handler",
             timeout=Duration.seconds(30),
             memory_size=256,
@@ -677,12 +598,12 @@ class VideoMakerWithNovaReelStack(Stack):
             }
         )
     
-    def _create_storyboard_videos_lambda(self, model_id: str, bucket_name: str) -> Function:
+    def _create_storyboard_videos_lambda(self, model_id: str, bucket_name: str) -> lambda_.Function:
         """Creates the Lambda function for storyboard videos generation."""
-        return Function(
+        return lambda_.Function(
             self, "StoryboardVideosLambda",
-            runtime=Runtime.PYTHON_3_11,
-            code=Code.from_asset("./lambda/api/storyboard-videos"),
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            code=lambda_.Code.from_asset("./lambda/api/storyboard-videos"),
             handler="index.lambda_handler",
             timeout=Duration.seconds(30),
             memory_size=256,
@@ -693,12 +614,20 @@ class VideoMakerWithNovaReelStack(Stack):
             }
         )
     
-    def _create_merge_videos_lambda(self, bucket_name: str) -> Function:
-        """Creates the Lambda function for merging videos."""
-        return Function(
-            self, "MergeVideosLambda",
-            runtime=Runtime.PYTHON_3_11,
-            code=Code.from_asset("./lambda/api/merge-videos"),
+    def _create_merge_videos_lambda(self, bucket_name: str) -> lambda_.Function:
+        """Creates the Lambda function for merging videos.
+
+        Note: The FFmpeg layer needs to be added manually to this function
+        after deployment, following the instructions in README.md.
+        """
+        # FFmpeg 레이어 ARN 참조 제거 - 수동으로 추가해야 함
+        # ffmpeg_layer_arn = f"arn:aws:lambda:{Aws.REGION}:{Aws.ACCOUNT_ID}:layer:ffmpeg-layer-name:1"
+        # ffmpeg_layer = lambda_.LayerVersion.from_layer_version_arn(self, "FFmpegLayerImport", layer_version_arn=ffmpeg_layer_arn)
+        
+        return lambda_.Function(self, "MergeVideosLambda", 
+            # layers=[ffmpeg_layer], # CDK 배포 시 레이어 연결 제거
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            code=lambda_.Code.from_asset("./lambda/api/merge-videos"),
             handler="index.lambda_handler",
             timeout=Duration.seconds(300),  
             memory_size=1024, 
@@ -717,7 +646,7 @@ class VideoMakerWithNovaReelStack(Stack):
                     "bedrock:InvokeModel"
                 ],
                 resources=[
-                    f"arn:aws:bedrock:{Aws.REGION}::foundation-model/*"
+                    "*"
                 ],
                 effect=Effect.ALLOW
             )
@@ -872,17 +801,17 @@ class VideoMakerWithNovaReelStack(Stack):
             method_responses=self._default_method_response()
         )
     
-    def _create_generate_image_lambda(self) -> Function:
+    def _create_generate_image_lambda(self) -> lambda_.Function:
         """Create and configure Lambda function for image generation."""
-        return Function(
+        return lambda_.Function(
             self,
             "VideoMakerWithNovaReelGenerateImageLambda",
             function_name="VideoMakerWithNovaReelGenerateImageLambda",
-            runtime=Runtime.PYTHON_3_11,
+            runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.handler",
-            code=Code.from_asset("lambda/api/generate-image"),
+            code=lambda_.Code.from_asset("lambda/api/generate-image"),
             environment={
-                "BUCKET_NAME": self.s3_stack_bucket_name,
+                "BUCKET_NAME": self.s3_base_bucket.bucket_name,
             },
             timeout=Duration.seconds(300),
             memory_size=1024,
@@ -943,7 +872,7 @@ class VideoMakerWithNovaReelStack(Stack):
             MethodResponse(
                 status_code="200",
                 response_parameters={
-                    "method.response.header.Access-Control-Allow-Origin": True, 
+                    "method.response.header.Access-Control-Allow-Origin": True,
                     "method.response.header.Access-Control-Allow-Headers": True,
                     "method.response.header.Access-Control-Allow-Methods": True,
                 },
@@ -971,6 +900,54 @@ class VideoMakerWithNovaReelStack(Stack):
         Rule(
             self,
             "VideoStatusCheckRule",
-            schedule=Schedule.rate(Duration.minutes(1)),
-            targets=[LambdaFunction(self.status_videos_lambda)]
+            schedule=EventsSchedule.rate(Duration.minutes(1)),
+            targets=[EventsLambdaTarget(self.status_videos_lambda)]
         )
+
+    def _create_manage_video_schedule_lambda(self, target_lambda_arn: str, scheduler_role_arn: str,
+                                             dependencies_layer: lambda_.LayerVersion) -> lambda_.Function:
+        return lambda_.Function(
+            self, "ManageVideoScheduleLambda",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            code=lambda_.Code.from_asset("lambda/api/manage-video-schedule"), # 해당 경로에 코드 필요
+            layers=[dependencies_layer], # boto3 외 필요하면 레이어 전달
+            timeout=Duration.seconds(60),
+            memory_size=256,
+            environment={
+                "TARGET_LAMBDA_ARN": target_lambda_arn,
+                "SCHEDULER_ROLE_ARN": scheduler_role_arn,
+                # 고정 스케줄 이름 정의 (Lambda 코드에서도 사용)
+                "SCHEDULE_NAME": "user-video-schedule" 
+            }
+        )
+
+    def _attach_manage_video_schedule_lambda_permissions(self, function: lambda_.Function, scheduler_role_arn_to_pass: str) -> None:
+        # EventBridge Scheduler 관리 권한 (고정 이름 스케줄 대상)
+        scheduler_policy = PolicyStatement(
+            actions=[
+                "scheduler:CreateSchedule",
+                "scheduler:DeleteSchedule",
+                "scheduler:GetSchedule",
+                "scheduler:UpdateSchedule",
+            ],
+            # 특정 스케줄 이름(및 기본 그룹)으로 제한
+            resources=[f"arn:aws:scheduler:{Aws.REGION}:{Aws.ACCOUNT_ID}:schedule/default/user-video-schedule"],
+            effect=Effect.ALLOW
+        )
+        # Scheduler 생성/수정 시 실행 역할을 전달할 권한
+        pass_role_policy = PolicyStatement(
+            actions=["iam:PassRole"],
+            resources=[scheduler_role_arn_to_pass],
+            effect=Effect.ALLOW
+        )
+        function.add_to_role_policy(scheduler_policy)
+        function.add_to_role_policy(pass_role_policy)
+
+    def _setup_manage_video_schedule_lambda_integration(self, handler: lambda_.Function) -> None:
+        integration = LambdaIntegration(handler)
+        # /apis/videos/schedule 경로에 대한 메서드들
+        self.schedule_resource.add_method("POST", integration, method_responses=self._default_method_response())
+        self.schedule_resource.add_method("GET", integration, method_responses=self._default_method_response())
+        self.schedule_resource.add_method("DELETE", integration, method_responses=self._default_method_response())
+        # {schedule_id} 경로는 사용 안 함
