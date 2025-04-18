@@ -69,6 +69,10 @@ In this project, we use the following cdk context:
 }
 </pre>
 
+You must enable “Integration with AWS analytics services” in the S3 Table bucket settings within the AWS Console. This allows services like Athena, Glue, and Redshift to seamlessly interact with your Iceberg tables.
+
+![AWS S3 tables enabled](./assets/aws_s3tables_integration_enabled.png)
+
 ## Deploy
 
 At this point you can now synthesize the CloudFormation template for this code.
