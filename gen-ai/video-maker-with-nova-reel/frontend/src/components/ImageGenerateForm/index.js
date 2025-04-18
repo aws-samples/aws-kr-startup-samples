@@ -34,10 +34,10 @@ export default function ImageGenerateForm() {
 
   const validatePrompt = (text) => {
     if (!text.trim()) {
-      return 'Prompt는 필수 입력 항목입니다.';
+      return 'Prompt is required';
     }
     if (text.length < 1 || text.length > 1024) {
-      return 'Prompt는 1-1024자 사이여야 합니다.';
+      return 'The Prompt must 1-1024 characters';
     }
     return null;
   };
@@ -72,7 +72,7 @@ export default function ImageGenerateForm() {
       });
 
       if (!response.ok) {
-        throw new Error('이미지 생성에 실패했습니다.');
+        throw new Error('Failed to generate image');
       }
 
       const data = await response.json();

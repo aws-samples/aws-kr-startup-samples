@@ -159,10 +159,8 @@ class VideoMakerWithNovaReelStack(Stack):
         self._attach_merge_videos_lambda_permissions(self.s3_base_bucket.bucket_name)
         self._setup_merge_videos_lambda_integration()
 
-        # Create EventBridge rule for status check
         self._create_status_check_rule()
         
-        # Output API Gateway URL (CFN Output)
         CfnOutput(
             self, "VideoMakerWithNovaReelAPIGateway",
             value=self.api_gateway.url,
@@ -173,7 +171,6 @@ class VideoMakerWithNovaReelStack(Stack):
         self._attach_generate_image_lambda_permissions()
         self._setup_generate_image_lambda_integration()
 
-        # --- 스케줄러 실행 역할 정의 --- 
         scheduler_execution_role = Role(
             self, "SchedulerExecutionRole",
             assumed_by=ServicePrincipal("scheduler.amazonaws.com"),
@@ -181,7 +178,6 @@ class VideoMakerWithNovaReelStack(Stack):
         )
         self.generate_video_lambda.grant_invoke(scheduler_execution_role)
 
-        # --- 스케줄 관리 Lambda 정의 --- 
         manage_video_schedule_lambda = self._create_manage_video_schedule_lambda(
             target_lambda_arn=self.generate_video_lambda.function_arn,
             scheduler_role_arn=scheduler_execution_role.role_arn,
@@ -620,12 +616,8 @@ class VideoMakerWithNovaReelStack(Stack):
         Note: The FFmpeg layer needs to be added manually to this function
         after deployment, following the instructions in README.md.
         """
-        # FFmpeg 레이어 ARN 참조 제거 - 수동으로 추가해야 함
-        # ffmpeg_layer_arn = f"arn:aws:lambda:{Aws.REGION}:{Aws.ACCOUNT_ID}:layer:ffmpeg-layer-name:1"
-        # ffmpeg_layer = lambda_.LayerVersion.from_layer_version_arn(self, "FFmpegLayerImport", layer_version_arn=ffmpeg_layer_arn)
         
         return lambda_.Function(self, "MergeVideosLambda", 
-            # layers=[ffmpeg_layer], # CDK 배포 시 레이어 연결 제거
             runtime=lambda_.Runtime.PYTHON_3_11,
             code=lambda_.Code.from_asset("./lambda/api/merge-videos"),
             handler="index.lambda_handler",
@@ -910,20 +902,18 @@ class VideoMakerWithNovaReelStack(Stack):
             self, "ManageVideoScheduleLambda",
             runtime=lambda_.Runtime.PYTHON_3_11,
             handler="index.lambda_handler",
-            code=lambda_.Code.from_asset("lambda/api/manage-video-schedule"), # 해당 경로에 코드 필요
-            layers=[dependencies_layer], # boto3 외 필요하면 레이어 전달
+            code=lambda_.Code.from_asset("lambda/api/manage-video-schedule"),
+            layers=[dependencies_layer],
             timeout=Duration.seconds(60),
             memory_size=256,
             environment={
                 "TARGET_LAMBDA_ARN": target_lambda_arn,
                 "SCHEDULER_ROLE_ARN": scheduler_role_arn,
-                # 고정 스케줄 이름 정의 (Lambda 코드에서도 사용)
                 "SCHEDULE_NAME": "user-video-schedule" 
             }
         )
 
     def _attach_manage_video_schedule_lambda_permissions(self, function: lambda_.Function, scheduler_role_arn_to_pass: str) -> None:
-        # EventBridge Scheduler 관리 권한 (고정 이름 스케줄 대상)
         scheduler_policy = PolicyStatement(
             actions=[
                 "scheduler:CreateSchedule",
@@ -931,11 +921,9 @@ class VideoMakerWithNovaReelStack(Stack):
                 "scheduler:GetSchedule",
                 "scheduler:UpdateSchedule",
             ],
-            # 특정 스케줄 이름(및 기본 그룹)으로 제한
             resources=[f"arn:aws:scheduler:{Aws.REGION}:{Aws.ACCOUNT_ID}:schedule/default/user-video-schedule"],
             effect=Effect.ALLOW
         )
-        # Scheduler 생성/수정 시 실행 역할을 전달할 권한
         pass_role_policy = PolicyStatement(
             actions=["iam:PassRole"],
             resources=[scheduler_role_arn_to_pass],
@@ -946,8 +934,6 @@ class VideoMakerWithNovaReelStack(Stack):
 
     def _setup_manage_video_schedule_lambda_integration(self, handler: lambda_.Function) -> None:
         integration = LambdaIntegration(handler)
-        # /apis/videos/schedule 경로에 대한 메서드들
         self.schedule_resource.add_method("POST", integration, method_responses=self._default_method_response())
         self.schedule_resource.add_method("GET", integration, method_responses=self._default_method_response())
         self.schedule_resource.add_method("DELETE", integration, method_responses=self._default_method_response())
-        # {schedule_id} 경로는 사용 안 함

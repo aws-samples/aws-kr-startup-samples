@@ -1,10 +1,13 @@
 # Video Maker with Amazon Bedrock(Nova Reel)
+![nova-maker](./docs/images/nova-maker-architecture.jpeg)
 
 ## Project Overview
 This project is a video creation automation system using Amazon Bedrock(Nova Reel). It is built using AWS CDK for infrastructure and consists of frontend and backend components.
 
 ![screenshot1](./docs/images/video-generation-service-1.jpeg)
 You can get help from "Generative AI Assist" to get suggested prompts based on best practices from Amazon Nova Reel.
+
+According to [Nova Reel's best practices](https://docs.aws.amazon.com/nova/latest/userguide/prompting-video-generation.html), if you want better quality results from the same prompt, you can extract results by randomly changing the Seed value. Since this is a repetitive task, you can use the Schedule feature to create an Eventbridge and generate videos at 5-minute intervals.
 ![screenshot1](./docs/images/video-generation-service-2.jpeg)
 ![screenshot2](./docs/images/video-generation-service-3.jpeg)
 
@@ -23,6 +26,9 @@ Select "Generate Videos" and once the video is generated, merge the videos with 
 example - Lovers watching the Northern Lights in Ireland
 
 ![example video](./docs/images/Lovers.gif)
+
+## Image Generator with Nova Canvas
+![example video](./docs/images/image-generation-1.jpeg)
 
 ## System Architecture
 - Frontend: React-based web application
