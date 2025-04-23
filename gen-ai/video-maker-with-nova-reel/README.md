@@ -17,7 +17,7 @@ Simply enter a topic and create your own story.
 ![screenshot3](./docs/images/storyboard-1.png)
 
  The Claude Sonnet 3.5 will determine the scenario with just prompts, and you can merge the step-by-step videos that are created.
-![screenshot4](./docs/images/storyboard-2.png)
+
 Check out the suggested prompts and stories for Nova Reel Best Practices Prompts.
 ![screenshot4](./docs/images/storyboard-3.png)
 
