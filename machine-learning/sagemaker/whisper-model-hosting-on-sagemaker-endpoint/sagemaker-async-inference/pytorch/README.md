@@ -65,7 +65,7 @@ as well as metadata, such as version details, authorship, and any notes related 
 
 1. Install required packages
    ```
-   (.venv) $ pip install -U huggingface-hub==0.23.5
+   (.venv) $ pip install -U huggingface-hub==0.26.2
    ```
 
 2. Save model artifacts
@@ -106,7 +106,7 @@ as well as metadata, such as version details, authorship, and any notes related 
    (3) Create `model.tar.gz` with model artifacts including your custom [inference scripts](./src/code/).
    ```
    (.venv) cp -rp src/code model
-   (.venv) tar --exclude ".huggingface" -czf model.tar.gz --use-compress-program=pigz -C model/ .
+   (.venv) tar --exclude=".cache" -cvf model.tar.gz --use-compress-program=pigz -C model/ .
    ```
 
    :information_source: For more information about the directory structure of `model.tar.gz`, see [**Model Directory Structure for Deploying Pre-trained PyTorch Models**](https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html#model-directory-structure)

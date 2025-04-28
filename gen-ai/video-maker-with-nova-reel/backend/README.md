@@ -1,4 +1,3 @@
-
 # Backend forVideo Maker with Amazon Bedrock(Nova Reel)
 
 ## Prerequisites
@@ -50,21 +49,21 @@ backend
 ├── app.py
 ├── cdk.context.json
 ├── cdk.json
+├── requirements.txt
+├── source.bat
 ├── lambda
 │   └── api
+│       ├── chat-nova
 │       ├── delete-video
-│       │   └── index.py
+│       ├── generate-image
 │       ├── generate-video
-│       │   ├── index.py
-│       │   └── requirements.txt
 │       ├── get-video
-│       │   └── index.py
 │       ├── list-video
-│       │   └── index.py
-│       ├── prompt-assist
-│       └── status-video
-│           └── index.py
-├── requirements.txt
+│       ├── manage-video-schedule
+│       ├── merge-videos
+│       ├── status-video
+│       ├── storyboard-generate
+│       └── storyboard-videos
 └── stacks
     └── video_maker_with_nova_reel_stack.py
 ```

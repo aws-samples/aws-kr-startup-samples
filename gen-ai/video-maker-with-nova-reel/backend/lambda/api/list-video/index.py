@@ -128,17 +128,22 @@ def get_video_list(limit=None, exclusive_start_key=None, sort_key="created_at", 
     """
     Retrieves and returns a sorted, paginated list of videos from DynamoDB
     """
-    scan_kwargs = {"TableName": VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME}
-    if limit:
-        scan_kwargs["Limit"] = limit
-    if exclusive_start_key:
-        scan_kwargs["ExclusiveStartKey"] = exclusive_start_key
 
+    scan_kwargs = {"TableName": VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME}
     response = ddb_client.scan(**scan_kwargs)
+    all_items = response.get("Items", [])
+
+    while "LastEvaluatedKey" in response:
+        response = ddb_client.scan(
+            TableName=VIDEO_MAKER_WITH_NOVA_REEL_PROCESS_TABLE_NAME,
+            ExclusiveStartKey=response["LastEvaluatedKey"]
+        )
+        all_items.extend(response.get("Items", []))
+
     deserializer = TypeDeserializer()
     videos = [
         {k: deserializer.deserialize(v) for k, v in item.items()}
-        for item in response.get("Items", [])
+        for item in all_items
         if sort_key in item
     ]
     
@@ -147,15 +152,26 @@ def get_video_list(limit=None, exclusive_start_key=None, sort_key="created_at", 
         reverse=(sort_order.lower() == "desc")
     )
     
-    result = {"videos": videos}
-    
-    if "LastEvaluatedKey" in response:
-        try:
+    result = {}
+    if limit:
+        start_idx = 0
+        if exclusive_start_key:
+            try:
+                token_data = json.loads(base64.b64decode(exclusive_start_key).decode('utf-8'))
+                start_idx = token_data.get("index", 0)
+            except:
+                start_idx = 0
+        
+        end_idx = start_idx + limit
+        page_videos = videos[start_idx:end_idx]
+        result["videos"] = page_videos
+        
+        if end_idx < len(videos):
             next_token = base64.b64encode(
-                json.dumps(response["LastEvaluatedKey"]).encode('utf-8')
+                json.dumps({"index": end_idx}).encode('utf-8')
             ).decode('utf-8')
             result["nextToken"] = next_token
-        except Exception as e:
-            logger.error(f"Error encoding pagination token: {e}")
+    else:
+        result["videos"] = videos
     
     return result
