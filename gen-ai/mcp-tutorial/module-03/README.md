@@ -1,4 +1,4 @@
-# MCP 튜토리얼 모듈 3 - Streamlit MCP 호스트
+# Streamlit MCP 호스트
 
 이 모듈은 Model Context Protocol(MCP)을 활용하여 Streamlit 기반 대화형 웹 애플리케이션을 구축하는 방법을 보여줍니다. Amazon Bedrock과 LangChain을 통합하여 AI 모델을 활용한 인터랙티브한 MCP 서버-클라이언트 시스템을 구현합니다.
 
@@ -23,7 +23,7 @@
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Linux/Mac
-# 또는 
+# 또는
 .venv\Scripts\activate  # Windows
 ```
 
