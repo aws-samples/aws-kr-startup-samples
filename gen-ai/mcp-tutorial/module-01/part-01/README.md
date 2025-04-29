@@ -7,7 +7,7 @@
 MCP(Model Context Protocol) 서버는 LLM(Large Language Model)과 외부 데이터 소스나 도구를 연결하는 표준화된 방법을 제공하는 서버입니다. MCP 서버는 특정 기능을 표준화된 Model Context Protocol을 통해 노출시키며 세 가지 주요 기능을 제공할 수 있습니다:
 
 이 과정에서 MCP Server는 MCP Client와 표준화된 방식으로 통신합니다.
-![Claude Desktop](../module-01/assets/images/mcp.jpg)
+![Claude Desktop](../part-01/assets/images/mcp.jpg)
 
 사용자는 [Claude Desktop](https://claude.ai/download)과 같은 MCP 클라이언트를 통해 이러한 기능에 쉽게 접근할 수 있습니다. Claude Desktop은 MCP 호스트 역할을 하며, 사용자의 질문을 Claude에 전달하고, Claude가 필요에 따라 MCP 서버의 도구를 호출하도록 합니다. 서버는 요청된 데이터나 기능을 처리한 후 결과를 클라이언트에 반환하고, 이 정보는 다시 Claude에게 전달되어 최종적으로 자연어 형태의 응답으로 사용자에게 제공됩니다.
 
