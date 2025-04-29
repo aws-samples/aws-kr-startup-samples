@@ -1,4 +1,4 @@
-# Module-01: Local MCP Server 구축 및 Claude Desktop 연동
+# Local MCP Server 구축 및 Claude Desktop 연동
 
 ## 개요
 이 모듈에서는 로컬 환경에서 MCP(Model Context Protocol) 서버를 구축하고 Claude Desktop과 연동하는 방법을 학습합니다. MCP 서버를 통해 LLM이 외부 데이터 소스나 도구에 접근할 수 있도록 설정하는 과정을 실습합니다.
@@ -122,7 +122,7 @@ uv --version
                 ]
             }
         }
-    } 
+    }
     ```
     > 💡 **참고**: AWS_PROFILE이 로컬에 없는 경우, ENV에 Credential("AWS_ACCESS_KEY_ID, "AWS_SECRET_ACCESS_KEY")을 추가하여 진행할 수 있습니다. 가급적 Profile을 활용해야하며 Credential을 활용할 경우 외부에 노출되지 않도록 유의하세요.
 
