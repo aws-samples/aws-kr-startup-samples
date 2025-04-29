@@ -1,0 +1,12 @@
+[project]
+name = "nova-canvas"
+version = "0.1.0"
+description = "noval-canvas mcp server"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.38.3",
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.6.0",
+    "pillow>=11.2.1",
+]
