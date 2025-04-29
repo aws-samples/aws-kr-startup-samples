@@ -1,0 +1,7 @@
+streamlit>=1.30.0
+langchain-mcp-adapters>=0.0.1
+langchain-aws>=0.1.0
+langgraph>=0.1.5
+mcp>=0.1.0
+boto3>=1.34.0
+nest-asyncio>=1.6.0
