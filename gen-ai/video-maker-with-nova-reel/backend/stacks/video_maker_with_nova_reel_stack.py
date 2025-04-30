@@ -22,7 +22,6 @@ from aws_cdk.aws_sam import CfnApplication
 from aws_cdk.custom_resources import Provider
 from aws_cdk import aws_ssm as ssm
 from aws_cdk import aws_scheduler as scheduler
-from aws_cdk import aws_scheduler_targets as scheduler_targets
 
 
 class VideoMakerWithNovaReelStack(Stack):
