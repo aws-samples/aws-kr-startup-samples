@@ -13,23 +13,29 @@
 
 **Module-01: 로컬 MCP 서버 구축**[:link:](./module-01/)
 - **Part 1: 기본 MCP 서버 설정**[:link:](./module-01/part-01/)
+
   로컬 머신에 Python 기반 MCP 서버를 구축하고 Claude Desktop과 연동해 도구 호출 기능을 구현합니다.
 
 - **Part 2: 공개 MCP 서버 활용**[:link:](./module-01/part-02/)
+
   Smithery에서 제공하는 오픈소스 MCP 서버를 연동ㅎ는 방법을 학습합니다.
 
 **Module-02: AWS 클라우드 배포**[:link:](./module-02/)
 - **AWS CDK 인프라 자동화**
+
   CDK를 활용한 IaC(Infrastructure as Code) 통해 Amazon ECS 클러스터에 MCP 서버를 배포합니다.
 
 - **Claude Desktop 연동**
+
   배포된 MCP 서버 엔드포인트를 Claude Desktop 애플리케이션에 연결해 중앙 집중식 리소스 관리 시스템을 구성합니다.
 
 **Module-03: Streamlit MCP 호스트 개발**[:link:](./module-03/)
 - **대화형 웹 인터페이스 구축**
+
   Model Context Protocol(MCP)을 활용하여 Streamlit 기반의 MCP Client 애플리케이션을 개발합니다.
 
 - **MCP Server 연동**
+
   Streamlit 기반의 MCP Client 애플리케이션과 MCP 서버를 연동하는 MCP Client-Server 시스템을 AWS에서 구성합니다.
 
 ## 실습 결과물
