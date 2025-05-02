@@ -95,3 +95,24 @@ class McpServerAmazonECSStack(Stack):
             value=self.ec2_service.load_balancer.load_balancer_dns_name,
             description="The hostname of the ALB"
         )
+
+        # CloudFormation Outputs: Output ECS Cluster Name
+        CfnOutput(
+            self, "McpServerAmazonECSStackClusterNameOutput",
+            value=cluster.cluster_name,
+            description="The name of the ECS Cluster"
+        )
+
+        # CloudFormation Outputs: Output ALB Listener ARN
+        CfnOutput(
+            self, "McpServerAmazonECSStackListenerArnOutput",
+            value=self.ec2_service.listener.listener_arn,
+            description="The ARN of the Application Load Balancer Listener"
+        )
+
+        # CloudFormation Outputs: Output VPC ID
+        CfnOutput(
+            self, "McpServerAmazonECSStackVpcIdOutput",
+            value=vpc.vpc_id,
+            description="The ID of the VPC"
+        )
