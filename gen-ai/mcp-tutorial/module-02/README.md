@@ -96,7 +96,7 @@ The MCP-Server-CDK stack creates the following AWS resources:
    ```
    > 💡 **Tip**: This URL will be needed for Claude Desktop setup in the next step.
 
-### Exercise 2: Installing MCP-Remote
+### Exercise 2: Installing MCP-Remote (Claude Desktop environment)
 
 1. Install MCP-Remote:
    ```bash
@@ -141,9 +141,11 @@ The MCP-Server-CDK stack creates the following AWS resources:
 
 1. Start a new conversation in Claude Desktop.
 
-2. Enter a question like `What's the weather in Sacramento?` to verify that the response is processed through the MCP server.
+2. Enter a question like `What are the active weather alerts in Texas?` and check the response.
 
 3. If the response comes back normally, your setup is complete.
+
+Depending on the version of Claude Desktop, if web search is supported, general weather forecast questions can be replaced by web search.
 
 ## Summary
 In this module, you learned how to deploy an MCP server to AWS using AWS CDK and connect it to Claude Desktop. You built a centralized MCP server using the HTTP+SSE Transport method, which provides a scalable environment that can be shared by multiple users. This approach offers the advantage of easy deployment to cloud environments and enables you to build an MCP server infrastructure with scalability and reliability.
