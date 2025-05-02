@@ -1,57 +1,59 @@
+Read this in other languages: English, [Korean(한국어)](./README.kr.md)
+
 # MCP Server CDK Project
 
-이 프로젝트는 ECS EC2에 Python 애플리케이션을 배포하고 ALB를 연결하는 CDK 스택을 포함하고 있습니다.
+This project includes a CDK stack that deploys a Python application to ECS EC2 and connects it to an ALB.
 
-## 프로젝트 구조
+## Project Structure
 
 ```
 mcp-server-cdk/
-├── app/                    # Python 애플리케이션 코드
-│   ├── app.py              # FastAPI 애플리케이션
-│   ├── requirements.txt    # 애플리케이션 의존성
-│   └── Dockerfile          # 컨테이너 이미지 빌드 파일
-├── stacks/                 # CDK 스택 코드
-│   └── mcp_server_amazon_ecs_stack.py  # ECS, ALB 인프라 정의
-├── app.py                  # CDK 앱 진입점
-├── cdk.json               # CDK 설정 파일
-├── requirements.txt       # CDK 의존성
-└── source.bat            # Windows 환경 설정 스크립트
+├── app/                    # Python application code
+│   ├── app.py              # FastAPI application
+│   ├── requirements.txt    # Application dependencies
+│   └── Dockerfile          # Container image build file
+├── stacks/                 # CDK stack code
+│   └── mcp_server_amazon_ecs_stack.py  # ECS, ALB infrastructure definition
+├── app.py                  # CDK app entry point
+├── cdk.json               # CDK configuration file
+├── requirements.txt       # CDK dependencies
+└── source.bat            # Windows environment setup script
 ```
 
-## 배포 방법
+## Deployment Method
 
-1. 가상 환경 활성화:
+1. Activate the virtual environment:
 ```
 $ source .venv/bin/activate  # Linux/Mac
 $ source.bat                # Windows
 ```
 
-2. 필요한 의존성 설치:
+2. Install the required dependencies:
 ```
 $ pip install -r requirements.txt
 ```
 
-3. CDK 배포:
+3. Deploy with CDK:
 ```
 $ cdk deploy
 ```
 
-## 인프라 구성 요소
+## Infrastructure Components
 
-- VPC: 2개의 가용 영역과 1개의 NAT 게이트웨이
-- ECS 클러스터: EC2 기반 서비스 실행을 위한 클러스터
-- EC2 인스턴스: ARM 기반 c6g.xlarge 인스턴스 사용
-- ECS 서비스: 1개의 태스크로 구성된 서비스
-- Application Load Balancer: 인터넷 트래픽을 서비스로 라우팅
-- 보안 그룹: HTTP(80) 트래픽 허용
+- VPC: 2 availability zones and 1 NAT gateway
+- ECS Cluster: Cluster for running EC2-based services
+- EC2 Instance: Using ARM-based c6g.xlarge instances
+- ECS Service: Service consisting of 1 task
+- Application Load Balancer: Routes internet traffic to the service
+- Security Group: Allows HTTP(80) traffic
 
-## 애플리케이션
+## Application
 
-FastAPI 애플리케이션으로 다음 엔드포인트를 제공합니다:
-- `/`: 기본 인사 메시지 반환
-- `/health`: 헬스 체크 엔드포인트 (5초 간격으로 체크)
+A FastAPI application that provides the following endpoints:
+- `/`: Returns a basic greeting message
+- `/health`: Health check endpoint (checked every 5 seconds)
 
-## 참고사항
+## Notes
 
-- 컨테이너는 8000 포트에서 실행됩니다.
-- ALB는 80 포트로 HTTP 트래픽을 수신합니다.
+- The container runs on port 8000
+- The ALB receives HTTP traffic on port 80
