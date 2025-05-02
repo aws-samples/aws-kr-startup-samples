@@ -1,41 +1,43 @@
-# Local MCP Server 구축 및 Claude Desktop 연동
+Read this in other languages: English, [Korean(한국어)](./README.kr.md)
 
-## 개요
-이 모듈에서는 로컬 환경에서 MCP(Model Context Protocol) 서버를 구축하고 Claude Desktop과 연동하는 방법을 학습합니다. MCP 서버를 통해 LLM이 외부 데이터 소스나 도구에 접근할 수 있도록 설정하는 과정을 실습합니다.
+# Building a Local MCP Server and Claude Desktop Integration
 
-## 주요 개념
-MCP(Model Context Protocol) 서버는 LLM(Large Language Model)과 외부 데이터 소스나 도구를 연결하는 표준화된 방법을 제공하는 서버입니다. MCP 서버는 특정 기능을 표준화된 Model Context Protocol을 통해 노출시키며 세 가지 주요 기능을 제공할 수 있습니다:
+## Overview
+This module teaches you how to build a Model Context Protocol (MCP) server in a local environment and integrate it with Claude Desktop. You will practice setting up an MCP server that allows LLMs to access external data sources or tools.
 
-이 과정에서 MCP Server는 MCP Client와 표준화된 방식으로 통신합니다.
+## Key Concepts
+An MCP (Model Context Protocol) server provides a standardized method for connecting LLMs (Large Language Models) with external data sources or tools. The MCP server exposes specific functionalities through the standardized Model Context Protocol.
+
+In this process, the MCP Server communicates with the MCP Client in a standardized way.
 ![Claude Desktop](./assets/images/mcp.jpg)
 
-사용자는 [Claude Desktop](https://claude.ai/download)과 같은 MCP 클라이언트를 통해 이러한 기능에 쉽게 접근할 수 있습니다. Claude Desktop은 MCP 호스트 역할을 하며, 사용자의 질문을 Claude에 전달하고, Claude가 필요에 따라 MCP 서버의 도구를 호출하도록 합니다. 서버는 요청된 데이터나 기능을 처리한 후 결과를 클라이언트에 반환하고, 이 정보는 다시 Claude에게 전달되어 최종적으로 자연어 형태의 응답으로 사용자에게 제공됩니다.
+Users can easily access these features through MCP clients like [Claude Desktop](https://claude.ai/download). Claude Desktop acts as an MCP host, relaying user questions to Claude and enabling Claude to call tools from the MCP server as needed. The server processes the requested data or functionality and returns the results to the client, which are then passed back to Claude and ultimately provided to the user in natural language form.
 
-## 사전 준비사항
+## Prerequisites
 
-### 1. Claude Desktop 설치 및 설정
-1. [Claude Desktop](https://claude.ai/download)을 운영체제에 맞게 다운로드하고 설치합니다.
-2. [For Claude Desktop Users](https://modelcontextprotocol.io/quickstart/user) 가이드에 따라 MCP Host 설정을 완료합니다.
+### 1. Claude Desktop Installation and Setup
+1. Download and install [Claude Desktop](https://claude.ai/download) for your operating system.
+2. Complete the MCP Host setup according to the [For Claude Desktop Users](https://modelcontextprotocol.io/quickstart/user) guide.
 
-> 💡 **참고**: Claude Desktop은 MCP 서버와 통신하기 위한 클라이언트 역할을 합니다.
+> 💡 **Note**: Claude Desktop acts as a client for communicating with the MCP server.
 
-### 2. uv 설치
-[uv](https://github.com/astral-sh/uv)는 Python 패키지 설치 및 가상 환경 관리를 위한 빠른 도구입니다. 터미널에서 다음 명령어를 실행합니다:
+### 2. Installing uv
+[uv](https://github.com/astral-sh/uv) is a fast tool for Python package installation and virtual environment management. Run the following command in your terminal:
 ```bash
 # On macOS and Linux.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-설치가 완료되면 다음 명령어로 설치 여부를 확인합니다:
+After installation, verify by checking the version:
 ```bash
 uv --version
 ```
 
-> 💡 **팁**: 설치 후 터미널을 재시작해야 할 수 있습니다. 만약 `uv` 명령어가 인식되지 않는다면, 터미널을 재시작하거나 PATH 환경 변수에 uv가 추가되었는지 확인하세요.
+> 💡 **Tip**: You may need to restart your terminal after installation. If the `uv` command is not recognized, restart your terminal or check if uv has been added to your PATH environment variable.
 
-### 실습 1: Weather API MCP Server 만들기
+### Exercise 1: Creating a Weather API MCP Server
 
-1. 먼저 로컬에서 아래 명령어를 실행하여 파이썬 프로젝트를 구성합니다.
+1. First, set up a Python project locally by running the following commands:
     ```bash
     uv init weather
     cd weather
@@ -48,10 +50,10 @@ uv --version
     touch weather.py
     ```
 
-2. 생성한 `weather.py`의 내용은 [weather.py](./src/example-1/weather.py) 파일을 복사하여 붙여 넣습니다.
-    > 💡 **참고**: 이 스크립트는 미국 국립 기상 서비스 API를 통해 날씨 정보를 가져오는 MCP 서버를 구현합니다. 사용자의 프롬프트로부터 날씨를 받을 때, `get_alerts`, `get_forecast`를 활용하여 위도와 경보를 파악하고 기상 정보를 가져오도록 동작합니다.
+2. For the content of the created `weather.py`, copy and paste from the [weather.py](./src/example-1/weather.py) file.
+    > 💡 **Note**: This script implements an MCP server that retrieves weather information through the US National Weather Service API. When receiving weather queries from user prompts, it uses `get_alerts` and `get_forecast` to determine latitude and alerts, and retrieve weather information.
 
-3. Claude Desktop에서 확인하기 위해 `/Library/Application\ Support/Claude/claude_desktop_config.json` 파일을 수정합니다:
+3. Modify the `/Library/Application\ Support/Claude/claude_desktop_config.json` file to check in Claude Desktop:
    ```json
    {
        "mcpServers": {
@@ -67,17 +69,17 @@ uv --version
        }
    }
    ```
-   > 💡 **팁**: 파일을 찾기 어려운 경우, Claude Desktop을 실행하고 Settings -> Developer -> Edit Config 에서 찾아보세요.
+   > 💡 **Tip**: If you have trouble finding the file, run Claude Desktop and look in Settings -> Developer -> Edit Config.
    > ![ClaudeDesktopSetting](./assets/images/ClaudeFindSetting.png)
 
-4. Claude Desktop을 로컬에서 실행하고 날씨를 질의합니다.
+4. Run Claude Desktop locally and query about the weather.
    ![ClaudeMCPWeahter](./assets/images/ClaudeMCPWeather.png)
 
-### 실습 2: Amazon Bedrock Nova Canvas MCP 서버 만들기
+### Exercise 2: Creating an Amazon Bedrock Nova Canvas MCP Server
 
-이제 AWS Resource를 활용한 MCP Server를 만들어 보겠습니다. Claude Desktop에서 자연어로 [Amazon Nova Canvas](https://aws.amazon.com/ko/ai/generative-ai/nova/creative/) 모델을 호출하여 이미지를 생성하는 예시입니다.
+Now let's create an MCP Server using AWS Resources. This example shows how to call the [Amazon Nova Canvas](https://aws.amazon.com/ko/ai/generative-ai/nova/creative/) model in natural language through Claude Desktop to generate images.
 
-1. 먼저 로컬에서 아래 명령어를 실행하여 파이썬 프로젝트를 구성합니다.
+1. First, set up a Python project locally by running the following commands:
     ```bash
     uv init mcp-nova-canvas
     cd mcp-nova-canvas
@@ -88,7 +90,7 @@ uv --version
     uv add "mcp[cli]"
     ```
 
-2. 필요한 종속성을 pyproject.toml에 설정합니다.
+2. Set up the necessary dependencies in pyproject.toml:
     ```toml
     [project]
     name = "mcp-server-amazon-nova-canvas"
@@ -106,9 +108,9 @@ uv --version
     ]
     ```
 
-3. main.py 파일에 [mcp-nova-canvas.py](./src/example-2/mcp-nova-canvas.py)를 붙여넣습니다.
+3. Paste [mcp-nova-canvas.py](./src/example-2/mcp-nova-canvas.py) into the main.py file.
 
-4. Claude Desktop에서 확인하기 위해 `/Library/Application\ Support/Claude/claude_desktop_config.json` 파일에 아래 내용을 추가합니다.
+4. Add the following content to the `/Library/Application\ Support/Claude/claude_desktop_config.json` file to check in Claude Desktop:
     ```json
     {
         "mcpServers": {
@@ -124,18 +126,18 @@ uv --version
         }
     }
     ```
-    > 💡 **참고**: AWS_PROFILE이 로컬에 없는 경우, ENV에 Credential("AWS_ACCESS_KEY_ID, "AWS_SECRET_ACCESS_KEY")을 추가하여 진행할 수 있습니다. 가급적 Profile을 활용해야하며 Credential을 활용할 경우 외부에 노출되지 않도록 유의하세요.
+    > 💡 **Note**: If you don't have an AWS_PROFILE locally, you can proceed by adding Credentials ("AWS_ACCESS_KEY_ID, "AWS_SECRET_ACCESS_KEY") to the ENV. It's preferable to use a Profile, and if using Credentials, be careful not to expose them externally.
 
-5. Claude Desktop을 재실행하여 "generate_image PROMPT"를 입력합니다.
+5. Restart Claude Desktop and enter "generate_image PROMPT".
     ![image](./assets/images/mcp-nova-canvas.png)
 
-6. output 폴더에서 이미지를 확인합니다.
+6. Check the image in the output folder.
     ![image](./assets/images/nova-flower.png)
 
-## 요약
-이 모듈에서는 로컬 환경에서 MCP 서버를 구축하고 Claude Desktop과 연동하는 방법을 학습했습니다. Weather API를 활용한 MCP 서버를 구현하여 Claude가 실시간 날씨 정보에 접근할 수 있도록 설정했습니다. 이를 통해 LLM이 외부 데이터 소스와 상호작용하는 방법의 기초를 이해할 수 있습니다.
+## Summary
+In this module, you learned how to build an MCP server in a local environment and integrate it with Claude Desktop. You implemented an MCP server using the Weather API to allow Claude to access real-time weather information. This provides a foundation for understanding how LLMs can interact with external data sources.
 
-## 참고 자료
-- [Model Context Protocol 공식 문서](https://modelcontextprotocol.io/)
-- [Claude Desktop 다운로드](https://claude.ai/download)
-- [uv 설치 가이드](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer)
+## References
+- [Model Context Protocol Official Documentation](https://modelcontextprotocol.io/)
+- [Claude Desktop Download](https://claude.ai/download)
+- [uv Installation Guide](https://docs.astral.sh/uv/getting-started/installation/#standalone-installer)

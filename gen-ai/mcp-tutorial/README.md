@@ -1,50 +1,51 @@
+Read this in other languages: English, [Korean(한국어)](./README.kr.md)
+
 ## Getting started with MCP(Model Context Protocol)
 
-이 워크샵은 **Model Context Protocol(MCP)** 서버의 로컬/클라우드 배포에서부터 AWS 기반 애플리케이션 연동까지 종합적인 인프라 구축 역량을 키우기 위해 설계되었습니다.
+This workshop is designed to build comprehensive infrastructure capabilities from local/cloud deployment of **Model Context Protocol(MCP)** servers to integration with AWS-based applications.
 
-실습을 통해 AI 모델과 외부 시스템의 연동 메커니즘을 이해하고, 실제 비즈니스 시나리오에 적용 가능한 MCP 기반 솔루션 아키텍처를 구현할 수 있습니다.
+Through practical exercises, you can understand the mechanism of connecting AI models and external systems, and implement MCP-based solution architectures applicable to real business scenarios.
 
-## 핵심 학습 목표
-- **MCP 프로토콜**을 이용한 AI-인프라 연동 시스템 설계
-- **AWS CDK**를 활용한 클라우드 네이티브 MCP 서버 배포
-- **MCP Client 애플리케이션**과의 실시간 연동을 통한 LLM 확장 기능 구현
+## Key Learning Objectives
+- Design AI-infrastructure integration systems using the **MCP protocol**
+- Deploy cloud-native MCP servers using **AWS CDK**
+- Implement LLM extension capabilities through real-time integration with **MCP Client applications**
 
-## 모듈별 세부 구성
+## Module Details
 
-**Module-01: 로컬 MCP 서버 구축**[:link:](./module-01/)
-- **Part 1: 기본 MCP 서버 설정**[:link:](./module-01/part-01/)
+**Module-01: Building a Local MCP Server**[:link:](./module-01/)
+- **Part 1: Basic MCP Server Setup**[:link:](./module-01/part-01/)
 
-  로컬 머신에 Python 기반 MCP 서버를 구축하고 Claude Desktop과 연동해 도구 호출 기능을 구현합니다.
+  Build a Python-based MCP server on a local machine and implement tool calling functionality by integrating with Claude Desktop.
 
-- **Part 2: 공개 MCP 서버 활용**[:link:](./module-01/part-02/)
+- **Part 2: Using Public MCP Servers**[:link:](./module-01/part-02/)
 
-  Smithery에서 제공하는 오픈소스 MCP 서버를 연동ㅎ는 방법을 학습합니다.
+  Learn how to integrate with open-source MCP servers provided by Smithery.
 
-**Module-02: AWS 클라우드 배포**[:link:](./module-02/)
-- **AWS CDK 인프라 자동화**
+**Module-02: AWS Cloud Deployment**[:link:](./module-02/)
+- **AWS CDK Infrastructure Automation**
 
-  CDK를 활용한 IaC(Infrastructure as Code) 통해 Amazon ECS 클러스터에 MCP 서버를 배포합니다.
+  Deploy MCP servers to Amazon ECS clusters through IaC (Infrastructure as Code) using CDK.
 
-- **Claude Desktop 연동**
+- **Claude Desktop Integration**
 
-  배포된 MCP 서버 엔드포인트를 Claude Desktop 애플리케이션에 연결해 중앙 집중식 리소스 관리 시스템을 구성합니다.
+  Configure a centralized resource management system by connecting the deployed MCP server endpoints to the Claude Desktop application.
 
-**Module-03: Streamlit MCP 호스트 개발**[:link:](./module-03/)
-- **대화형 웹 인터페이스 구축**
+**Module-03: Developing a Streamlit MCP Host**[:link:](./module-03/)
+- **Building an Interactive Web Interface**
 
-  Model Context Protocol(MCP)을 활용하여 Streamlit 기반의 MCP Client 애플리케이션을 개발합니다.
+  Develop a Streamlit-based MCP Client application using the Model Context Protocol (MCP).
 
-- **MCP Server 연동**
+- **MCP Server Integration**
 
-  Streamlit 기반의 MCP Client 애플리케이션과 MCP 서버를 연동하는 MCP Client-Server 시스템을 AWS에서 구성합니다.
+  Configure an MCP Client-Server system on AWS by integrating a Streamlit-based MCP Client application with an MCP server.
 
-## 실습 결과물
-- 로컬/클라우드 환경에 배포된 MCP 서버 인스턴스
-- AWS CDK로 생성된 인프라 스택(CloudFormation 템플릿)
-- Streamlit 기반 LLM 애플리케이션과 MCP 서버 연동 데모
+## Workshop Outcomes
+- MCP server instances deployed in local/cloud environments
+- Infrastructure stacks created with AWS CDK (CloudFormation templates)
+- Demo of Streamlit-based LLM application integrated with MCP server
 
-이 워크샵을 마치면 참가자들은 AI 모델과 클라우드 인프라를 연동하는 End-to-End 시스템을 설계/운영할 때 **MCP를 활용하는 방법**을 배우게 될 것 입니다.
-
+Upon completing this workshop, participants will learn **how to use MCP** when designing and operating End-to-End systems that connect AI models and cloud infrastructure.
 
 ## Security
 

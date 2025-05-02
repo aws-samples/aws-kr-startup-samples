@@ -1,29 +1,31 @@
-# Smithery의 MCP 서버 사용하기
+Read this in other languages: English, [Korean(한국어)](./README.kr.md)
 
-## 로컬 클라이언트에서 Smithery 서버 사용하기
+# Using Smithery's MCP Server
 
-먼저 Smithery AI 서버를 설정하고 사용해보겠습니다.
+## Using Smithery Server from a Local Client
 
-### prerequisites
+Let's first set up and use the Smithery AI server.
 
-1. **Smithery AI 가입:** [Smithery AI 웹사이트](https://www.smithery.ai/) 에서 계정을 생성하고 API 키를 발급받으세요.
-2. **Claude Desktop 설치:** [Claude AI 웹사이트](https://claude.ai/download) 에서 운영체제에 맞는 Claude Desktop 클라이언트를 설치합니다.
+### Prerequisites
 
-### mcp configuration
+1. **Sign up for Smithery AI:** Create an account at the [Smithery AI website](https://www.smithery.ai/) and obtain an API key.
+2. **Install Claude Desktop:** Install the Claude Desktop client for your operating system from the [Claude AI website](https://claude.ai/download).
 
-1. 터미널을 열고 다음 명령어를 실행하여 `@mcp-examples/weather` 도구를 설치하고 Claude Desktop 클라이언트에 연결합니다.
+### MCP Configuration
+
+1. Open a terminal and run the following command to install the `@mcp-examples/weather` tool and connect it to the Claude Desktop client.
 
     ```bash
     npx -y @smithery/cli@latest install @mcp-examples/weather --client claude --key YOUR_API_KEY
     ```
 
-    **주의:** 위 명령어에서 `YOUR_API_KEY` 부분을 실제로 발급받은 API 키로 교체해야 합니다.
+    **Note:** You must replace the `YOUR_API_KEY` part with the actual API key you received.
 
-    이제 Claude Desktop 클라이언트를 통해 `@mcp-examples/weather` 도구를 사용할 준비가 되었습니다. 
+    Now you are ready to use the `@mcp-examples/weather` tool through the Claude Desktop client.
 
-2. 아래와 같이 질문하여 weather mcp를 호출해봅니다. 도구 허용을 묻는 팝업에서 "이 대화에 허용"을 선택합니다.
+2. Ask a question as shown below to call the weather MCP. Select "Allow for this conversation" in the popup that asks for tool permission.
     ![prompt](./assets/prompt.png)
 
-3. Claude Desktop이 MCP 서버의 응답을 활용하여 답변을 생성합니다.
+3. Claude Desktop generates a response using the MCP server's reply.
     ![weather](./assets/weather.png)
 
