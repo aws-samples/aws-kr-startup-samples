@@ -17,7 +17,6 @@
 IDE 터미널에서 다음 명령어를 실행하여 Python 가상 환경을 생성합니다:
 
 ```bash
-cd /project/module-03
 uv venv --python 3.11
 source .venv/bin/activate
 ```
@@ -32,7 +31,7 @@ uv pip install -r requirements.txt
 이때, module-02에서 배포한 MCP Server의 URL 뒤에 `/sse` 엔드포인트를 추가하여 명령행 인자로 전달합니다.
 
 ```bash
-python client.py <module-02에서 배포한 MCP Server URL>/sse
+python app/streamplit-app/client.py <module-02에서 배포한 MCP Server URL>/sse
 ```
 
 `What's the weather in Newyork?`와 같은 쿼리를 입력하여 응답을 확인합니다. 정상적인 응답이 반환되면 클라이언트 설정이 완료된 것입니다.
@@ -44,16 +43,22 @@ python client.py <module-02에서 배포한 MCP Server URL>/sse
 IDE 터미널에서 다음 명령어를 실행하여 Streamlit 애플리케이션을 실행합니다.
 
 ```bash
-streamlit run app.py
+streamlit run app/streamplit-app/app.py
 ```
 
 ## AWS 환경에 배포하기
 
 cdk 폴더 내의 `cdk.context.json` 파일을 열어 module-02에서 배포한 cdk outputs 값들을 추가합니다.
 
+```bash
+McpServerAmazonECSStack.McpServerAmazonECSStackClusterNameOutput = McpServerAmazonECSStack-***
+McpServerAmazonECSStack.McpServerAmazonECSStackListenerArnOutput = arn:aws:elasticloadbalancing:***
+McpServerAmazonECSStack.McpServerAmazonECSStackVpcIdOutput = vpc-***
+```
+
 ```json
 {
-  "vpc-name": "McpServer***",
+  "vpc-id": "vpc-***",
   "cluster-name": "McpServerAmazonECSStack-***",
   "listener-arn": "arn:aws:elasticloadbalancing:***"
 }
@@ -62,7 +67,6 @@ cdk 폴더 내의 `cdk.context.json` 파일을 열어 module-02에서 배포한 
 이후 IDE의 터미널에서 아래 명령어를 실행하여 CDK Stack을 배포합니다.
 
 ```bash
-cd cdk
 cdk deploy --require-approval never
 ```
 

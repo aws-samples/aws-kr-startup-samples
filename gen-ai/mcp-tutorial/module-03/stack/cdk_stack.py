@@ -14,14 +14,14 @@ class McpServerAmazonECSStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        vpc_name = self.node.try_get_context("vpc-name")
+        vpc_id = self.node.try_get_context("vpc-id")
         cluster_name = self.node.try_get_context("cluster-name")
         listener_arn = self.node.try_get_context("listener-arn")
 
         # Reference the existing VPC
         vpc = ec2.Vpc.from_lookup(self, "ExistingVPC",
                                   is_default=False,
-                                  vpc_name=vpc_name
+                                  vpc_id=vpc_id
                                   )
         
         # Reference the existing ECS cluster

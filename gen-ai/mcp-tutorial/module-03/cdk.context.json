@@ -1,5 +1,5 @@
 {
-  "vpc-name": "",
+  "vpc-id": "",
   "cluster-name": "",
   "listener-arn": ""
 }

@@ -19,7 +19,6 @@ In this module, you will learn how to build a Streamlit MCP Host chatbot based o
 Run the following commands in the IDE terminal to create a Python virtual environment:
 
 ```bash
-cd /project/module-03
 uv venv --python 3.11
 source .venv/bin/activate
 ```
@@ -34,7 +33,7 @@ You can test the MCP Client by running the following command in the terminal.
 Add the `/sse` endpoint to the MCP Server URL deployed in module-02 and pass it as a command-line argument.
 
 ```bash
-python client.py <MCP Server URL from module-02>/sse
+python app/streamplit-app/client.py <MCP Server URL from module-02>/sse
 ```
 
 Enter a query like `What's the weather in Newyork?` to check the response. If a normal response is returned, the client setup is complete.
@@ -46,16 +45,22 @@ Enter a query like `What's the weather in Newyork?` to check the response. If a 
 Run the following command in the IDE terminal to launch the Streamlit application:
 
 ```bash
-streamlit run app.py
+streamlit run app/streamplit-app/app.py
 ```
 
 ## Deploying to AWS Environment
 
 Open the `cdk.context.json` file in the cdk folder and add the cdk outputs values deployed in module-02:
 
+```bash
+McpServerAmazonECSStack.McpServerAmazonECSStackClusterNameOutput = McpServerAmazonECSStack-***
+McpServerAmazonECSStack.McpServerAmazonECSStackListenerArnOutput = arn:aws:elasticloadbalancing:***
+McpServerAmazonECSStack.McpServerAmazonECSStackVpcIdOutput = vpc-***
+```
+
 ```json
 {
-  "vpc-name": "McpServer***",
+  "vpc-id": "McpServer***",
   "cluster-name": "McpServerAmazonECSStack-***",
   "listener-arn": "arn:aws:elasticloadbalancing:***"
 }
@@ -64,7 +69,6 @@ Open the `cdk.context.json` file in the cdk folder and add the cdk outputs value
 Then run the following command in the IDE terminal to deploy the CDK Stack:
 
 ```bash
-cd cdk
 cdk deploy --require-approval never
 ```
 
