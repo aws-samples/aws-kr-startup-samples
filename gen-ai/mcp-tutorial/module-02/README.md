@@ -105,7 +105,7 @@ The MCP-Server-CDK stack creates the following AWS resources:
 
 2. Verify that it's installed:
    ```bash
-   mcp-remote --version
+   which mcp-remote
    ```
    > 💡 **Note**: MCP-Remote is a tool that manages communication between Claude Desktop and the MCP server.
 

@@ -103,7 +103,7 @@ MCP-Server-CDK 스택은 다음과 같은 AWS 리소스를 생성합니다:
 
 2. 설치가 완료되었는지 확인합니다:
    ```bash
-   mcp-remote --version
+   which mcp-remote
    ```
    > 💡 **참고**: MCP-Remote는 Claude Desktop과 MCP 서버 간의 통신을 관리하는 도구입니다.
 
@@ -150,4 +150,4 @@ MCP-Server-CDK 스택은 다음과 같은 AWS 리소스를 생성합니다:
 - [Model Context Protocol 공식 문서](https://modelcontextprotocol.io/)
 - [MCP Transport 사양](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)
 - [AWS CDK 문서](https://docs.aws.amazon.com/cdk/latest/guide/home.html)
-- [MCP-Remote GitHub 저장소](https://github.com/anthropic-labs/mcp-remote) 
+- [MCP-Remote GitHub 저장소](https://github.com/anthropic-labs/mcp-remote)
