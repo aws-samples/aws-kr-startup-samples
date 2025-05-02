@@ -18,7 +18,7 @@
 
 - **Part 2: 공개 MCP 서버 활용**[:link:](./module-01/part-02/)
 
-  Smithery에서 제공하는 오픈소스 MCP 서버를 연동ㅎ는 방법을 학습합니다.
+  Smithery에서 제공하는 오픈소스 MCP 서버를 연동하는 방법을 학습합니다.
 
 **Module-02: AWS 클라우드 배포**[:link:](./module-02/)
 - **AWS CDK 인프라 자동화**
@@ -52,4 +52,4 @@ See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more inform
 
 ## License
 
-This library is licensed under the MIT-0 License. See the LICENSE file. 
+This library is licensed under the MIT-0 License. See the LICENSE file.
