@@ -15,8 +15,10 @@ class McpServerAmazonECSStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         # Create a VPC
+        vpc_name = "McpServerAmazonECSStackVpc"
         vpc = ec2.Vpc(
             self, "McpServerAmazonECSStackVpc",
+            vpc_name=vpc_name,
             max_azs=2,
             nat_gateways=1,
         )
@@ -112,7 +114,7 @@ class McpServerAmazonECSStack(Stack):
 
         # CloudFormation Outputs: Output VPC ID
         CfnOutput(
-            self, "McpServerAmazonECSStackVpcIdOutput",
-            value=vpc.vpc_id,
-            description="The ID of the VPC"
+            self, "McpServerAmazonECSStackVpcNameOutput",
+            value=vpc.vpc_name,
+            description="The name of the VPC"
         )
