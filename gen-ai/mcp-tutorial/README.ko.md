@@ -20,7 +20,7 @@
 
   Smithery에서 제공하는 오픈소스 MCP 서버를 연동하는 방법을 학습합니다.
 
-- **Part 3: 로컬 MCP 서버 Amazon Q Developer CLI 연동**[:link:](./module-01/part-03/)
+- **Part 3: 로컬 MCP 서버와 Amazon Q Developer CLI 연동**[:link:](./module-01/part-03/)
 
   로컬 MCP 서버를 Amazon Q Developer CLI와 연동하는 방법을 학습합니다.
 
