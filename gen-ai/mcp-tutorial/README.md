@@ -1,4 +1,4 @@
-Read this in other languages: English, [Korean(한국어)](./README.kr.md)
+Read this in other languages: English, [Korean(한국어)](./README.ko.md)
 
 ## Getting started with MCP(Model Context Protocol)
 
