@@ -22,6 +22,10 @@ Through practical exercises, you can understand the mechanism of connecting AI m
 
   Learn how to integrate with open-source MCP servers provided by Smithery.
 
+- **Part 3: Integrating the Local MCP Server with Amazon Q Developer CLI**[:link:](./module-01/part-03/)
+
+  Learn how to integrate your local MCP server with the Amazon Q Developer CLI.
+
 **Module-02: AWS Cloud Deployment**[:link:](./module-02/)
 - **AWS CDK Infrastructure Automation**
 
