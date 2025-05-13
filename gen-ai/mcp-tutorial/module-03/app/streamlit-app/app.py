@@ -89,15 +89,15 @@ if prompt := st.chat_input("Input message..."):
 
             response_placeholder = st.empty()
             try:
-                messages, structured_response = st.session_state.loop.run_until_complete(st.session_state.client.invoke_agent(prompt, thread_id=42))
+                messages = st.session_state.loop.run_until_complete(st.session_state.client.invoke_agent(prompt, thread_id=42))
                 
                 with st.expander('full messages'):
                     st.markdown(messages)
 
-                final_message = structured_response
-                response_placeholder.markdown(final_message.ai_message)
+                final_message = messages[-1].content.split("</thinking>")[-1]
+                response_placeholder.markdown(final_message)
                                     
-                st.session_state.messages.append({"role": "assistant", "content": final_message.ai_message})
+                st.session_state.messages.append({"role": "assistant", "content": final_message})
                 
             except Exception as e:
                 st.error(f"Response failed: {str(e)}")

@@ -6,7 +6,7 @@ from langchain_aws import ChatBedrockConverse
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from contextlib import AsyncExitStack
 
@@ -20,10 +20,6 @@ logging.basicConfig(
     level=logging.INFO,
     datefmt='%m/%d/%y %H:%M:%S',
 )
-
-class ResponseFormat(BaseModel):
-    thinking: str
-    ai_message: str
 
 class MCPClient:
   def __init__(self, model_id="amazon.nova-lite-v1:0", region_name="us-east-1"):
@@ -45,16 +41,15 @@ class MCPClient:
     tools = await load_mcp_tools(self.session)    
     logger.info("Connected to server with tools: %s", [tool.name for tool in tools])
 
-    self.agent = create_react_agent(model=self.bedrock, tools=tools, checkpointer=MemorySaver(), response_format=ResponseFormat)
+    self.agent = create_react_agent(model=self.bedrock, tools=tools, checkpointer=MemorySaver())
 
     return tools
   
   async def invoke_agent(self, query: str, thread_id: int):
     response = await self.agent.ainvoke({"messages": query}, config={"configurable": {"thread_id": thread_id}})
     messages = response["messages"]
-    structured_response = response["structured_response"]
     
-    return messages, structured_response
+    return messages
 
 
   async def chat_loop(self):
