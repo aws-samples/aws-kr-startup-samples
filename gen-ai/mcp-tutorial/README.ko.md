@@ -16,13 +16,13 @@
 
   로컬 머신에 Python 기반 MCP 서버를 구축하고 Claude Desktop과 연동해 도구 호출 기능을 구현합니다.
 
-- **Part 2: 공개 MCP 서버 활용**[:link:](./module-01/part-02/)
-
-  Smithery에서 제공하는 오픈소스 MCP 서버를 연동하는 방법을 학습합니다.
-
-- **Part 3: 로컬 MCP 서버와 Amazon Q Developer CLI 연동**[:link:](./module-01/part-03/)
+- **Part 2: 로컬 MCP 서버와 Amazon Q Developer CLI 연동**[:link:](./module-01/part-02/)
 
   로컬 MCP 서버를 Amazon Q Developer CLI와 연동하는 방법을 학습합니다.
+
+- **Part 3: 공개 MCP 서버 활용**[:link:](./module-01/part-03/)
+
+  Smithery에서 제공하는 오픈소스 MCP 서버를 연동하는 방법을 학습합니다.
 
 **Module-02: AWS 클라우드 배포**[:link:](./module-02/)
 - **AWS CDK 인프라 자동화**
