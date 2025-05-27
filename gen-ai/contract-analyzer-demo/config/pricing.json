@@ -1,0 +1,48 @@
+{
+    "claude": {
+        "claude-3-7": {
+            "input": 3.0,
+            "output": 15.0
+        },
+        "claude-3-5-sonnet": {
+            "input": 3.0,
+            "output": 15.0
+        },
+        "claude-3-5-haiku": {
+            "input": 0.8,
+            "output": 4.0
+        },
+        "claude-3-sonnet": {
+            "input": 3.0,
+            "output": 15.0
+        },
+        "claude-3-haiku": {
+            "input": 0.25,
+            "output": 1.25
+        }
+    },
+    "nova": {
+        "nova-micro": {
+            "input": 0.035,
+            "output": 0.14
+        },
+        "nova-lite": {
+            "input": 0.06,
+            "output": 0.24
+        },
+        "nova-pro": {
+            "input": 0.8,
+            "output": 3.2
+        }
+    },
+    "deepseek": {
+        "deepseek": {
+            "input": 1.35,
+            "output": 5.4
+        }
+    },
+    "default": {
+        "input": 0.5,
+        "output": 1.5
+    }
+} 
