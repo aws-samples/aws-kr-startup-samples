@@ -40,6 +40,10 @@ Through practical exercises, you can understand the mechanism of connecting AI m
 
   Develop a Streamlit-based MCP Client application using the Model Context Protocol (MCP).
 
+**Module-04: MCP Authentication**[:link:](./module-04/part-01/)
+
+  Add authentication modules to only Streamlit-based MCP Server/Client using Model Context Protocol (MCP).
+
 - **MCP Server Integration**
 
   Configure an MCP Client-Server system on AWS by integrating a Streamlit-based MCP Client application with an MCP server.
