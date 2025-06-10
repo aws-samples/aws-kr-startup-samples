@@ -38,16 +38,34 @@ The notebook in `src/notebook/deploy_bge_m3_on_sagemaker_endpoint.ipynb` provide
 This project includes AWS CDK code for automated deployment of the SageMaker endpoint:
 
 1. Set up your AWS environment:
+    
     ```bash
+    # Clone this source code
+    git clone --depth=1 https://github.com/aws-samples/aws-kr-startup-samples.git
+    cd aws-kr-startup-samples
+    git sparse-checkout init --cone
+    git sparse-checkout set machine-learning/sagemaker/bge-m3-on-sagemaker
+    cd machine-learning/sagemaker/bge-m3-on-sagemaker
+    
     # Configure AWS credentials
     aws configure
-    
+
     # Configure Virtual Env
     python3 -m venv .venv
     source .venv/bin/activate
 
     # Install dependencies
     (.venv) pip install -r requirements.txt
+    ```
+
+1. Create a bucket
+    ```sh
+    # replace
+    (.venv) export BUCKET_NAME=your-bucket
+    (.venv) aws s3 mb s3://${BUCKET_NAME}
+    (.venv) export MODEL_URI="s3://${BUCKET_NAME}/model/BAAI/bge-m3"
+    (.venv) export CODE_URI="s3://${BUCKET_NAME}/inference_code/BAAI/bge-m3/"
+
     ```
 
 1. Run the following python code to download the model artifacts from Hugging Face model hub.
@@ -58,30 +76,45 @@ This project includes AWS CDK code for automated deployment of the SageMaker end
     model_dir = Path('model')
     model_dir.mkdir(exist_ok=True)
 
-    model_id = "LGAI-EXAONE/EXAONE-Deep-7.8B"
+    model_id = "BAAI/bge-m3"
     snapshot_download(model_id, local_dir=model_dir)
     ```
 
    
 1. Upload model artifacts into `s3`
     ```sh
-    (.venv) export MODEL_URI="s3://{<i>bucket_name</i>}/{<i>key_prefix</i>}/"
     (.venv) aws s3 cp model/ ${MODEL_URI} --recursive
     ```
    
-    Then update the `model_data_url` in `cdk_stacks/bge_m3_endpoint_stack.py`:
-    ```python
-    # Replace `your-bucket` with your actual S3 bucket name
-    # model_data_url="s3://your-bucket/BAAI/inference_code/inference_code.tar.gz"
+
+1. Upload custom inference code into `s3`
+
+    First update the `option.model_id`in `inference_code/serving.properties`
+    ```sh
+    # Replace 
+    # option.model_id="s3://your-bucket/model/BAAI/bge-m3"
     ```
+
+    Then the custom inference code into `s3`
+    ```sh
+    (.venv) tar czvf inference_code.tar.gz inference_code
+    (.venv) aws s3 cp inference_code.tar.gz ${CODE_URI}
+    ```
+
+    Update the `model_data_url` in `cdk_stacks/bge_m3_endpoint_stack.py`:
+    ```sh
+    # Replace `your-bucket` with your actual S3 bucket name
+    # model_data_url="s3://your-bucket/inference_code/BAAI/bge-m3/inference_code.tar.gz"
+    ```
+
 
 1. Deploy the stack:
    ```bash
    # Synthesize CloudFormation template
-   cdk synth
+   (.venv) cdk synth
    
    # Deploy the stack
-   cdk deploy
+   (.venv) cdk deploy
    ```
 
     The CDK stack will create:
