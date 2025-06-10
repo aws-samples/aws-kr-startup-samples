@@ -2,6 +2,7 @@ from aws_cdk import (
     Stack,
     aws_sagemaker as sagemaker,
     aws_iam as iam,
+    CfnOutput,
 )
 from constructs import Construct
 
@@ -41,7 +42,7 @@ class BgeM3EndpointStack(Stack):
             primary_container=sagemaker.CfnModel.ContainerDefinitionProperty(
                 image=inference_image_uri,
                 # Replace `your-bucket` with your actual S3 bucket name
-                # model_data_url="s3://your-bucket/BAAI/inference_code/inference_code.tar.gz",
+                # model_data_url="s3://your-bucket/inference_code/BAAI/bge-m3/inference_code.tar.gz",
             ),
         )
 
@@ -70,3 +71,10 @@ class BgeM3EndpointStack(Stack):
             endpoint_config_name=endpoint_config_name,
         )
         endpoint.add_dependency(endpoint_config)
+
+        # Output the endpoint name
+        CfnOutput(
+            self,
+            "EndpointName",
+            value=endpoint_name,
+        )
