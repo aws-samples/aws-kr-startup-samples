@@ -135,6 +135,7 @@ import boto3
 import json
 
 smr_client = boto3.client("sagemaker-runtime")
+endpoint_name = "bge-m3-endpoint" # your endpoint name (use the cdk output)
 
 def get_vector_by_sm_endpoint(questions, smr_client, endpoint_name):
     response_model = smr_client.invoke_endpoint(
