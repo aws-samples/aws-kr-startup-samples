@@ -38,6 +38,10 @@
 
   Model Context Protocol(MCP)을 활용하여 Streamlit 기반의 MCP Client 애플리케이션을 개발합니다.
 
+**Module-04: MCP 인증**[:link:](./module-04/part-01/)
+
+  Model Context Protocol(MCP)을 활용하여 Streamlit 기반의 MCP Server/Client 간에 인증 모듈을 추가합니다.
+
 - **MCP Server 연동**
 
   Streamlit 기반의 MCP Client 애플리케이션과 MCP 서버를 연동하는 MCP Client-Server 시스템을 AWS에서 구성합니다.

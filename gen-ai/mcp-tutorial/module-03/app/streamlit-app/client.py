@@ -63,8 +63,8 @@ class MCPClient:
             if query.lower() == 'quit':
                 break
 
-            _, response = await self.invoke_agent(query, thread_id=42)
-            logger.info(response)
+            response = await self.invoke_agent(query, thread_id=42)
+            logger.info(response[-1].content)
 
         except Exception as e:
             logger.error(str(e))
