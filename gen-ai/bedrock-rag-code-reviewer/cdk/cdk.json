@@ -1,0 +1,18 @@
+{
+  "app": "npx ts-node --prefer-ts-exts app.ts",
+  "context": {
+    "s3Bucket": "<AWS_ACCOUNT_ID>-codebase-datasource",
+    "codebaseS3Prefix": "code-chunks/",
+    "reportS3Prefix": "reports/",
+    "collectionName": "<COLLECTION_NAME>",
+    "knowledgeBaseName": "<KNOWLEDGE_BASE_NAME>",
+    "region": "<AWS_REGION>",
+    "modelArn": "arn:aws:bedrock:<AWS_REGION>::foundation-model/<MODEL_ID>",
+    "embeddingModelArn": "arn:aws:bedrock:<AWS_REGION>::foundation-model/<EMBEDDING_MODEL_ID>",
+    "iaUserArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:user/<IAM_USER_NAME>",
+    "slackWebhookUrl": "<SLACK_WEBHOOK_URL>",
+    "gitPushAnalyzerFunctionName": "<FUNCTION_NAME>",
+    "githubWebhookSecret": "<GITHUB_WEBHOOK_SECRET>",
+    "githubToken": "<GITHUB_TOKEN>"
+  }
+}

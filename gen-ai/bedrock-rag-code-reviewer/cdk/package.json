@@ -1,0 +1,20 @@
+{
+  "name": "bedrock-rag-code-reviewer-cdk",
+  "scripts": {
+    "build": "tsc",
+    "cdk": "cdk",
+    "deploy": "cdk deploy",
+    "deploy:dev": "cdk deploy --context environment=dev",
+    "deploy:prod": "cdk deploy --context environment=prod"
+  },
+  "devDependencies": {
+    "aws-cdk": "2.161.1",
+    "typescript": "~5.0.0",
+    "ts-node": "^10.9.1",
+    "@types/node": "^18.0.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.161.1",
+    "constructs": "^10.0.0"
+  }
+}
