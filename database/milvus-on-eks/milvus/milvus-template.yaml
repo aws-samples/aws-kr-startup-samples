@@ -1,0 +1,78 @@
+cluster:
+  enabled: true
+
+service:
+  type: LoadBalancer
+  port: 19530
+  annotations: 
+    service.beta.kubernetes.io/aws-load-balancer-type: external
+    service.beta.kubernetes.io/aws-load-balancer-name: milvus-service
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+
+minio:
+  enabled: false
+
+externalS3:
+  enabled: true
+  host: "s3.us-east-1.amazonaws.com"
+  port: "443"
+  useSSL: true
+  bucketName: "${MILVUS_BUCKET_NAME}"
+  useIAM: false
+  cloudProvider: "aws"
+  iamEndpoint: ""
+  accessKey: "${ACCESS_KEY}"
+  secretKey: "${SECRET_KEY}"
+  region: "us-east-1"
+
+pulsarv3:
+  enabled: false
+
+externalKafka:
+  enabled: true
+  brokerList: "${BROKER_LIST}"
+  securityProtocol: PLAINTEXT
+  
+rootCoordinator:
+  replicas: 2
+  activeStandby:
+    enabled: true
+  resources: 
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+indexCoordinator:
+  replicas: 2
+  activeStandby:
+    enabled: true
+  resources: 
+    limits:
+      cpu: "0.5"
+      memory: 0.5Gi
+
+queryCoordinator:
+  replicas: 2
+  activeStandby:
+    enabled: true
+  resources: 
+    limits:
+      cpu: "0.5"
+      memory: 0.5Gi
+
+dataCoordinator:
+  replicas: 2
+  activeStandby:
+    enabled: true
+  resources: 
+    limits:
+      cpu: "0.5"
+      memory: 0.5Gi
+
+proxy:
+  replicas: 2
+  resources: 
+    limits:
+      cpu: 1
+      memory: 2Gi
