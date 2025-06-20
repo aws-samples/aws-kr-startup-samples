@@ -101,7 +101,7 @@ Now let's create an MCP Server using AWS Resources. This example shows how to ca
     dependencies = [
         "boto3>=1.37.24",
         "httpx>=0.28.1",
-        "mcp[cli]>=1.6.0",
+        "mcp[cli]>=1.8.0",
         "pillow>=11.1.0",
         "uuid>=1.30",
         "loguru"

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(tree:*)",
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "Bash(unlink:*)"
+    ],
+    "deny": []
+  }
+}

@@ -91,7 +91,7 @@ uv pip install -r ./requirements.txt
 1. **서버 설정 수정**:
 ```bash
 # main.py 파일 편집
-vi app/mcp-weather-app/main.py
+vi app/main.py
 ```
 
 다음 부분을 찾아 자신의 Cognito 설정으로 변경합니다:

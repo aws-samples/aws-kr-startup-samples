@@ -1,10 +1,10 @@
 [project]
-name = "weather"
+name = "fast-mcp-server"
 version = "0.1.0"
-description = "weather mcp server"
+description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastmcp>=2.8.1",
     "httpx>=0.28.1",
-    "mcp[cli]>=1.8.0",
 ]
