@@ -1,6 +1,8 @@
 from typing import Any
 import httpx
 from fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 
 # Create a basic server instance
 mcp = FastMCP(
@@ -11,6 +13,11 @@ mcp = FastMCP(
         Call get_weather_forecast() to get the weather forecast.
     """,
 )
+
+# Add health check endpoint for ALB
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> PlainTextResponse:
+    return PlainTextResponse("OK")
 
 # Constants
 NWS_API_BASE = "https://api.weather.gov"

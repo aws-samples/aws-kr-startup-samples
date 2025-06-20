@@ -1,2 +1,5 @@
 .DS_Store
 uv.lock
+.claude
+.cursor
+.amazonq
