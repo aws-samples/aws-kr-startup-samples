@@ -1,0 +1,21 @@
+{
+  "ClusterName": "milvus-msk-cluster",
+  "KafkaVersion": "4.0.x.kraft",
+  "NumberOfBrokerNodes": 2,
+  "BrokerNodeGroupInfo": {
+    "InstanceType": "kafka.m5.large",
+    "ClientSubnets": [
+      "${PRIVATE_SUBNET_1}",
+      "${PRIVATE_SUBNET_2}"
+    ],
+    "SecurityGroups": [
+      "${MSK_SECURITY_GROUP_ID}"
+    ]
+  },
+  "EncryptionInfo": {
+    "EncryptionInTransit": {
+      "ClientBroker": "TLS_PLAINTEXT",
+      "InCluster": true
+    }
+  }
+}

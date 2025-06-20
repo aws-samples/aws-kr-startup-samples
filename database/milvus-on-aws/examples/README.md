@@ -1,0 +1,62 @@
+# Milvus Examples
+
+This directory contains Python examples for working with Milvus vector database.
+
+## Setup
+
+1. Configure Examples Environment
+
+```bash
+# Get the Milvus LoadBalancer endpoint
+export MILVUS_ENDPOINT=$(kubectl get svc -n milvus milvus -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+echo "Milvus endpoint: $MILVUS_ENDPOINT"
+
+cd examples
+
+envsubst < .env.template > .env
+cat .env
+```
+
+2. Install pymilvus
+
+```bash
+# Create and use virtualenv
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install Python dependencies
+pip install -r requirements.txt
+```
+
+## Examples
+
+1. Connection Test
+Test basic connectivity to Milvus:
+```bash
+python test_connection.py
+```
+
+2. Basic Insert and Search
+Demonstrates basic vector operations (idempotent):
+```bash
+python test_insert_search.py
+```
+
+3. RAG (Retrieval-Augmented Generation)
+Semantic search example for RAG applications (idempotent):
+```bash
+python test_rag.py
+```
+
+4. Utilities
+Collection management utilities:
+```bash
+# List all collections
+python utils.py list
+
+# Get collection information
+python utils.py info <collection_name>
+
+# Drop a collection
+python utils.py drop <collection_name>
+```
