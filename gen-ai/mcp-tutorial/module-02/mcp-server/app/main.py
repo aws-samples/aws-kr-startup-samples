@@ -109,5 +109,4 @@ if __name__ == "__main__":
         transport="streamable-http",
         host="0.0.0.0",           # Bind to all interfaces
         port=8000,                # Custom port
-        path_prefix="/mcp",       # Add path prefix for MCP endpoints
     )

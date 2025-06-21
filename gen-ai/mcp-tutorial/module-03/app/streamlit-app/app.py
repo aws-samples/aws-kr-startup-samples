@@ -1,14 +1,6 @@
 import streamlit as st
 import asyncio
-from client import MCPClient
-import nest_asyncio
-
-nest_asyncio.apply()
-
-if "loop" not in st.session_state:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    st.session_state.loop = loop
+from client import MCPClientFactory
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -32,9 +24,12 @@ with st.sidebar:
         if not st.session_state.connected:
             with st.spinner("Connecting to server..."):
                 try:
+                    async def connect_async():
+                        client = MCPClientFactory.create_with_model(model_id=model_id, region_name=region_name)
+                        tools = await client.connect_to_server(server_url)
+                        return client, tools
 
-                    client = MCPClient(model_id=model_id, region_name=region_name)
-                    tools = st.session_state.loop.run_until_complete(client.connect_to_server(server_url))
+                    client, tools = asyncio.run(connect_async())
                     
                     st.session_state.client = client
                     st.session_state.connected = True
@@ -89,7 +84,10 @@ if prompt := st.chat_input("Input message..."):
 
             response_placeholder = st.empty()
             try:
-                messages = st.session_state.loop.run_until_complete(st.session_state.client.invoke_agent(prompt, thread_id=42))
+                async def invoke_async():
+                    return await st.session_state.client.invoke_agent(prompt, thread_id=42)
+                
+                messages = asyncio.run(invoke_async())
                 
                 with st.expander('full messages'):
                     st.markdown(messages)
