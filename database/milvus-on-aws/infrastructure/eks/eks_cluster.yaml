@@ -1,0 +1,38 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: 'milvus-eks-cluster'
+  region: 'us-east-1'
+  version: "1.32"
+
+iam:
+  withOIDC: true
+
+  serviceAccounts:
+  - metadata:
+      name: aws-load-balancer-controller
+      namespace: kube-system
+    wellKnownPolicies:
+      awsLoadBalancerController: true
+
+managedNodeGroups:
+  - name: milvus-node-group
+    labels: { role: milvus }
+    instanceType: m7g.xlarge # https://aws.amazon.com/cn/blogs/china/milvus-achieves-up-to-31-price-performance-improvement-using-amazon-graviton3-instances/
+    desiredCapacity: 3
+    privateNetworking: true
+    
+addons:
+- name: vpc-cni
+  version: latest
+  attachPolicyARNs:
+    - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+- name: coredns
+  version: latest
+- name: kube-proxy
+  version: latest
+- name: aws-ebs-csi-driver
+  version: latest
+  wellKnownPolicies:
+    ebsCSIController: true
