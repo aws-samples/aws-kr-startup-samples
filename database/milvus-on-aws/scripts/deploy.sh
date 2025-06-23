@@ -167,6 +167,31 @@ deploy_msk() {
             --output text \
             --region us-east-1)
         
+        # Add ingress rules to allow Kafka traffic from EKS nodes
+        # Allow Kafka plaintext traffic (port 9092)
+        aws ec2 authorize-security-group-ingress \
+            --group-id $MSK_SECURITY_GROUP_ID \
+            --protocol tcp \
+            --port 9092 \
+            --cidr 192.168.0.0/16 \
+            --region us-east-1
+        
+        # Allow Kafka TLS traffic (port 9094) 
+        aws ec2 authorize-security-group-ingress \
+            --group-id $MSK_SECURITY_GROUP_ID \
+            --protocol tcp \
+            --port 9094 \
+            --cidr 192.168.0.0/16 \
+            --region us-east-1
+        
+        # Allow Zookeeper traffic (port 2181) - needed for older Kafka versions
+        aws ec2 authorize-security-group-ingress \
+            --group-id $MSK_SECURITY_GROUP_ID \
+            --protocol tcp \
+            --port 2181 \
+            --cidr 192.168.0.0/16 \
+            --region us-east-1
+        
         # Get private subnets
         export PRIVATE_SUBNETS=($(aws eks describe-cluster --name milvus-eks-cluster --query 'cluster.resourcesVpcConfig.subnetIds' --output text))
         export PRIVATE_SUBNET_1=$(aws ec2 describe-subnets --subnet-ids ${PRIVATE_SUBNETS[@]} --query 'Subnets[?Tags[?Key==`kubernetes.io/role/internal-elb`]].SubnetId' --output text | awk '{print $1}')
@@ -267,6 +292,9 @@ deploy_milvus() {
 
 # Main deployment function
 main() {
+    # Configure AWS CLI
+    aws configure set region us-east-1
+
     log_info "Starting Milvus on EKS deployment..."
     
     check_prerequisites

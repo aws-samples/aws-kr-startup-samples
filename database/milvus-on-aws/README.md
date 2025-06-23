@@ -65,6 +65,9 @@ cd database/milvus-on-aws
 Create the EKS cluster with optimized configuration for Milvus workloads:
 
 ```bash
+# Configure AWS CLI
+aws configure set region us-east-1
+
 # Create EKS cluster
 eksctl create cluster -f infrastructure/eks/eks_cluster.yaml
 
@@ -145,6 +148,31 @@ export MSK_SECURITY_GROUP_ID=$(aws ec2 create-security-group \
   --query 'GroupId' \
   --output text \
   --region us-east-1)
+
+# Add ingress rules to allow Kafka traffic from EKS nodes
+# Allow Kafka plaintext traffic (port 9092)
+aws ec2 authorize-security-group-ingress \
+    --group-id $MSK_SECURITY_GROUP_ID \
+    --protocol tcp \
+    --port 9092 \
+    --cidr 192.168.0.0/16 \
+    --region us-east-1
+
+# Allow Kafka TLS traffic (port 9094) 
+aws ec2 authorize-security-group-ingress \
+    --group-id $MSK_SECURITY_GROUP_ID \
+    --protocol tcp \
+    --port 9094 \
+    --cidr 192.168.0.0/16 \
+    --region us-east-1
+
+# Allow Zookeeper traffic (port 2181) - needed for older Kafka versions
+aws ec2 authorize-security-group-ingress \
+    --group-id $MSK_SECURITY_GROUP_ID \
+    --protocol tcp \
+    --port 2181 \
+    --cidr 192.168.0.0/16 \
+    --region us-east-1
 
 # Get private subnets from EKS cluster
 export PRIVATE_SUBNETS=($(aws eks describe-cluster --name milvus-eks-cluster --query 'cluster.resourcesVpcConfig.subnetIds' --output text))
@@ -345,6 +373,14 @@ aws s3 rb s3://${MILVUS_BUCKET_NAME} --force
 # Delete IAM policies
 aws iam detach-user-policy --user-name ${user_name} --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
 aws iam delete-policy --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
+```
+
+**Cleanup Script**
+
+For easier cleanup, use the provided script:
+
+```bash
+./scripts/cleanup.sh
 ```
 
 ## Security
