@@ -28,9 +28,11 @@ class McpServerAmazonECSStack(Stack):
         )
 
         # Add EC2 Capacity: Using ARM-based instance (c6g.xlarge)
+        # Remove desired_capacity to avoid warning about resetting ASG size on deployment
         cluster.add_capacity("McpServerAmazonECSStackDefaultAutoScalingGroupCapacity",
             instance_type=ec2.InstanceType("c6g.xlarge"),
-            desired_capacity=1,
+            min_capacity=1,
+            max_capacity=3,
             machine_image=ecs.EcsOptimizedImage.amazon_linux2(ecs.AmiHardwareType.ARM)
         )
 
@@ -63,7 +65,9 @@ class McpServerAmazonECSStack(Stack):
             task_definition=task_definition,
             desired_count=1,
             public_load_balancer=True,
-            listener_port=80
+            listener_port=80,
+            max_healthy_percent = 200,
+            min_healthy_percent = 100
         )
 
         # Configure health check settings
