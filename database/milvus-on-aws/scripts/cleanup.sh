@@ -229,11 +229,11 @@ cleanup_eks() {
         # Clean up security groups first to prevent VPC deletion issues
         cleanup_eks_security_groups
         
-        # Delete the cluster with timeout
-        if timeout 3600 eksctl delete cluster --name milvus-eks-cluster --region us-east-1 --wait; then
+        # Delete the cluster (without timeout on macOS)
+        if eksctl delete cluster --name milvus-eks-cluster --region us-east-1 --wait; then
             log_success "EKS cluster deleted successfully!"
         else
-            log_warning "EKS cluster deletion failed or timed out. Attempting manual cleanup..."
+            log_warning "EKS cluster deletion failed. Attempting manual cleanup..."
             
             # Try to clean up failed CloudFormation stacks
             cleanup_failed_cloudformation_stacks
