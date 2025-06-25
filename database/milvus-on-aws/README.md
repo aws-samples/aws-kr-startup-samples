@@ -232,7 +232,7 @@ export BROKER_LIST=$(aws kafka get-bootstrap-brokers --cluster-arn "$CLUSTER_ARN
 echo "BROKER_LIST: $BROKER_LIST"
 ```
 
-### Step 6: Deploy Milvus
+### Step 5: Deploy Milvus
 
 Install Milvus using Helm with custom configuration:
 
