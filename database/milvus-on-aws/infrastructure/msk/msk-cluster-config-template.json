@@ -1,6 +1,6 @@
 {
   "ClusterName": "milvus-msk-cluster",
-  "KafkaVersion": "4.0.x.kraft",
+  "KafkaVersion": "3.9.x",
   "NumberOfBrokerNodes": 2,
   "BrokerNodeGroupInfo": {
     "InstanceType": "kafka.m5.large",
@@ -11,6 +11,10 @@
     "SecurityGroups": [
       "${MSK_SECURITY_GROUP_ID}"
     ]
+  },
+  "ConfigurationInfo": {
+    "Arn": "${MSK_CONFIG_ARN}",
+    "Revision": 1
   },
   "EncryptionInfo": {
     "EncryptionInTransit": {

@@ -137,9 +137,27 @@ kubectl get deployment -n kube-system aws-load-balancer-controller
 
 ### Step 4: Create Amazon MSK Cluster
 
-Deploy Amazon MSK for Milvus message queuing:
+Deploy Amazon MSK for Milvus message queuing with custom configuration:
+
+**Note**: We use Kafka version 3.9.x as it's the latest supported version in MSK with the longest support lifecycle.
 
 ```bash
+# Create MSK configuration with auto.create.topics.enable=true
+aws kafka create-configuration \
+  --name milvus-msk-config \
+  --description "Custom configuration for Milvus MSK cluster with auto topic creation" \
+  --kafka-versions "3.9.x" \
+  --server-properties file://infrastructure/msk/msk-custom-config.properties \
+  --region us-east-1
+
+# Get the configuration ARN
+export MSK_CONFIG_ARN=$(aws kafka list-configurations \
+  --query 'Configurations[?Name==`milvus-msk-config`].Arn' \
+  --output text \
+  --region us-east-1)
+
+echo "MSK Configuration ARN: $MSK_CONFIG_ARN"
+
 # Create security group for MSK
 export MSK_SECURITY_GROUP_ID=$(aws ec2 create-security-group \
   --group-name milvus-msk-sg \
@@ -214,43 +232,7 @@ export BROKER_LIST=$(aws kafka get-bootstrap-brokers --cluster-arn "$CLUSTER_ARN
 echo "BROKER_LIST: $BROKER_LIST"
 ```
 
-### Step 5: Configure Kafka Topics
-
-Create required Kafka topics for Milvus internal messaging:
-
-```bash
-# Create temporary Kafka client pod
-kubectl apply -f infrastructure/msk/kafka-client.yaml
-
-# Wait for pod to be ready
-kubectl wait --for=condition=Ready pod/kafka-client -n milvus --timeout=60s
-
-# Create required topics for Milvus
-kubectl exec -n milvus kafka-client -- kafka-topics \
-  --bootstrap-server $BROKER_LIST \
-  --create --topic by-dev-rootcoord-dml_0 \
-  --partitions 1 --replication-factor 2
-
-kubectl exec -n milvus kafka-client -- kafka-topics \
-  --bootstrap-server $BROKER_LIST \
-  --create --topic by-dev-rootcoord-dml_1 \
-  --partitions 1 --replication-factor 2
-
-kubectl exec -n milvus kafka-client -- kafka-topics \
-  --bootstrap-server $BROKER_LIST \
-  --create --topic by-dev-rootcoord-delta \
-  --partitions 1 --replication-factor 2
-
-# Verify topics creation
-echo "Created topics:"
-kubectl exec -n milvus kafka-client -- kafka-topics \
-  --bootstrap-server $BROKER_LIST --list
-
-# Clean up temporary pod
-kubectl delete pod kafka-client -n milvus
-```
-
-### Step 6: Deploy Milvus
+### Step 5: Deploy Milvus
 
 Install Milvus using Helm with custom configuration:
 

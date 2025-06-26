@@ -158,6 +158,28 @@ deploy_msk() {
         log_warning "MSK cluster 'milvus-msk-cluster' already exists. Skipping creation."
         export CLUSTER_ARN=$(aws kafka list-clusters --cluster-name-filter "milvus-msk-cluster" --query 'ClusterInfoList[0].ClusterArn' --output text --region us-east-1)
     else
+        # Create MSK configuration first
+        log_info "Creating MSK configuration with auto.create.topics.enable=true..."
+        if aws kafka list-configurations --query 'Configurations[?Name==`milvus-msk-config`].Arn' --output text | grep -q arn; then
+            log_warning "MSK configuration 'milvus-msk-config' already exists. Skipping creation."
+        else
+            # Base64 encode the server properties
+            local server_properties=$(base64 -i infrastructure/msk/msk-custom-config.properties)
+            aws kafka create-configuration \
+                --name milvus-msk-config \
+                --description "Custom configuration for Milvus MSK cluster with auto topic creation" \
+                --kafka-versions "3.9.x" \
+                --server-properties "$server_properties" \
+                --region us-east-1
+            log_success "MSK configuration created successfully!"
+        fi
+        
+        # Get the configuration ARN
+        export MSK_CONFIG_ARN=$(aws kafka list-configurations \
+            --query 'Configurations[?Name==`milvus-msk-config`].Arn' \
+            --output text \
+            --region us-east-1)
+        log_info "MSK Configuration ARN: $MSK_CONFIG_ARN"
         # Create security group
         export MSK_SECURITY_GROUP_ID=$(aws ec2 create-security-group \
             --group-name milvus-msk-sg \
@@ -228,39 +250,19 @@ deploy_msk() {
     log_info "BROKER_LIST: $BROKER_LIST"
 }
 
-# Configure Kafka topics
-configure_kafka_topics() {
-    log_info "Configuring Kafka topics..."
-    
-    # Create namespace if it doesn't exist
-    kubectl create namespace milvus --dry-run=client -o yaml | kubectl apply -f -
-    
-    # Create temporary Kafka client
-    kubectl apply -f infrastructure/msk/kafka-client.yaml
-    kubectl wait --for=condition=Ready pod/kafka-client -n milvus --timeout=60s
-    
-    # Create topics
-    local topics=("by-dev-rootcoord-dml_0" "by-dev-rootcoord-dml_1" "by-dev-rootcoord-delta")
-    
-    for topic in "${topics[@]}"; do
-        if kubectl exec -n milvus kafka-client -- kafka-topics --bootstrap-server $BROKER_LIST --list | grep -q "$topic"; then
-            log_warning "Topic '$topic' already exists. Skipping."
-        else
-            kubectl exec -n milvus kafka-client -- kafka-topics \
-                --bootstrap-server $BROKER_LIST \
-                --create --topic $topic \
-                --partitions 1 --replication-factor 2
-            log_success "Topic '$topic' created successfully!"
-        fi
-    done
-    
-    # Clean up
-    kubectl delete pod kafka-client -n milvus
-}
 
 # Deploy Milvus
 deploy_milvus() {
     log_info "Deploying Milvus..."
+    
+    # Create Milvus namespace if it doesn't exist
+    if ! kubectl get namespace milvus &>/dev/null; then
+        log_info "Creating Milvus namespace..."
+        kubectl create namespace milvus
+        log_success "Milvus namespace created!"
+    else
+        log_warning "Milvus namespace already exists. Skipping creation."
+    fi
     
     # Get AWS credentials
     export ACCESS_KEY=$(aws configure get aws_access_key_id)
@@ -302,7 +304,6 @@ main() {
     configure_s3_iam
     install_alb_controller
     deploy_msk
-    configure_kafka_topics
     deploy_milvus
     
     log_success "Milvus on EKS deployment completed successfully!"
