@@ -1,0 +1,81 @@
+{
+  "name": "generative-stylist-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@aws-amplify/ui-react": "^6.1.8",
+    "@tanstack/react-query": "^5.61.0",
+    "@testing-library/jest-dom": "^5.16.5",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/react": "^18.0.24",
+    "@types/react-dom": "^18.0.8",
+    "aws-amplify": "^6.0.28",
+    "axios": "^1.6.8",
+    "buffer": "^6.0.3",
+    "i18next": "^23.11.3",
+    "jest-junit": "^14.0.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-i18next": "^14.1.1",
+    "react-modal": "^3.16.1",
+    "react-qr-code": "^2.0.15",
+    "react-router-dom": "^6.22.3",
+    "react-scripts": "5.0.1",
+    "react-transition-group": "^4.4.5",
+    "react-webcam": "^7.2.0",
+    "typescript": "^4.8.4",
+    "web-vitals": "^2.1.4"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.0",
+    "@types/node": "^22.13.14"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build:dev": "react-scripts build -- --env development",
+    "build:prod": "react-scripts build -- --env production",
+    "test": "react-scripts test --transformIgnorePatterns \"node_modules/(?!axios)/\"",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "**/*.{ts,tsx}",
+      "!**/node_modules/**",
+      "!**/build/**",
+      "!**/definitionfiles/**",
+      "!**/*.mock.ts",
+      "!src/setupTests.ts"
+    ],
+    "coverageReporters": [
+      "lcov"
+    ]
+  },
+  "jest-junit": {
+    "outputName": "coverage/junit.xml"
+  },
+  "overrides": {
+    "webpack": "5.82.1",
+    "@babel/core": "7.21.8"
+  },
+  "type": "module"
+}

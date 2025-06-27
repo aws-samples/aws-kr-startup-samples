@@ -1,0 +1,33 @@
+{
+    "locale": "en",
+    "welcome": "Welcome to the Amazon Bedrock Gallery",
+    "welcomeDesc": "At this Amazon Bedrock Gallery, you can explore your past self using AWS AI technologies",
+    "startButton": "Start",
+    "takePhoto": "Take Photo",
+    "signOutButton": "Sign Out: ",
+    "uploadComplete": "<strong>Photo uploaded</strong>.<br/><strong>Wait 30 seconds</strong> to see the <strong>AI-generated image</strong> on the display.",
+    "goBackToStart": "Go Back to Start",
+    "retake": "Retake",
+    "upload": "Upload",
+    "goToDisplay":"Go to Display",
+    "privacyModal": {
+      "mandatory": "(Mandatory) I agree to the Statement on Collection and Use of Personal Information (see below) and <0>AWS Code of Conduct</0>.",
+      "mandatoryLink": "https://aws.amazon.com/codeofconduct/?nc1=h_ls",
+      "title": "Statement on Collection and Use of Personal Information",
+      "description": "It does not modify or supersede any of the terms of the <0>AWS Privacy Notice</0>.",
+      "descriptionLink": "https://aws.amazon.com/en/privacy/?nc1=h_ls",
+      "collectedItemTitle": "Collected Items",
+      "collectedItemDesc": "Name, Photograph taken at the AWS re:Invent 2024",
+      "collectionUsePurposeTitle": "Collection and Use Purpose",
+      "collectionUsePurposeDesc": "The photograph will be processed through a Generative AI tool. This Generative AI tool is run on Amazon Bedrock, Amazon SageMaker and will create a modified image that is a composite of your image and a Generative AI-generated image(s).",
+      "retentionPeriodTitle": "Retention Period",
+      "retentionPeriodDesc": "The original Photograph will be deleted immediately upon processing. The modified image will be automatically deleted within thirty (30) minutes of creation.",
+      "check": "You can find information on the delegation of collected personal information <0>here</0>.",
+      "checkLink": "https://aws.amazon.com/ko/events/personal-information-delegatee/",
+      "nameInput": "Name",
+      "buttonAgree": "Agree",
+      "buttonDisagree": "Disagree",
+      "message": "Please check the checkbox at the top, and enter your name at the bottom."
+    }
+  }
+  

@@ -1,0 +1,110 @@
+/* PrivacyModal.css */
+.PrivacyModal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  border: 1px solid #ccc;
+  padding: 24px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh; /* 화면 높이의 90%로 제한 */
+  overflow-y: auto; /* 세로 스크롤바 추가 */
+  font-size: 14px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  font-family: Arial, sans-serif;
+}
+
+.PrivacyModal-Overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.PrivacyModal-Content {
+  display: flex;
+  flex-direction: column;
+}
+
+.PrivacyModal-Header {
+  margin-bottom: 16px;
+}
+
+.PrivacyModal-Body {
+  margin-bottom: 24px;
+}
+
+.PrivacyModal-Table {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-top: 16px;
+}
+
+.PrivacyModal-TableRow {
+  display: flex;
+  border-bottom: 1px solid #ccc;
+}
+
+.PrivacyModal-TableRow:last-child {
+  border-bottom: none;
+}
+
+.PrivacyModal-TableCell {
+  padding: 8px;
+  flex: 1;
+}
+
+.PrivacyModal-TableCell:first-child {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}
+.PrivacyModal-Footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .PrivacyModal-NameInput {
+    margin-bottom: 16px;
+    text-align: right;
+  }
+  
+  .PrivacyModal-Alert {
+    color: red;
+    margin-bottom: 16px;
+  }
+  
+  .PrivacyModal-Buttons {
+    display: flex;
+    justify-content: center;
+  }
+  
+  .PrivacyModal-Button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 0 8px;
+  }
+  
+  .PrivacyModal-Disagree {
+    background-color: #ffffff;
+    width: 100px;
+    color: #000000;
+    border: 1px solid #000000;
+
+  }
+  
+  .PrivacyModal-Agree {
+    background-color: #007bff;
+    width: 100px;
+    color: #fff;
+    border: none;
+  }
