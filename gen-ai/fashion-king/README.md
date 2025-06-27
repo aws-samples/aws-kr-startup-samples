@@ -50,6 +50,66 @@ Generative Stylist provides customers with an experience similar to receiving a 
 4. Provides visual representations of recommended outfits and styles
 5. Enables users to save and share their favorite style recommendations
 
+## Style Generation Guide
+
+### Prerequisites
+
+1. AWS CLI must be installed and configured
+2. AWS credentials must be set up with appropriate permissions
+3. Backend infrastructure must be deployed (see Deployment Instructions below)
+4. Test images must be available for upload
+
+### Test Image Upload
+
+The `scripts` directory contains utilities for uploading test images to S3 for style generation:
+
+#### Upload Test Person Image
+
+```bash
+cd scripts
+./upload_test_person.sh
+```
+
+This script uploads `test-person-image.png` to the S3 bucket with the prefix `images/generative-stylist/faces`.
+
+#### Upload Custom Images
+
+For uploading multiple images or custom images:
+
+```bash
+python3 upload_test_images.py --bucket <bucket-name> --local-path <local-path> --s3-prefix <s3-prefix>
+```
+
+**Parameters:**
+- `--bucket`: S3 bucket name (taken from `cdk.context.json`)
+- `--local-path`: Local directory containing images to upload
+- `--s3-prefix`: S3 prefix for organizing uploaded images
+
+### Style Generation Process
+
+1. **Image Upload**: Upload user photos to S3 using the provided scripts
+2. **Face Analysis**: The system analyzes facial features and characteristics
+3. **Style Preference Input**: Users specify their style preferences through the frontend
+4. **AI Model Processing**: FaceChain and GFPGAN models generate personalized style variations
+5. **Result Display**: Generated styles are displayed in the frontend interface
+
+### Testing the Style Generation
+
+1. Upload test images using the scripts in the `scripts` directory
+2. Access the frontend application
+3. Sign in with your credentials
+4. Upload your photo or select from uploaded test images
+5. Input your style preferences
+6. Wait for AI processing to complete
+7. View generated style suggestions
+
+### Notes
+
+- S3 bucket name is automatically taken from `s3_base_bucket_name` in `cdk.context.json`
+- Default S3 prefix for face images is `images/generative-stylist/faces`
+- Upon successful upload, the S3 path for each file will be displayed
+- Generated styles are stored in DynamoDB and can be retrieved via API endpoints
+
 ## Deployment Instructions
 
 ### Requirements
