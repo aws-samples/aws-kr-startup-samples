@@ -17,45 +17,55 @@ logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('mcp').setLevel(logging.WARNING)
 logging.getLogger('langchain_aws').setLevel(logging.WARNING)
 
-
 class MCPClient:
+    def __init__(self):
+        self.exit_stack = AsyncExitStack()
+        self.tools = []
+
+    async def connect_to_server(self, server_url: str):
+        if not server_url.endswith('/'):
+            server_url = f"{server_url}/"
+
+        self.read, self.write, _ = await self.exit_stack.enter_async_context(
+            streamablehttp_client(server_url)
+        )
+        self.session = await self.exit_stack.enter_async_context(
+            ClientSession(self.read, self.write)
+        )
+            
+        await self.session.initialize()
+        self.tools = await load_mcp_tools(self.session)
+    
+    async def cleanup(self):
+        """Cleanup resources"""
+        if self.exit_stack:
+            await self.exit_stack.aclose()
+
+class MCPReActAgent:
     def __init__(self, model_id: str = "amazon.nova-lite-v1:0", region_name: str = "us-east-1"):
         self.model_id = model_id
         self.region_name = region_name
-        self.tools = None
-        self.agent = None
-        self.exit_stack = AsyncExitStack()
-    
-    async def connect_to_server(self, server_url: str):
+        self.bedrock = ChatBedrockConverse(
+            model_id=self.model_id,
+            region_name=self.region_name
+        )
+        self.mcp_client = MCPClient()
+
+    async def connect_mcp_server(self, server_url: str):
         """Connect to MCP server and retrieve available tools"""
-        if not server_url.endswith('/'):
-            server_url = f"{server_url}/"
         
         try:
-            self.read, self.write, _ = await self.exit_stack.enter_async_context(
-                streamablehttp_client(server_url)
-            )
-            self.session = await self.exit_stack.enter_async_context(
-                ClientSession(self.read, self.write)
-            )
-            
-            await self.session.initialize()
-            self.tools = await load_mcp_tools(self.session)
-            
+
+            await self.mcp_client.connect_to_server(server_url)
+
             print("MCP Server Connected!")
             print("[Available tools]")
-            for tool in self.tools:
+            for tool in self.mcp_client.tools:
                 print(f"- {tool.name}: {tool.description}")
             
-            # Create agent with tools
-            bedrock = ChatBedrockConverse(
-                model_id=self.model_id,
-                region_name=self.region_name
-            )
-            
             self.agent = create_react_agent(
-                model=bedrock,
-                tools=self.tools,
+                model=self.bedrock,
+                tools=self.mcp_client.tools,
                 checkpointer=MemorySaver()
             )
             
@@ -72,7 +82,6 @@ class MCPClient:
             config={"configurable": {"thread_id": thread_id}}
         )
         return response["messages"]
-    
 
     async def stream_agent(self, query: str, thread_id: int = 42):
         async for chunk in self.agent.astream(
@@ -91,20 +100,16 @@ class MCPClient:
             try:
                 query = input("\nQuery: ").strip()
                 if query.lower() == 'quit':
-                    break
-                
+                    break                
                 await self.stream_agent(query)
 
-                    
             except Exception as e:
                 print(f"Error: {e}")
-    
+
     async def cleanup(self):
         """Cleanup resources"""
-        print("clean up resources")
-        if self.exit_stack:
-            await self.exit_stack.aclose()
-
+        print("clean up")
+        await self.mcp_client.cleanup()
 
 async def main():
     """Command-line interface"""
@@ -112,16 +117,16 @@ async def main():
         print("Usage: python client.py <mcp_server_url>")
         sys.exit(1)
     
-    client = MCPClient()
+    agent = MCPReActAgent()
     
     try:
         server_url = sys.argv[1]
-        await client.connect_to_server(server_url)
-        await client.chat_loop()
+        await agent.connect_mcp_server(server_url)
+        await agent.chat_loop()
     except Exception as e:
         print(f"Error: {e}")
     finally:
-        await client.cleanup()
+        await agent.cleanup()
 
 
 if __name__ == "__main__":
