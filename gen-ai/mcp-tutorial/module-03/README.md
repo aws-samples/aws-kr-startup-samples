@@ -30,10 +30,10 @@ uv pip install -r requirements.txt
 ```
 
 You can test the MCP Client by running the following command in the terminal.
-Add the `/sse` endpoint to the MCP Server URL deployed in module-02 and pass it as a command-line argument.
+Add the `/mcp` endpoint to the MCP Server URL deployed in module-02 and pass it as a command-line argument.
 
 ```bash
-python app/streamplit-app/client.py <MCP Server URL from module-02>/sse
+python app/streamplit-app/client.py <MCP Server URL from module-02>/mcp
 ```
 
 Enter a query like `What's the weather in Newyork?` to check the response. If a normal response is returned, the client setup is complete.

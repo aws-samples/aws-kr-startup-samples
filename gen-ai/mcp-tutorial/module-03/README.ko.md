@@ -28,10 +28,10 @@ uv pip install -r requirements.txt
 ```
 
 터미널에서 다음 명령어를 실행하여 MCP Client를 테스트할 수 있습니다.
-이때, module-02에서 배포한 MCP Server의 URL 뒤에 `/sse` 엔드포인트를 추가하여 명령행 인자로 전달합니다.
+이때, module-02에서 배포한 MCP Server의 URL 뒤에 `/mcp` 엔드포인트를 추가하여 명령행 인자로 전달합니다.
 
 ```bash
-python app/streamplit-app/client.py <module-02에서 배포한 MCP Server URL>/sse
+python app/streamplit-app/client.py <module-02에서 배포한 MCP Server URL>/mcp
 ```
 
 `What's the weather in Newyork?`와 같은 쿼리를 입력하여 응답을 확인합니다. 정상적인 응답이 반환되면 클라이언트 설정이 완료된 것입니다.
