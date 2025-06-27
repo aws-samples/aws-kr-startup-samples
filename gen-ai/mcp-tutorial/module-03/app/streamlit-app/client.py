@@ -21,6 +21,7 @@ class MCPClient:
     def __init__(self):
         self.exit_stack = AsyncExitStack()
         self.tools = []
+        self.session = None
 
     async def connect_to_server(self, server_url: str):
         if not server_url.endswith('/'):
@@ -33,8 +34,9 @@ class MCPClient:
             ClientSession(self.read, self.write)
         )
             
-        await self.session.initialize()
+        session = await self.session.initialize()
         self.tools = await load_mcp_tools(self.session)
+        self.session = session
     
     async def cleanup(self):
         """Cleanup resources"""

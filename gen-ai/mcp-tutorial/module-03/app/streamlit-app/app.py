@@ -1,12 +1,21 @@
 import streamlit as st
 import asyncio
-from client import MCPClientFactory
+from client import MCPReActAgent
+import nest_asyncio
+
+nest_asyncio.apply()
+
+if "loop" not in st.session_state:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    print(loop)
+    st.session_state.loop = loop
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "client" not in st.session_state:
-    st.session_state.client = None
+if "agent" not in st.session_state:
+    st.session_state.agent = None
     st.session_state.connected = False
     st.session_state.tools = None
 
@@ -18,22 +27,20 @@ with st.sidebar:
     
     model_id = st.text_input("Model ID", value="amazon.nova-lite-v1:0")
     region_name = st.text_input("AWS Region", value="us-east-1")
-    server_url = st.text_input("MCP Server URL", value="")
+    server_url = st.text_input("MCP Server URL", value="http://McpSer-McpSe-VnTAzVCmyr4D-1025158551.ap-northeast-2.elb.amazonaws.com/mcp/")
 
     if st.button("Connect"):
         if not st.session_state.connected:
             with st.spinner("Connecting to server..."):
                 try:
-                    async def connect_async():
-                        client = MCPClientFactory.create_with_model(model_id=model_id, region_name=region_name)
-                        tools = await client.connect_to_server(server_url)
-                        return client, tools
 
-                    client, tools = asyncio.run(connect_async())
-                    
-                    st.session_state.client = client
+                    agent = MCPReActAgent(model_id=model_id, region_name=region_name)
+
+                    st.session_state.loop.run_until_complete(agent.connect_mcp_server(server_url))
+
+                    st.session_state.agent = agent
                     st.session_state.connected = True
-                    st.session_state.tools = tools
+                    st.session_state.tools = agent.mcp_client.tools
                     st.success(f"Successfully connected to server: '{server_url}'")
                     
                 except Exception as e:
@@ -43,7 +50,7 @@ with st.sidebar:
 
     st.subheader("Available tools")
     if st.session_state.connected:
-        for tool in st.session_state.tools:
+        for tool in st.session_state.agent.mcp_client.tools:
             with st.expander(f"{tool.name}"):
                 st.markdown(f"**description:** {tool.description}")
                 
@@ -84,10 +91,8 @@ if prompt := st.chat_input("Input message..."):
 
             response_placeholder = st.empty()
             try:
-                async def invoke_async():
-                    return await st.session_state.client.invoke_agent(prompt, thread_id=42)
-                
-                messages = asyncio.run(invoke_async())
+            
+                messages = st.session_state.loop.run_until_complete(st.session_state.agent.invoke_agent(prompt))
                 
                 with st.expander('full messages'):
                     st.markdown(messages)
