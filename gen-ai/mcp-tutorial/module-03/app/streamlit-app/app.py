@@ -27,7 +27,7 @@ with st.sidebar:
     
     model_id = st.text_input("Model ID", value="amazon.nova-lite-v1:0")
     region_name = st.text_input("AWS Region", value="us-east-1")
-    server_url = st.text_input("MCP Server URL", value="http://McpSer-McpSe-VnTAzVCmyr4D-1025158551.ap-northeast-2.elb.amazonaws.com/mcp/")
+    server_url = st.text_input("MCP Server URL", value="")
 
     if st.button("Connect"):
         if not st.session_state.connected:
