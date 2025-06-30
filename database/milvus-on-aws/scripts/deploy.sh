@@ -109,21 +109,28 @@ configure_s3_iam() {
     log_success "S3 bucket created: $MILVUS_BUCKET_NAME"
     
     # Get AWS account information
-    export user_name=$(aws sts get-caller-identity --query 'Arn' --output text | cut -d'/' -f2)
     export account_id=$(aws sts get-caller-identity --query 'Account' --output text)
+    export caller_arn=$(aws sts get-caller-identity --query 'Arn' --output text)
     
     # Generate IAM policies
-    envsubst < infrastructure/s3/milvus-s3-policy-template.json > infrastructure/iam/milvus-s3-policy.json
+    envsubst < infrastructure/s3/milvus-s3-policy-template.json > infrastructure/s3/milvus-s3-policy.json
     envsubst < infrastructure/iam/milvus-iam-policy-template.json > infrastructure/iam/milvus-iam-policy.json
     
-    # Create and attach policies
+    # Create IAM policy for S3 access
     if aws iam get-policy --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite" &> /dev/null; then
         log_warning "IAM policy 'MilvusS3ReadWrite' already exists. Skipping creation."
     else
-        aws iam create-policy --policy-name MilvusS3ReadWrite --policy-document file://infrastructure/iam/milvus-s3-policy.json
-        aws iam attach-user-policy --user-name ${user_name} --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
-        log_success "IAM policies configured successfully!"
+        aws iam create-policy --policy-name MilvusS3ReadWrite --policy-document file://infrastructure/s3/milvus-s3-policy.json
+        log_success "IAM policy 'MilvusS3ReadWrite' created successfully!"
     fi
+    
+    # Attach S3 policy to EKS node group role
+    log_info "Attaching S3 policy to EKS node group role..."
+    export node_role_name=$(aws eks describe-nodegroup --cluster-name milvus-eks-cluster --nodegroup-name milvus-node-group --query 'nodegroup.nodeRole' --output text | cut -d'/' -f2)
+    aws iam attach-role-policy --role-name ${node_role_name} --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
+    log_success "S3 policy attached to EKS node group role: $node_role_name"
+    
+    log_info "Using IAM role authentication for S3 access."
 }
 
 # Install AWS Load Balancer Controller
@@ -163,13 +170,13 @@ deploy_msk() {
         if aws kafka list-configurations --query 'Configurations[?Name==`milvus-msk-config`].Arn' --output text | grep -q arn; then
             log_warning "MSK configuration 'milvus-msk-config' already exists. Skipping creation."
         else
-            # Base64 encode the server properties
-            local server_properties=$(base64 -i infrastructure/msk/msk-custom-config.properties)
+            # Create base64 encoded server properties
+            local server_properties_b64=$(base64 -w 0 infrastructure/msk/msk-custom-config.properties)
             aws kafka create-configuration \
                 --name milvus-msk-config \
                 --description "Custom configuration for Milvus MSK cluster with auto topic creation" \
                 --kafka-versions "3.9.x" \
-                --server-properties "$server_properties" \
+                --server-properties "$server_properties_b64" \
                 --region us-east-1
             log_success "MSK configuration created successfully!"
         fi
@@ -181,22 +188,30 @@ deploy_msk() {
             --region us-east-1)
         log_info "MSK Configuration ARN: $MSK_CONFIG_ARN"
         # Create security group
-        export MSK_SECURITY_GROUP_ID=$(aws ec2 create-security-group \
-            --group-name milvus-msk-sg \
-            --description "Security group for Milvus MSK cluster" \
-            --vpc-id $eks_vpc_id \
-            --query 'GroupId' \
-            --output text \
-            --region us-east-1)
+        if aws ec2 describe-security-groups --group-names milvus-msk-sg --region us-east-1 &>/dev/null; then
+            log_warning "Security group 'milvus-msk-sg' already exists. Using existing one."
+            export MSK_SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --group-names milvus-msk-sg --query 'SecurityGroups[0].GroupId' --output text --region us-east-1)
+        else
+            export MSK_SECURITY_GROUP_ID=$(aws ec2 create-security-group \
+                --group-name milvus-msk-sg \
+                --description "Security group for Milvus MSK cluster" \
+                --vpc-id $eks_vpc_id \
+                --query 'GroupId' \
+                --output text \
+                --region us-east-1)
+            log_success "Security group created: $MSK_SECURITY_GROUP_ID"
+        fi
         
         # Add ingress rules to allow Kafka traffic from EKS nodes
+        log_info "Configuring security group rules..."
+        
         # Allow Kafka plaintext traffic (port 9092)
         aws ec2 authorize-security-group-ingress \
             --group-id $MSK_SECURITY_GROUP_ID \
             --protocol tcp \
             --port 9092 \
             --cidr 192.168.0.0/16 \
-            --region us-east-1
+            --region us-east-1 2>/dev/null || log_warning "Port 9092 rule may already exist"
         
         # Allow Kafka TLS traffic (port 9094) 
         aws ec2 authorize-security-group-ingress \
@@ -204,7 +219,7 @@ deploy_msk() {
             --protocol tcp \
             --port 9094 \
             --cidr 192.168.0.0/16 \
-            --region us-east-1
+            --region us-east-1 2>/dev/null || log_warning "Port 9094 rule may already exist"
         
         # Allow Zookeeper traffic (port 2181) - needed for older Kafka versions
         aws ec2 authorize-security-group-ingress \
@@ -212,7 +227,7 @@ deploy_msk() {
             --protocol tcp \
             --port 2181 \
             --cidr 192.168.0.0/16 \
-            --region us-east-1
+            --region us-east-1 2>/dev/null || log_warning "Port 2181 rule may already exist"
         
         # Get private subnets
         export PRIVATE_SUBNETS=($(aws eks describe-cluster --name milvus-eks-cluster --query 'cluster.resourcesVpcConfig.subnetIds' --output text))
@@ -264,9 +279,7 @@ deploy_milvus() {
         log_warning "Milvus namespace already exists. Skipping creation."
     fi
     
-    # Get AWS credentials
-    export ACCESS_KEY=$(aws configure get aws_access_key_id)
-    export SECRET_KEY=$(aws configure get aws_secret_access_key)
+    log_info "Using IAM role authentication for S3 access."
     
     # Generate Milvus configuration
     envsubst < infrastructure/milvus/milvus-template.yaml > infrastructure/milvus/milvus.yaml

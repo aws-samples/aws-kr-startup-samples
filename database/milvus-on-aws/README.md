@@ -107,11 +107,11 @@ export user_name=$(aws sts get-caller-identity --query 'Arn' --output text | cut
 export account_id=$(aws sts get-caller-identity --query 'Account' --output text)
 
 # Generate IAM policies from templates
-envsubst < infrastructure/s3/milvus-s3-policy-template.json > infrastructure/iam/milvus-s3-policy.json
+envsubst < infrastructure/s3/milvus-s3-policy-template.json > infrastructure/s3/milvus-s3-policy.json
 envsubst < infrastructure/iam/milvus-iam-policy-template.json > infrastructure/iam/milvus-iam-policy.json
 
 # Create and attach IAM policies
-aws iam create-policy --policy-name MilvusS3ReadWrite --policy-document file://infrastructure/iam/milvus-s3-policy.json
+aws iam create-policy --policy-name MilvusS3ReadWrite --policy-document file://infrastructure/s3/milvus-s3-policy.json
 aws iam attach-user-policy --user-name ${user_name} --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
 ```
 

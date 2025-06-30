@@ -19,11 +19,9 @@ externalS3:
   port: "443"
   useSSL: true
   bucketName: "${MILVUS_BUCKET_NAME}"
-  useIAM: false
+  useIAM: true
   cloudProvider: "aws"
   iamEndpoint: ""
-  accessKey: "${ACCESS_KEY}"
-  secretKey: "${SECRET_KEY}"
   region: "us-east-1"
 
 pulsarv3:
