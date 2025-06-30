@@ -1,0 +1,137 @@
+.display-page {
+  position: relative;
+  background-color: black;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+.display-container {
+  position: relative;
+  height: 99vh;
+  width: 49.5vh;
+  background-color: black;
+  justify-content: center;
+}
+
+.display-image-component {
+  height: 100%;
+  width: 100%;
+}
+
+.display-image {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.display-message {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.95);
+
+  display: flex;
+  color: white;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  font-size: calc(2.5vh);
+  transition: opacity 5000ms ease-in-out
+}
+
+.display-message.hidden{
+  opacity: 0;
+}
+
+.display-textbox { 
+  position: absolute;
+  bottom: 0;
+  left: -5%;
+  width: 110%;
+  height: 50%;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 1.0));
+  z-index: 1;
+}
+
+.display-text {
+  position: absolute;
+  bottom: 22%;
+  height: 20%;
+  margin-bottom: 20%;
+  padding: 10%;
+  color: white;
+  font-family: "Noto Sans KR", sans-serif;
+  font-weight: bold;
+  font-style: bold;
+  font-size: calc(1.5vh);
+  overflow: hidden;
+  overflow-y: scroll;
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+  text-align: justify;
+}
+
+.display-qr {
+  position: absolute;
+  bottom: 3%;
+  right: 3%;
+  height: 15%;
+  margin: 0;
+  z-index: 2;
+}
+
+.display-text span {
+  display: inline-block;
+  animation: scroll 30s linear infinite;
+}
+
+.display-text::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera*/
+}
+
+@keyframes scroll {
+  0% {
+      transform: translateY(0);
+  }
+  100% {
+      transform: translateY(-100%); 
+  }
+}
+
+/* transition effect */
+
+.display-transition-group {
+  position: relative;
+  height: 100%;
+}
+
+.display-page-transition-enter {
+  opacity: 0;
+  width: 100%;
+}
+
+.display-page-transition-enter-active {
+  opacity: 1;
+  width: 100%;
+  transition: opacity 5000ms ease-in-out
+}
+
+.display-page-transition-exit {
+  opacity: 1;
+  width: 0;
+  border: none;
+  overflow: hidden;
+}
+
+.display-page-transition-exit-active {
+  opacity: 0;
+  width: 0;
+  border: none;
+  overflow: hidden;
+  display: none;
+  transition: opacity 5000ms ease-in-out
+}
