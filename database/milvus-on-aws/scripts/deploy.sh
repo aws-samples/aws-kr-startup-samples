@@ -70,6 +70,56 @@ check_prerequisites() {
     log_success "All prerequisites met!"
 }
 
+# Configure S3 and IAM
+configure_s3_iam() {
+    log_info "Configuring S3 bucket and IAM policies..."
+    
+    # Create S3 bucket
+    export MILVUS_BUCKET_NAME="milvus-bucket-$(openssl rand -hex 12)"
+    aws s3 mb s3://${MILVUS_BUCKET_NAME}
+    log_success "S3 bucket created: $MILVUS_BUCKET_NAME"
+    
+    # Get AWS account information
+    export account_id=$(aws sts get-caller-identity --query 'Account' --output text)
+    
+    # Create IAM policy directly
+    echo '{
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:ListBucket",
+                    "s3:DeleteObject"
+                ],
+                "Resource": [
+                    "arn:aws:s3:::'${MILVUS_BUCKET_NAME}'",
+                    "arn:aws:s3:::'${MILVUS_BUCKET_NAME}'/*"
+                ]
+            }
+        ]
+    }' > milvus-s3-policy.json
+    
+    # Create policy and service account
+    if aws iam get-policy --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite" &> /dev/null; then
+        log_warning "IAM policy 'MilvusS3ReadWrite' already exists. Skipping creation."
+    else
+        aws iam create-policy --policy-name MilvusS3ReadWrite --policy-document file://milvus-s3-policy.json
+        log_success "IAM policy created successfully!"
+    fi
+    
+    # Create service account with IAM role
+    if kubectl get serviceaccount milvus-s3-access-sa -n milvus &>/dev/null; then
+        log_warning "Service account already exists. Skipping creation."
+    else
+        eksctl create iamserviceaccount --name milvus-s3-access-sa --namespace milvus --cluster milvus-eks-cluster --role-name milvus-s3-access-sa \
+            --attach-policy-arn arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite --approve
+        log_success "Service account configured successfully!"
+    fi
+}
+
 # Deploy EKS cluster
 deploy_eks() {
     log_info "Creating EKS cluster..."
@@ -97,33 +147,6 @@ deploy_eks() {
     kubectl patch storageclass gp2 -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
     
     log_success "EKS cluster configuration completed!"
-}
-
-# Configure S3 and IAM
-configure_s3_iam() {
-    log_info "Configuring S3 bucket and IAM policies..."
-    
-    # Create S3 bucket
-    export MILVUS_BUCKET_NAME="milvus-bucket-$(openssl rand -hex 12)"
-    aws s3 mb s3://${MILVUS_BUCKET_NAME}
-    log_success "S3 bucket created: $MILVUS_BUCKET_NAME"
-    
-    # Get AWS account information
-    export user_name=$(aws sts get-caller-identity --query 'Arn' --output text | cut -d'/' -f2)
-    export account_id=$(aws sts get-caller-identity --query 'Account' --output text)
-    
-    # Generate IAM policies
-    envsubst < infrastructure/s3/milvus-s3-policy-template.json > infrastructure/iam/milvus-s3-policy.json
-    envsubst < infrastructure/iam/milvus-iam-policy-template.json > infrastructure/iam/milvus-iam-policy.json
-    
-    # Create and attach policies
-    if aws iam get-policy --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite" &> /dev/null; then
-        log_warning "IAM policy 'MilvusS3ReadWrite' already exists. Skipping creation."
-    else
-        aws iam create-policy --policy-name MilvusS3ReadWrite --policy-document file://infrastructure/iam/milvus-s3-policy.json
-        aws iam attach-user-policy --user-name ${user_name} --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
-        log_success "IAM policies configured successfully!"
-    fi
 }
 
 # Install AWS Load Balancer Controller
@@ -264,24 +287,14 @@ deploy_milvus() {
         log_warning "Milvus namespace already exists. Skipping creation."
     fi
     
-    # Get AWS credentials
-    export ACCESS_KEY=$(aws configure get aws_access_key_id)
-    export SECRET_KEY=$(aws configure get aws_secret_access_key)
-    
-    # Generate Milvus configuration
-    envsubst < infrastructure/milvus/milvus-template.yaml > infrastructure/milvus/milvus.yaml
-    
     # Add Milvus Helm repository
     helm repo add milvus https://zilliztech.github.io/milvus-helm/
     helm repo update
     
-    # Install Milvus
-    if helm list -n milvus | grep -q milvus; then
-        log_warning "Milvus already installed. Upgrading..."
-        helm upgrade --namespace milvus -f infrastructure/milvus/milvus.yaml milvus milvus/milvus
-    else
-        helm install --namespace milvus -f infrastructure/milvus/milvus.yaml milvus milvus/milvus
-    fi
+    # Install or upgrade Milvus
+    helm upgrade --install milvus-demo milvus/milvus -n milvus -f infrastructure/milvus/milvus.yaml \
+        --set externalS3.bucketName=${MILVUS_BUCKET_NAME} \
+        --set externalKafka.brokerList=${BROKER_LIST}
     
     log_success "Milvus deployment completed!"
     

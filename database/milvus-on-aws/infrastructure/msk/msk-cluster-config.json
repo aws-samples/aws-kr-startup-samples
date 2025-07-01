@@ -1,0 +1,25 @@
+{
+  "ClusterName": "milvus-msk-cluster",
+  "KafkaVersion": "3.9.x",
+  "NumberOfBrokerNodes": 2,
+  "BrokerNodeGroupInfo": {
+    "InstanceType": "kafka.m5.large",
+    "ClientSubnets": [
+      "subnet-0adb31a589b2f45e9",
+      "subnet-02866b8fa24f4c7b8"
+    ],
+    "SecurityGroups": [
+      "sg-00f65741c4613b3da"
+    ]
+  },
+  "ConfigurationInfo": {
+    "Arn": "arn:aws:kafka:us-east-1:284736429876:configuration/milvus-msk-config/e5e53e05-5b24-413f-88e0-60bc03adbc13-16",
+    "Revision": 1
+  },
+  "EncryptionInfo": {
+    "EncryptionInTransit": {
+      "ClientBroker": "TLS_PLAINTEXT",
+      "InCluster": true
+    }
+  }
+}
