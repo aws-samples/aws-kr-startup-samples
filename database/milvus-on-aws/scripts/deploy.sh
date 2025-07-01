@@ -82,7 +82,7 @@ deploy_eks() {
     fi
     
     # Update kubeconfig
-    aws eks update-kubeconfig --region us-east-1 --name milvus-eks-cluster
+    aws eks update-kubeconfig --region us-east-1 --name milvus-eks-cluster >/dev/null 2>&1
     
     # Set environment variables
     export milvus_cluster_name='milvus-eks-cluster'
@@ -93,8 +93,8 @@ deploy_eks() {
     log_info "EKS Subnet IDs: $eks_subnet_ids"
     
     # Configure storage
-    kubectl apply -f infrastructure/eks/gp3_storage_class.yaml
-    kubectl patch storageclass gp2 -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+    kubectl apply -f infrastructure/eks/gp3_storage_class.yaml >/dev/null 2>&1
+    kubectl patch storageclass gp2 -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' >/dev/null 2>&1
     
     log_success "EKS cluster configuration completed!"
 }
@@ -105,48 +105,70 @@ configure_s3_iam() {
     
     # Create S3 bucket
     export MILVUS_BUCKET_NAME="milvus-bucket-$(openssl rand -hex 12)"
-    aws s3 mb s3://${MILVUS_BUCKET_NAME}
-    log_success "S3 bucket created: $MILVUS_BUCKET_NAME"
+    if aws s3 mb s3://${MILVUS_BUCKET_NAME} >/dev/null 2>&1; then
+        log_success "S3 bucket created: $MILVUS_BUCKET_NAME"
+    else
+        log_error "Failed to create S3 bucket: $MILVUS_BUCKET_NAME"
+        exit 1
+    fi
     
     # Get AWS account information
-    export user_name=$(aws sts get-caller-identity --query 'Arn' --output text | cut -d'/' -f2)
     export account_id=$(aws sts get-caller-identity --query 'Account' --output text)
+    export caller_arn=$(aws sts get-caller-identity --query 'Arn' --output text)
     
     # Generate IAM policies
-    envsubst < infrastructure/s3/milvus-s3-policy-template.json > infrastructure/iam/milvus-s3-policy.json
+    envsubst < infrastructure/s3/milvus-s3-policy-template.json > infrastructure/s3/milvus-s3-policy.json
     envsubst < infrastructure/iam/milvus-iam-policy-template.json > infrastructure/iam/milvus-iam-policy.json
     
-    # Create and attach policies
-    if aws iam get-policy --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite" &> /dev/null; then
+    # Create IAM policy for S3 access
+    if aws iam get-policy --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite" >/dev/null 2>&1; then
         log_warning "IAM policy 'MilvusS3ReadWrite' already exists. Skipping creation."
     else
-        aws iam create-policy --policy-name MilvusS3ReadWrite --policy-document file://infrastructure/iam/milvus-s3-policy.json
-        aws iam attach-user-policy --user-name ${user_name} --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
-        log_success "IAM policies configured successfully!"
+        if aws iam create-policy --policy-name MilvusS3ReadWrite --policy-document file://infrastructure/s3/milvus-s3-policy.json >/dev/null 2>&1; then
+            log_success "IAM policy 'MilvusS3ReadWrite' created successfully!"
+        else
+            log_error "Failed to create IAM policy 'MilvusS3ReadWrite'"
+            exit 1
+        fi
     fi
+    
+    # Attach S3 policy to EKS node group role
+    log_info "Attaching S3 policy to EKS node group role..."
+    export node_role_name=$(aws eks describe-nodegroup --cluster-name milvus-eks-cluster --nodegroup-name milvus-node-group --query 'nodegroup.nodeRole' --output text | cut -d'/' -f2)
+    
+    if aws iam attach-role-policy --role-name ${node_role_name} --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite" >/dev/null 2>&1; then
+        log_success "S3 policy attached to EKS node group role: $node_role_name"
+    else
+        log_warning "Failed to attach S3 policy or policy already attached"
+    fi
+    
+    log_info "Using IAM role authentication for S3 access."
 }
 
 # Install AWS Load Balancer Controller
 install_alb_controller() {
     log_info "Installing AWS Load Balancer Controller..."
     
-    helm repo add eks https://aws.github.io/eks-charts
-    helm repo update
+    helm repo add eks https://aws.github.io/eks-charts >/dev/null 2>&1
+    helm repo update >/dev/null 2>&1
     
     if helm list -n kube-system | grep -q aws-load-balancer-controller; then
         log_warning "AWS Load Balancer Controller already installed. Skipping."
     else
-        helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+        if helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
             -n kube-system \
             --set clusterName=${milvus_cluster_name} \
             --set serviceAccount.create=false \
-            --set serviceAccount.name=aws-load-balancer-controller
-        
-        log_success "AWS Load Balancer Controller installed successfully!"
+            --set serviceAccount.name=aws-load-balancer-controller >/dev/null 2>&1; then
+            log_success "AWS Load Balancer Controller installed successfully!"
+        else
+            log_error "Failed to install AWS Load Balancer Controller"
+            exit 1
+        fi
     fi
     
     # Verify installation
-    kubectl wait --for=condition=available --timeout=300s deployment/aws-load-balancer-controller -n kube-system
+    kubectl wait --for=condition=available --timeout=300s deployment/aws-load-balancer-controller -n kube-system >/dev/null 2>&1
 }
 
 # Deploy MSK cluster
@@ -163,15 +185,19 @@ deploy_msk() {
         if aws kafka list-configurations --query 'Configurations[?Name==`milvus-msk-config`].Arn' --output text | grep -q arn; then
             log_warning "MSK configuration 'milvus-msk-config' already exists. Skipping creation."
         else
-            # Base64 encode the server properties
-            local server_properties=$(base64 -i infrastructure/msk/msk-custom-config.properties)
-            aws kafka create-configuration \
+            # Create base64 encoded server properties
+            local server_properties_b64=$(base64 -w 0 infrastructure/msk/msk-custom-config.properties)
+            if aws kafka create-configuration \
                 --name milvus-msk-config \
                 --description "Custom configuration for Milvus MSK cluster with auto topic creation" \
                 --kafka-versions "3.9.x" \
-                --server-properties "$server_properties" \
-                --region us-east-1
-            log_success "MSK configuration created successfully!"
+                --server-properties "$server_properties_b64" \
+                --region us-east-1 >/dev/null 2>&1; then
+                log_success "MSK configuration created successfully!"
+            else
+                log_error "Failed to create MSK configuration"
+                exit 1
+            fi
         fi
         
         # Get the configuration ARN
@@ -180,39 +206,60 @@ deploy_msk() {
             --output text \
             --region us-east-1)
         log_info "MSK Configuration ARN: $MSK_CONFIG_ARN"
+        
         # Create security group
-        export MSK_SECURITY_GROUP_ID=$(aws ec2 create-security-group \
-            --group-name milvus-msk-sg \
-            --description "Security group for Milvus MSK cluster" \
-            --vpc-id $eks_vpc_id \
-            --query 'GroupId' \
-            --output text \
-            --region us-east-1)
+        if aws ec2 describe-security-groups --group-names milvus-msk-sg --region us-east-1 >/dev/null 2>&1; then
+            log_warning "Security group 'milvus-msk-sg' already exists. Using existing one."
+            export MSK_SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --group-names milvus-msk-sg --query 'SecurityGroups[0].GroupId' --output text --region us-east-1)
+        else
+            export MSK_SECURITY_GROUP_ID=$(aws ec2 create-security-group \
+                --group-name milvus-msk-sg \
+                --description "Security group for Milvus MSK cluster" \
+                --vpc-id $eks_vpc_id \
+                --query 'GroupId' \
+                --output text \
+                --region us-east-1)
+            log_success "Security group created: $MSK_SECURITY_GROUP_ID"
+        fi
         
         # Add ingress rules to allow Kafka traffic from EKS nodes
+        log_info "Configuring security group rules..."
+        
         # Allow Kafka plaintext traffic (port 9092)
-        aws ec2 authorize-security-group-ingress \
+        if aws ec2 authorize-security-group-ingress \
             --group-id $MSK_SECURITY_GROUP_ID \
             --protocol tcp \
             --port 9092 \
             --cidr 192.168.0.0/16 \
-            --region us-east-1
+            --region us-east-1 >/dev/null 2>&1; then
+            log_success "Port 9092 rule added successfully"
+        else
+            log_warning "Port 9092 rule may already exist"
+        fi
         
         # Allow Kafka TLS traffic (port 9094) 
-        aws ec2 authorize-security-group-ingress \
+        if aws ec2 authorize-security-group-ingress \
             --group-id $MSK_SECURITY_GROUP_ID \
             --protocol tcp \
             --port 9094 \
             --cidr 192.168.0.0/16 \
-            --region us-east-1
+            --region us-east-1 >/dev/null 2>&1; then
+            log_success "Port 9094 rule added successfully"
+        else
+            log_warning "Port 9094 rule may already exist"
+        fi
         
         # Allow Zookeeper traffic (port 2181) - needed for older Kafka versions
-        aws ec2 authorize-security-group-ingress \
+        if aws ec2 authorize-security-group-ingress \
             --group-id $MSK_SECURITY_GROUP_ID \
             --protocol tcp \
             --port 2181 \
             --cidr 192.168.0.0/16 \
-            --region us-east-1
+            --region us-east-1 >/dev/null 2>&1; then
+            log_success "Port 2181 rule added successfully"
+        else
+            log_warning "Port 2181 rule may already exist"
+        fi
         
         # Get private subnets
         export PRIVATE_SUBNETS=($(aws eks describe-cluster --name milvus-eks-cluster --query 'cluster.resourcesVpcConfig.subnetIds' --output text))
@@ -223,17 +270,23 @@ deploy_msk() {
         envsubst < infrastructure/msk/msk-cluster-config-template.json > infrastructure/msk/msk-cluster-config.json
         
         # Create MSK cluster
-        aws kafka create-cluster --cli-input-json file://infrastructure/msk/msk-cluster-config.json --region us-east-1
-        export CLUSTER_ARN=$(aws kafka list-clusters --cluster-name-filter "milvus-msk-cluster" --query 'ClusterInfoList[0].ClusterArn' --output text --region us-east-1)
-        
-        log_success "MSK cluster creation initiated!"
+        if aws kafka create-cluster --cli-input-json file://infrastructure/msk/msk-cluster-config.json --region us-east-1 >/dev/null 2>&1; then
+            export CLUSTER_ARN=$(aws kafka list-clusters --cluster-name-filter "milvus-msk-cluster" --query 'ClusterInfoList[0].ClusterArn' --output text --region us-east-1)
+            log_success "MSK cluster creation initiated!"
+        else
+            log_error "Failed to create MSK cluster"
+            exit 1
+        fi
     fi
     
     # Wait for cluster to be active
     log_info "Waiting for MSK cluster to become active..."
-    while true; do
-        STATUS=$(aws kafka describe-cluster --cluster-arn "$CLUSTER_ARN" --query 'ClusterInfo.State' --output text --region us-east-1)
-        log_info "Current status: $STATUS"
+    local retry_count=0
+    local max_retries=60  # 30 minutes with 30-second intervals
+    
+    while [ $retry_count -lt $max_retries ]; do
+        STATUS=$(aws kafka describe-cluster --cluster-arn "$CLUSTER_ARN" --query 'ClusterInfo.State' --output text --region us-east-1 2>/dev/null)
+        log_info "Current status: $STATUS (attempt $((retry_count + 1))/$max_retries)"
         
         if [ "$STATUS" = "ACTIVE" ]; then
             log_success "MSK cluster is now ACTIVE!"
@@ -243,59 +296,84 @@ deploy_msk() {
             exit 1
         fi
         
+        retry_count=$((retry_count + 1))
         sleep 30
     done
+    
+    if [ $retry_count -eq $max_retries ]; then
+        log_error "MSK cluster did not become active within the timeout period"
+        exit 1
+    fi
     
     export BROKER_LIST=$(aws kafka get-bootstrap-brokers --cluster-arn "$CLUSTER_ARN" --query 'BootstrapBrokerString' --output text --region us-east-1)
     log_info "BROKER_LIST: $BROKER_LIST"
 }
-
 
 # Deploy Milvus
 deploy_milvus() {
     log_info "Deploying Milvus..."
     
     # Create Milvus namespace if it doesn't exist
-    if ! kubectl get namespace milvus &>/dev/null; then
+    if ! kubectl get namespace milvus >/dev/null 2>&1; then
         log_info "Creating Milvus namespace..."
-        kubectl create namespace milvus
+        kubectl create namespace milvus >/dev/null 2>&1
         log_success "Milvus namespace created!"
     else
         log_warning "Milvus namespace already exists. Skipping creation."
     fi
     
-    # Get AWS credentials
-    export ACCESS_KEY=$(aws configure get aws_access_key_id)
-    export SECRET_KEY=$(aws configure get aws_secret_access_key)
+    log_info "Using IAM role authentication for S3 access."
     
     # Generate Milvus configuration
     envsubst < infrastructure/milvus/milvus-template.yaml > infrastructure/milvus/milvus.yaml
     
     # Add Milvus Helm repository
-    helm repo add milvus https://zilliztech.github.io/milvus-helm/
-    helm repo update
+    helm repo add milvus https://zilliztech.github.io/milvus-helm/ >/dev/null 2>&1
+    helm repo update >/dev/null 2>&1
     
     # Install Milvus
     if helm list -n milvus | grep -q milvus; then
         log_warning "Milvus already installed. Upgrading..."
-        helm upgrade --namespace milvus -f infrastructure/milvus/milvus.yaml milvus milvus/milvus
+        if helm upgrade --namespace milvus -f infrastructure/milvus/milvus.yaml milvus milvus/milvus >/dev/null 2>&1; then
+            log_success "Milvus upgraded successfully!"
+        else
+            log_error "Failed to upgrade Milvus"
+            exit 1
+        fi
     else
-        helm install --namespace milvus -f infrastructure/milvus/milvus.yaml milvus milvus/milvus
+        if helm install --namespace milvus -f infrastructure/milvus/milvus.yaml milvus milvus/milvus >/dev/null 2>&1; then
+            log_success "Milvus installed successfully!"
+        else
+            log_error "Failed to install Milvus"
+            exit 1
+        fi
     fi
     
     log_success "Milvus deployment completed!"
     
     # Wait for pods to be ready
     log_info "Waiting for Milvus pods to be ready..."
-    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=milvus -n milvus --timeout=600s
-    
-    log_success "All Milvus pods are ready!"
+    if kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=milvus -n milvus --timeout=600s >/dev/null 2>&1; then
+        log_success "All Milvus pods are ready!"
+    else
+        log_warning "Some Milvus pods may not be ready yet. Please check with 'kubectl get pods -n milvus'"
+    fi
 }
+
+# Cleanup function for error handling
+cleanup_on_error() {
+    log_error "Script encountered an error. Cleaning up..."
+    # Add cleanup logic here if needed
+    exit 1
+}
+
+# Set error trap
+trap cleanup_on_error ERR
 
 # Main deployment function
 main() {
     # Configure AWS CLI
-    aws configure set region us-east-1
+    aws configure set region us-east-1 >/dev/null 2>&1
 
     log_info "Starting Milvus on EKS deployment..."
     
