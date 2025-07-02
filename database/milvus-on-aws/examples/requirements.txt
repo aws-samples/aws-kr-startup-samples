@@ -1,3 +1,6 @@
 pymilvus
 sentence_transformers
 python-dotenv
+streamlit
+langchain_milvus
+langchain_huggingface
