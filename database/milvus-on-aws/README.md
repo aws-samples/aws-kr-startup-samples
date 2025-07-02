@@ -386,10 +386,21 @@ kubectl get storageclass
 To avoid ongoing charges, clean up all resources:
 
 ```bash
+# Clean up all resources (auto-detects messaging system)
+./scripts/cleanup.sh
+
+# Or specify the messaging system you used for more efficient cleanup
+./scripts/cleanup.sh --messaging pulsar  # If you used Pulsar
+./scripts/cleanup.sh --messaging msk     # If you used MSK
+```
+
+**Manual cleanup steps if needed:**
+
+```bash
 # Delete Milvus installation
 helm uninstall milvus -n milvus
 
-# Delete MSK cluster
+# Delete MSK cluster (only if you used MSK)
 aws kafka delete-cluster --cluster-arn $CLUSTER_ARN
 
 # Delete EKS cluster
@@ -401,14 +412,6 @@ aws s3 rb s3://${MILVUS_BUCKET_NAME} --force
 # Delete IAM policies
 aws iam detach-user-policy --user-name ${user_name} --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
 aws iam delete-policy --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
-```
-
-**Cleanup Script**
-
-For easier cleanup, use the provided script:
-
-```bash
-./scripts/cleanup.sh
 ```
 
 ## Security
