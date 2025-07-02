@@ -5,6 +5,38 @@
 
 set -e
 
+# Default messaging option
+MESSAGING_OPTION="msk"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --messaging)
+            MESSAGING_OPTION="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 [--messaging msk|pulsar]"
+            echo ""
+            echo "Options:"
+            echo "  --messaging msk|pulsar    Choose messaging system (default: msk)"
+            echo "  -h, --help               Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Validate messaging option
+if [[ "$MESSAGING_OPTION" != "msk" && "$MESSAGING_OPTION" != "pulsar" ]]; then
+    log_error "Invalid messaging option: $MESSAGING_OPTION. Must be 'msk' or 'pulsar'"
+    exit 1
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -171,8 +203,13 @@ install_alb_controller() {
     kubectl wait --for=condition=available --timeout=300s deployment/aws-load-balancer-controller -n kube-system >/dev/null 2>&1
 }
 
-# Deploy MSK cluster
+# Deploy MSK cluster (only if messaging option is MSK)
 deploy_msk() {
+    if [[ "$MESSAGING_OPTION" != "msk" ]]; then
+        log_info "Skipping MSK deployment (using $MESSAGING_OPTION instead)"
+        return 0
+    fi
+    
     log_info "Creating Amazon MSK cluster..."
     
     # Check if MSK cluster already exists
@@ -311,7 +348,7 @@ deploy_msk() {
 
 # Deploy Milvus
 deploy_milvus() {
-    log_info "Deploying Milvus..."
+    log_info "Deploying Milvus with $MESSAGING_OPTION messaging..."
     
     # Create Milvus namespace if it doesn't exist
     if ! kubectl get namespace milvus >/dev/null 2>&1; then
@@ -324,8 +361,19 @@ deploy_milvus() {
     
     log_info "Using IAM role authentication for S3 access."
     
-    # Generate Milvus configuration
-    envsubst < infrastructure/milvus/milvus-template.yaml > infrastructure/milvus/milvus.yaml
+    # Choose appropriate template and generate configuration based on messaging option
+    if [[ "$MESSAGING_OPTION" == "msk" ]]; then
+        # Get broker list for MSK
+        export BROKER_LIST=$(aws kafka get-bootstrap-brokers --cluster-arn "$CLUSTER_ARN" --query 'BootstrapBrokerString' --output text --region us-east-1)
+        log_info "Using MSK Broker List: $BROKER_LIST"
+        
+        # Generate Milvus configuration from MSK template
+        envsubst < infrastructure/milvus/milvus-msk-template.yaml > infrastructure/milvus/milvus.yaml
+    else
+        # Generate Milvus configuration from Pulsar template
+        envsubst < infrastructure/milvus/milvus-pulsar-template.yaml > infrastructure/milvus/milvus.yaml
+        log_info "Using embedded Pulsar for messaging"
+    fi
     
     # Add Milvus Helm repository
     helm repo add milvus https://zilliztech.github.io/milvus-helm/ >/dev/null 2>&1
@@ -375,7 +423,7 @@ main() {
     # Configure AWS CLI
     aws configure set region us-east-1 >/dev/null 2>&1
 
-    log_info "Starting Milvus on EKS deployment..."
+    log_info "Starting Milvus on EKS deployment with $MESSAGING_OPTION messaging..."
     
     check_prerequisites
     deploy_eks
@@ -385,6 +433,7 @@ main() {
     deploy_milvus
     
     log_success "Milvus on EKS deployment completed successfully!"
+    log_info "Messaging system: $MESSAGING_OPTION"
     log_info "You can now use the examples in the ./examples directory to test your deployment."
     log_info "To clean up resources, run: ./scripts/cleanup.sh"
 }
