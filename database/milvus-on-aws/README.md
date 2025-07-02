@@ -42,8 +42,9 @@ Your AWS credentials need permissions for:
 
 ## Quick Start
 
-For a rapid deployment, run the automated setup script:
+For a rapid deployment, run the automated setup script with your preferred messaging system:
 
+### Option 1: Pulsar - Simpler Setup
 ```bash
 # Clone the repository (if not already done)
 git clone https://github.com/aws-samples/aws-kr-startup-samples.git
@@ -54,9 +55,26 @@ git sparse-checkout set database/milvus-on-aws
 # Navigate to the project directory
 cd database/milvus-on-aws
 
-# Run the automated deployment
-./scripts/deploy.sh
+# Deploy with embedded Pulsar (no MSK required)
+./scripts/deploy.sh --messaging pulsar
 ```
+
+### Option 2: MSK (Kafka) - Production Ready
+```bash
+# Deploy with Amazon MSK (requires MSK cluster)
+./scripts/deploy.sh --messaging msk
+```
+
+### Messaging System Comparison
+
+| Feature | Pulsar | MSK (Kafka) |
+|---------|---------|-------------|
+| **Setup Complexity** | Lower (embedded in Milvus) | Higher (requires MSK cluster) |
+| **Cost** | No additional messaging costs | ~$150/month for MSK cluster |
+| **Production Readiness** | Good for development/testing | Enterprise-grade, fully managed |
+| **Scalability** | Scales with Milvus pods | Highly scalable, separate scaling |
+| **Maintenance** | Managed within Kubernetes | Managed by AWS |
+| **Use Case** | Development, prototyping, cost-sensitive deployments | Production workloads, high throughput |
 
 ## Detailed Setup
 
@@ -135,7 +153,9 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
 kubectl get deployment -n kube-system aws-load-balancer-controller
 ```
 
-### Step 4: Create Amazon MSK Cluster
+### Step 4: Create Amazon MSK Cluster (MSK Option Only)
+
+**Note**: This step is only required if you choose the MSK messaging option. Skip this section if using Pulsar.
 
 Deploy Amazon MSK for Milvus message queuing with custom configuration:
 
@@ -234,7 +254,29 @@ echo "BROKER_LIST: $BROKER_LIST"
 
 ### Step 5: Deploy Milvus
 
-Install Milvus using Helm with custom configuration:
+Install Milvus using Helm with custom configuration. The deployment automatically selects the appropriate configuration template based on your chosen messaging system:
+
+#### Option 1: Pulsar Messaging - Simpler Setup
+
+```bash
+# Create Milvus namespace
+kubectl create namespace milvus
+
+# Generate Milvus configuration from Pulsar template
+envsubst < infrastructure/milvus/milvus-pulsar-template.yaml > infrastructure/milvus/milvus.yaml
+
+# Add Milvus Helm repository
+helm repo add milvus https://zilliztech.github.io/milvus-helm/
+helm repo update
+
+# Install Milvus with embedded Pulsar
+helm upgrade --install \
+  --namespace milvus \
+  -f infrastructure/milvus/milvus.yaml \
+  milvus milvus/milvus
+```
+
+#### Option 2: MSK (Kafka) Messaging - Production Ready
 
 ```bash
 # Create Milvus namespace
@@ -244,20 +286,24 @@ kubectl create namespace milvus
 export ACCESS_KEY=$(aws configure get aws_access_key_id)
 export SECRET_KEY=$(aws configure get aws_secret_access_key)
 
-# Generate Milvus configuration from template
-envsubst < infrastructure/milvus/milvus-template.yaml > infrastructure/milvus/milvus.yaml
+# Generate Milvus configuration from MSK template
+envsubst < infrastructure/milvus/milvus-msk-template.yaml > infrastructure/milvus/milvus.yaml
 
 # Add Milvus Helm repository
 helm repo add milvus https://zilliztech.github.io/milvus-helm/
 helm repo update
 
-# Install Milvus
+# Install Milvus with MSK
 helm upgrade --install \
   --namespace milvus \
   -f infrastructure/milvus/milvus.yaml \
   milvus milvus/milvus
+```
 
-# Verify installation
+#### Verify Installation (Both Options)
+
+```bash
+# Check Milvus pod status
 kubectl get pods -n milvus
 ```
 
@@ -340,10 +386,21 @@ kubectl get storageclass
 To avoid ongoing charges, clean up all resources:
 
 ```bash
+# Clean up all resources (auto-detects messaging system)
+./scripts/cleanup.sh
+
+# Or specify the messaging system you used for more efficient cleanup
+./scripts/cleanup.sh --messaging pulsar  # If you used Pulsar
+./scripts/cleanup.sh --messaging msk     # If you used MSK
+```
+
+**Manual cleanup steps if needed:**
+
+```bash
 # Delete Milvus installation
 helm uninstall milvus -n milvus
 
-# Delete MSK cluster
+# Delete MSK cluster (only if you used MSK)
 aws kafka delete-cluster --cluster-arn $CLUSTER_ARN
 
 # Delete EKS cluster
@@ -355,14 +412,6 @@ aws s3 rb s3://${MILVUS_BUCKET_NAME} --force
 # Delete IAM policies
 aws iam detach-user-policy --user-name ${user_name} --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
 aws iam delete-policy --policy-arn "arn:aws:iam::${account_id}:policy/MilvusS3ReadWrite"
-```
-
-**Cleanup Script**
-
-For easier cleanup, use the provided script:
-
-```bash
-./scripts/cleanup.sh
 ```
 
 ## Security

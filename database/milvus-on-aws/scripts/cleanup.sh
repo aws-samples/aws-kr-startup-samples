@@ -6,6 +6,34 @@
 # Remove set -e to handle errors gracefully
 # set -e
 
+# Default messaging option (will be determined during cleanup)
+MESSAGING_OPTION=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --messaging)
+            MESSAGING_OPTION="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 [--messaging msk|pulsar]"
+            echo ""
+            echo "Options:"
+            echo "  --messaging msk|pulsar    Specify which messaging system was used (optional)"
+            echo "  -h, --help               Show this help message"
+            echo ""
+            echo "If --messaging is not specified, the script will attempt to detect and clean up both."
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -171,8 +199,14 @@ cleanup_milvus() {
     fi
 }
 
-# Delete MSK cluster
+# Delete MSK cluster (only if MSK was used)
 cleanup_msk() {
+    # Skip MSK cleanup if explicitly told it was Pulsar
+    if [[ "$MESSAGING_OPTION" == "pulsar" ]]; then
+        log_info "Skipping MSK cleanup (Pulsar messaging was used)"
+        return 0
+    fi
+    
     log_info "Cleaning up MSK cluster..."
     
     if [ -n "$CLUSTER_ARN" ] && [ "$CLUSTER_ARN" != "None" ] && [ "$CLUSTER_ARN" != "" ]; then
@@ -326,6 +360,12 @@ cleanup_iam() {
 # Main cleanup function
 main() {
     log_info "Starting Milvus on EKS cleanup..."
+    
+    if [[ -n "$MESSAGING_OPTION" ]]; then
+        log_info "Messaging option specified: $MESSAGING_OPTION"
+    else
+        log_info "No messaging option specified. Will attempt to detect and clean up both MSK and Pulsar resources."
+    fi
     
     # Check for required tools
     local missing_tools=()
