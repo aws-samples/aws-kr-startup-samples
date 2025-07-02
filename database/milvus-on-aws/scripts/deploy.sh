@@ -6,7 +6,7 @@
 set -e
 
 # Default messaging option
-MESSAGING_OPTION="msk"
+MESSAGING_OPTION="pulsar"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -19,7 +19,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [--messaging msk|pulsar]"
             echo ""
             echo "Options:"
-            echo "  --messaging msk|pulsar    Choose messaging system (default: msk)"
+            echo "  --messaging msk|pulsar    Choose messaging system (default: pulsar)"
             echo "  -h, --help               Show this help message"
             exit 0
             ;;
@@ -30,12 +30,6 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
-# Validate messaging option
-if [[ "$MESSAGING_OPTION" != "msk" && "$MESSAGING_OPTION" != "pulsar" ]]; then
-    log_error "Invalid messaging option: $MESSAGING_OPTION. Must be 'msk' or 'pulsar'"
-    exit 1
-fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -60,6 +54,12 @@ log_warning() {
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
+
+# Validate messaging option
+if [[ "$MESSAGING_OPTION" != "msk" && "$MESSAGING_OPTION" != "pulsar" ]]; then
+    log_error "Invalid messaging option: $MESSAGING_OPTION. Must be 'msk' or 'pulsar'"
+    exit 1
+fi
 
 # Check prerequisites
 check_prerequisites() {
