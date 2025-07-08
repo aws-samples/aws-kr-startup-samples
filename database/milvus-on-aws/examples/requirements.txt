@@ -4,3 +4,5 @@ python-dotenv
 streamlit
 langchain_milvus
 langchain_huggingface
+boto3
+pymupdf
