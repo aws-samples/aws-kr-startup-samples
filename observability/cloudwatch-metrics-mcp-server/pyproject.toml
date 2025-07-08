@@ -1,0 +1,25 @@
+[project]
+name = "cloudwatch-metrics-mcp-server"
+version = "0.0.1"
+description = "A Model Context Protocol (MCP) server for cloudwatch-metrics"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "boto3>=1.38.22",
+    "loguru>=0.7.0",
+    "fastmcp>=2.10.1",
+    "pydantic>=2.10.6",
+]
+
+[project.scripts]
+"cloudwatch-metrics-mcp-server" = "cloudwatch_metrics_mcp_server.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
