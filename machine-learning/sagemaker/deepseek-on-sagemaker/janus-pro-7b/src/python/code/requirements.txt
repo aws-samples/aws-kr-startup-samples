@@ -3,5 +3,5 @@ diffusers==0.32.2
 huggingface-hub==0.28.1
 opencv-python==4.11.0.86
 safetensors==0.4.5
-transformers==4.50.0
+transformers==4.52.1
 git+https://github.com/deepseek-ai/Janus.git@1daa72fa409002d40931bd7b36a9280362469ead
