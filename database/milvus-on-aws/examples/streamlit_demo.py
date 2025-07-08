@@ -1,25 +1,37 @@
 #!/usr/bin/env python3
 """
-Streamlit-based interactive demo for Milvus on EKS.
+Streamlit-based interactive demo for Milvus on AWS.
 
 Allows users to:
 - Initialize a Milvus collection with sample data.
 - View collection statistics.
-- Add new documents to the collection.
+- Add new text documents to the collection.
+- Upload and process PDF documents.
 - Perform vector similarity searches.
 - View a history of recent operations.
 """
 
-import streamlit as st
 import os
-from dotenv import load_dotenv
-import pandas as pd
 import time
 import warnings
 import asyncio
-from langchain_huggingface import HuggingFaceEmbeddings
+import pandas as pd
+import streamlit as st
+from dotenv import load_dotenv
 from langchain_core.documents import Document
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_milvus import Milvus
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+# PyMuPDF for PDF processing
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    st.error(
+        "PyMuPDF is not installed. Please run 'pip install pymupdf' to support PDF uploads."
+    )
+    fitz = None
+
 
 # Suppress deprecation warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -30,16 +42,24 @@ load_dotenv()
 MILVUS_HOST = os.getenv("MILVUS_HOST", "localhost")
 MILVUS_PORT = int(os.getenv("MILVUS_PORT", "19530"))
 URI = f"http://{MILVUS_HOST}:{MILVUS_PORT}"
-COLLECTION_NAME = "workshop_demo"
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "workshop_demo")
+
+EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-0.6B"
 
 # Page config
-st.set_page_config(page_title="Milvus on EKS Workshop", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="Milvus on AWS Workshop", page_icon="🚀", layout="wide")
 
 # Initialize session state
 if "vector_store" not in st.session_state:
     st.session_state.vector_store = None
 if "operation_history" not in st.session_state:
     st.session_state.operation_history = []
+
+
+@st.cache_resource
+def get_embeddings():
+    """Get HuggingFace embeddings."""
+    return HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
 
 
 def get_vector_store():
@@ -51,7 +71,7 @@ def get_vector_store():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-    embeddings = HuggingFaceEmbeddings(model_name="Qwen/Qwen3-Embedding-0.6B")
+    embeddings = get_embeddings()
 
     # Initial documents
     initial_docs = [
@@ -83,6 +103,7 @@ def get_vector_store():
         collection_name=COLLECTION_NAME,
         connection_args={"uri": URI},
         drop_old=False,
+        auto_id=True,
     )
 
     return vector_store
@@ -99,20 +120,72 @@ def get_collection_stats(vector_store):
         return {"error": str(e)}
 
 
-def add_document(vector_store, text, category="general"):
-    """Add a new document to the collection"""
+def add_documents_to_store(vector_store, documents, source="text_input"):
+    """Add new documents to the collection"""
     try:
-        doc = Document(page_content=text, metadata={"category": category})
-
         start_time = time.time()
-        vector_store.add_documents([doc])
+        vector_store.add_documents(documents)
         duration = time.time() - start_time
 
-        log_operation("add", f"Added: '{text[:50]}...'", True, duration)
-        return True, f"✅ Document added successfully"
+        log_operation(
+            "add", f"Added {len(documents)} documents from {source}", True, duration
+        )
+        return True, f"✅ {len(documents)} documents added successfully from {source}"
     except Exception as e:
-        log_operation("add", f"Failed: {str(e)}", False)
+        log_operation("add", f"Failed from {source}: {str(e)}", False)
         return False, f"❌ Add failed: {str(e)}"
+
+
+def process_and_add_pdf(vector_store, uploaded_file):
+    """Extract text from PDF, split into chunks, and add to Milvus."""
+    if not fitz:
+        return False, "❌ PyMuPDF is not available. Cannot process PDF."
+
+    try:
+        with st.spinner(f"Processing {uploaded_file.name}..."):
+            # Read PDF content
+            doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+            text = "".join(page.get_text() for page in doc)
+            doc.close()
+
+            if not text.strip():
+                return False, "❌ No text could be extracted from the PDF."
+
+            # Split text into chunks
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000, chunk_overlap=100, length_function=len
+            )
+            chunks = text_splitter.split_text(text)
+
+            # Create Document objects
+            documents = [
+                Document(
+                    page_content=chunk,
+                    metadata={"source": uploaded_file.name, "category": "pdf"},
+                )
+                for chunk in chunks
+            ]
+
+            # Add documents to the store
+            success, message = add_documents_to_store(
+                vector_store, documents, source=uploaded_file.name
+            )
+
+            if success:
+                st.success(
+                    f"✅ Successfully processed and added {len(documents)} chunks from {uploaded_file.name}."
+                )
+            else:
+                st.error(f"❌ Failed to process {uploaded_file.name}: {message}")
+
+            return success, message
+
+    except Exception as e:
+        log_operation(
+            "pdf_process", f"Error processing {uploaded_file.name}: {str(e)}", False
+        )
+        st.error(f"❌ An error occurred while processing the PDF: {str(e)}")
+        return False, str(e)
 
 
 def search_documents(vector_store, query, k=5):
@@ -145,108 +218,6 @@ def search_documents(vector_store, query, k=5):
         return False, f"❌ Search failed: {str(e)}"
 
 
-def process_uploaded_file(uploaded_file, vector_store):
-    """Process uploaded file and add to Milvus"""
-    try:
-        filename = uploaded_file.name
-        print(f"📁 Processing file: {filename}")
-
-        # Extract text content
-        if filename.lower().endswith(".pdf"):
-            text_content = extract_pdf_with_pymupdf(uploaded_file)
-        elif filename.lower().endswith(".txt"):
-            text_content = uploaded_file.read().decode("utf-8")
-        else:
-            return False, f"Unsupported file type: {filename}"
-
-        if text_content and len(text_content.strip()) > 0:
-            print(f"📝 Extracted {len(text_content)} characters")
-
-            # Create document and add to vector store
-            from langchain_core.documents import Document
-
-            doc = Document(
-                page_content=text_content,
-                metadata={"source": filename, "type": "uploaded_file"},
-            )
-
-            print(f"🔄 Generating embedding...")
-            vector_store.add_documents([doc])
-            print(f"✅ Successfully stored in Milvus")
-
-            log_operation(
-                "process", f"Processed: {filename} ({len(text_content)} chars)", True
-            )
-            return True, f"File processed successfully: {filename}"
-        else:
-            print(f"❌ No text extracted from {filename}")
-            return False, f"Could not extract text from {filename}"
-
-    except Exception as e:
-        print(f"❌ Error processing {filename}: {str(e)}")
-        log_operation("process", f"Failed: {str(e)}", False)
-        return False, f"Processing failed: {str(e)}"
-
-
-def extract_pdf_with_pymupdf(uploaded_file):
-    """Extract text from PDF using PyMuPDF with optimized settings"""
-    try:
-        import pymupdf
-        from io import BytesIO
-
-        print(f"📝 Processing PDF with PyMuPDF...")
-
-        # Read file content
-        file_content = uploaded_file.read()
-
-        # Open PDF document
-        doc = pymupdf.open(stream=file_content, filetype="pdf")
-        print(f"📄 PDF has {len(doc)} pages")
-
-        text_parts = []
-
-        for page_num in range(len(doc)):
-            page = doc[page_num]
-
-            # Extract text with layout preservation
-            page_text = page.get_text("text")
-
-            if page_text.strip():
-                # Clean up excessive whitespace while preserving structure
-                cleaned_text = "\n".join(
-                    [line.strip() for line in page_text.split("\n") if line.strip()]
-                )
-
-                if cleaned_text:
-                    text_parts.append(f"=== Page {page_num + 1} ===\n{cleaned_text}")
-                    print(
-                        f"📄 Page {page_num + 1}: extracted {len(cleaned_text)} characters"
-                    )
-                else:
-                    print(f"📄 Page {page_num + 1}: no readable text")
-            else:
-                print(f"📄 Page {page_num + 1}: no text found")
-
-        doc.close()
-
-        if text_parts:
-            full_text = "\n\n".join(text_parts)
-            print(f"✅ PyMuPDF extracted {len(full_text)} total characters")
-            return full_text
-        else:
-            print(f"⚠️ No text could be extracted from PDF")
-            return "No readable text found in PDF"
-
-    except ImportError:
-        error_msg = "PyMuPDF not installed. Install with: pip install pymupdf"
-        print(f"❌ {error_msg}")
-        return error_msg
-    except Exception as e:
-        error_msg = f"PyMuPDF processing error: {str(e)}"
-        print(f"❌ {error_msg}")
-        return error_msg
-
-
 def log_operation(operation, description, success, duration=None):
     """Log operations for monitoring"""
     log_entry = {
@@ -267,12 +238,21 @@ def log_operation(operation, description, success, duration=None):
 st.title("🚀 Milvus on AWS Workshop")
 st.markdown("Interactive demo for vector search and document management")
 
+# Connection info
+with st.expander("Connection Details"):
+    st.markdown(f"""
+    - **Milvus Endpoint**: `{URI}`
+    - **Collection Name**: `{COLLECTION_NAME}`
+    - **Embedding Model**: `{EMBEDDING_MODEL}`
+    """)
+
 # Initialize vector store
-if st.button("Initialize Collection"):
-    with st.spinner("Setting up collection..."):
+if st.button("Connect and Initialize Collection"):
+    with st.spinner("Connecting to Milvus and setting up collection..."):
         try:
             st.session_state.vector_store = get_vector_store()
             st.success("✅ Collection initialized with sample documents")
+            st.rerun()
         except Exception as e:
             st.error(f"❌ Setup failed: {str(e)}")
 
@@ -294,38 +274,25 @@ if st.session_state.vector_store:
         st.subheader("📝 Document Operations")
 
         # Add Document
-        with st.expander("➕ Add Document", expanded=True):
-            tab1, tab2 = st.tabs(["Text Input", "File Upload"])
-
-            with tab1:
-                with st.form("add_document_form", clear_on_submit=True):
-                    new_text = st.text_area(
-                        "Document text:", placeholder="Enter your document content..."
-                    )
-                    submitted = st.form_submit_button("Add Document")
-
-                    if submitted and new_text:
-                        with st.spinner("Adding document..."):
-                            success, message = add_document(
-                                st.session_state.vector_store, new_text
-                            )
-                            if success:
-                                st.success(message)
-                                st.rerun()
-                            else:
-                                st.error(message)
-
-            with tab2:
-                uploaded_file = st.file_uploader(
-                    "Choose a file",
-                    type=["txt", "pdf"],
-                    help="Upload PDF or TXT files for processing",
+        with st.expander("➕ Add Text Document", expanded=True):
+            with st.form("add_document_form", clear_on_submit=True):
+                new_text = st.text_area(
+                    "Document text:", placeholder="Enter your document content..."
                 )
+                category = st.selectbox(
+                    "Category:",
+                    ["technology", "cloud", "database", "programming", "general"],
+                    key="add_text_cat",
+                )
+                submitted = st.form_submit_button("Add Document")
 
-                if uploaded_file and st.button("Upload & Process"):
-                    with st.spinner("Processing file..."):
-                        success, message = process_uploaded_file(
-                            uploaded_file, st.session_state.vector_store
+                if submitted and new_text:
+                    with st.spinner("Adding document..."):
+                        doc = Document(
+                            page_content=new_text, metadata={"category": category}
+                        )
+                        success, message = add_documents_to_store(
+                            st.session_state.vector_store, [doc]
                         )
                         if success:
                             st.success(message)
@@ -333,7 +300,16 @@ if st.session_state.vector_store:
                         else:
                             st.error(message)
 
-                st.info("⚡ Using PyMuPDF for fast and reliable PDF text extraction")
+        # Upload PDF
+        if fitz:
+            with st.expander("📂 Upload PDF Document"):
+                uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+                if uploaded_file is not None:
+                    if st.button(f"Process and Add {uploaded_file.name}"):
+                        process_and_add_pdf(
+                            st.session_state.vector_store, uploaded_file
+                        )
+                        st.rerun()
 
         # Search Documents
         st.subheader("🔍 Search Documents")
