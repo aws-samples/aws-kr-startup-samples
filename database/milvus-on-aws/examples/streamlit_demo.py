@@ -22,16 +22,9 @@ from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_milvus import Milvus
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+import fitz  # PyMuPDF
 
-# PyMuPDF for PDF processing
-try:
-    import fitz  # PyMuPDF
-except ImportError:
-    st.error(
-        "PyMuPDF is not installed. Please run 'pip install pymupdf' to support PDF uploads."
-    )
-    fitz = None
-
+from utils import get_sample_documents
 
 # Suppress deprecation warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -42,9 +35,9 @@ load_dotenv()
 MILVUS_HOST = os.getenv("MILVUS_HOST", "localhost")
 MILVUS_PORT = int(os.getenv("MILVUS_PORT", "19530"))
 URI = f"http://{MILVUS_HOST}:{MILVUS_PORT}"
-COLLECTION_NAME = os.getenv("COLLECTION_NAME", "workshop_demo")
+COLLECTION_NAME = "workshop_demo"
 
-EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-0.6B"
+EMBEDDING_MODEL = "jhgan/ko-sroberta-nli"
 
 # Page config
 st.set_page_config(page_title="Milvus on AWS Workshop", page_icon="🚀", layout="wide")
@@ -71,35 +64,8 @@ def get_vector_store():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-    embeddings = get_embeddings()
-
-    # Initial documents
-    initial_docs = [
-        Document(
-            page_content="Amazon Web Services (AWS) is a comprehensive cloud computing platform.",
-            metadata={"category": "cloud"},
-        ),
-        Document(
-            page_content="Machine Learning algorithms learn patterns from data automatically.",
-            metadata={"category": "machine learning"},
-        ),
-        Document(
-            page_content="Kubernetes orchestrates containerized applications across clusters.",
-            metadata={"category": "kubernetes"},
-        ),
-        Document(
-            page_content="Vector databases store high-dimensional vectors for AI applications.",
-            metadata={"category": "database"},
-        ),
-        Document(
-            page_content="Python is a versatile programming language for data science.",
-            metadata={"category": "programming"},
-        ),
-    ]
-
-    vector_store = Milvus.from_documents(
-        documents=initial_docs,
-        embedding=embeddings,
+    vector_store = Milvus(
+        embedding_function=get_embeddings(),
         collection_name=COLLECTION_NAME,
         connection_args={"uri": URI},
         drop_old=False,
@@ -121,76 +87,61 @@ def get_collection_stats(vector_store):
 
 
 def add_documents_to_store(vector_store, documents, source="text_input"):
-    """Add new documents to the collection"""
-    try:
-        start_time = time.time()
-        vector_store.add_documents(documents)
-        duration = time.time() - start_time
+    """Add new documents to the collection and log the operation."""
+    start_time = time.time()
+    vector_store.add_documents(documents)
+    vector_store.col.flush()  # Explicitly flush to make data searchable
+    duration = time.time() - start_time
 
-        log_operation(
-            "add", f"Added {len(documents)} documents from {source}", True, duration
-        )
-        return True, f"✅ {len(documents)} documents added successfully from {source}"
-    except Exception as e:
-        log_operation("add", f"Failed from {source}: {str(e)}", False)
-        return False, f"❌ Add failed: {str(e)}"
+    log_operation(
+        "add", f"Added {len(documents)} documents from {source}", True, duration
+    )
+    st.success(f"✅ {len(documents)} documents added successfully from {source}")
 
 
 def process_and_add_pdf(vector_store, uploaded_file):
-    """Extract text from PDF, split into chunks, and add to Milvus."""
-    if not fitz:
-        return False, "❌ PyMuPDF is not available. Cannot process PDF."
+    """Extract text from PDF, split it into chunks, and add to Milvus."""
+    # This function now relies on Streamlit's top-level error handling
+    with st.spinner(f"Processing {uploaded_file.name}..."):
+        # 1. Read the entire PDF content using PyMuPDF
+        pdf_doc = fitz.open(stream=uploaded_file.getvalue(), filetype="pdf")
+        full_text = "".join(page.get_text() for page in pdf_doc)
+        pdf_doc.close()
 
-    try:
-        with st.spinner(f"Processing {uploaded_file.name}..."):
-            # Read PDF content
-            doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-            text = "".join(page.get_text() for page in doc)
-            doc.close()
+        if not full_text.strip():
+            st.warning("PyMuPDF could not extract any text from the PDF.")
+            return
 
-            if not text.strip():
-                return False, "❌ No text could be extracted from the PDF."
-
-            # Split text into chunks
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000, chunk_overlap=100, length_function=len
-            )
-            chunks = text_splitter.split_text(text)
-
-            # Create Document objects
-            documents = [
-                Document(
-                    page_content=chunk,
-                    metadata={"source": uploaded_file.name, "category": "pdf"},
-                )
-                for chunk in chunks
-            ]
-
-            # Add documents to the store
-            success, message = add_documents_to_store(
-                vector_store, documents, source=uploaded_file.name
-            )
-
-            if success:
-                st.success(
-                    f"✅ Successfully processed and added {len(documents)} chunks from {uploaded_file.name}."
-                )
-            else:
-                st.error(f"❌ Failed to process {uploaded_file.name}: {message}")
-
-            return success, message
-
-    except Exception as e:
-        log_operation(
-            "pdf_process", f"Error processing {uploaded_file.name}: {str(e)}", False
+        # 2. Split text using RecursiveCharacterTextSplitter
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=100,
+            length_function=len,
         )
-        st.error(f"❌ An error occurred while processing the PDF: {str(e)}")
-        return False, str(e)
+        chunks = text_splitter.split_text(full_text)
+
+        # Create Document objects
+        documents = [Document(page_content=chunk) for chunk in chunks]
+
+        # Add source metadata to each final chunk
+        for doc in documents:
+            doc.metadata = {"source": uploaded_file.name, "category": "pdf"}
+
+        if not documents:
+            st.warning("Could not split the document into any chunks.")
+            return
+
+        # 3. Add the processed documents to Milvus
+        st.info(f"Adding {len(documents)} chunks to the vector store...")
+        add_documents_to_store(vector_store, documents, source=uploaded_file.name)
 
 
 def search_documents(vector_store, query, k=5):
     """Search documents with performance tracking"""
     try:
+        # Load collection into memory for searching to ensure all data is available
+        vector_store.col.load()
+
         start_time = time.time()
         results = vector_store.similarity_search_with_score(query, k=k)
         duration = time.time() - start_time
@@ -198,12 +149,14 @@ def search_documents(vector_store, query, k=5):
         search_results = []
         for doc, distance in results:
             similarity = max(0, min(1, 1 - (distance / 2)))
+            metadata = doc.metadata or {}
             search_results.append(
                 {
                     "Distance": round(distance, 4),
                     "Similarity": round(similarity, 4),
                     "Text": doc.page_content,
-                    "Source": doc.metadata.get("source", "manual_input"),
+                    "Source": metadata.get("source", "N/A"),
+                    "Category": metadata.get("category", "unknown"),
                 }
             )
 
@@ -249,12 +202,12 @@ with st.expander("Connection Details"):
 # Initialize vector store
 if st.button("Connect and Initialize Collection"):
     with st.spinner("Connecting to Milvus and setting up collection..."):
-        try:
-            st.session_state.vector_store = get_vector_store()
+        st.session_state.vector_store = get_vector_store()
+        if st.session_state.vector_store:
             st.success("✅ Collection initialized with sample documents")
             st.rerun()
-        except Exception as e:
-            st.error(f"❌ Setup failed: {str(e)}")
+        # If initialization fails, get_vector_store() returns None
+        # and displays its own error message. No 'else' needed here.
 
 if st.session_state.vector_store:
     col1, col2 = st.columns([2, 1])
@@ -274,7 +227,28 @@ if st.session_state.vector_store:
         st.subheader("📝 Document Operations")
 
         # Add Document
-        with st.expander("➕ Add Text Document", expanded=True):
+        with st.expander("➕ Insert Sample Documents", expanded=True):
+            with st.form("add_sample_documents_form", clear_on_submit=True):
+                submitted = st.form_submit_button("Add Sample Documents")
+                if submitted:
+                    with st.spinner("Adding sample documents..."):
+                        # Correctly pass metadata including the source
+                        docs = [
+                            Document(
+                                page_content=doc["text"],
+                                metadata={
+                                    "source": doc["source"],
+                                    "category": "sample",
+                                },
+                            )
+                            for doc in get_sample_documents()
+                        ]
+                        add_documents_to_store(
+                            st.session_state.vector_store, docs, source="Sample Data"
+                        )
+                        st.rerun()
+
+        with st.expander("➕ Insert Your Own Document", expanded=True):
             with st.form("add_document_form", clear_on_submit=True):
                 new_text = st.text_area(
                     "Document text:", placeholder="Enter your document content..."
@@ -289,27 +263,19 @@ if st.session_state.vector_store:
                 if submitted and new_text:
                     with st.spinner("Adding document..."):
                         doc = Document(
-                            page_content=new_text, metadata={"category": category}
+                            page_content=new_text,
+                            metadata={"category": category, "source": "user_input"},
                         )
-                        success, message = add_documents_to_store(
-                            st.session_state.vector_store, [doc]
-                        )
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
+                        add_documents_to_store(st.session_state.vector_store, [doc])
+                        st.rerun()
 
         # Upload PDF
-        if fitz:
-            with st.expander("📂 Upload PDF Document"):
-                uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
-                if uploaded_file is not None:
-                    if st.button(f"Process and Add {uploaded_file.name}"):
-                        process_and_add_pdf(
-                            st.session_state.vector_store, uploaded_file
-                        )
-                        st.rerun()
+        with st.expander("📂 Upload PDF Document"):
+            uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+            if uploaded_file is not None:
+                if st.button(f"Process and Add {uploaded_file.name}"):
+                    process_and_add_pdf(st.session_state.vector_store, uploaded_file)
+                    st.rerun()
 
         # Search Documents
         st.subheader("🔍 Search Documents")
@@ -324,8 +290,23 @@ if st.session_state.vector_store:
                 )
                 if success:
                     st.subheader("Search Results")
-                    df = pd.DataFrame(results)
-                    st.dataframe(df, use_container_width=True, hide_index=True)
+                    if not results:
+                        st.info("No results found.")
+                    else:
+                        df = pd.DataFrame(results)
+                        display_cols = [
+                            "Similarity",
+                            "Text",
+                            "Source",
+                            "Category",
+                            "Distance",
+                        ]
+                        existing_cols = [
+                            col for col in display_cols if col in df.columns
+                        ]
+                        st.dataframe(
+                            df[existing_cols], use_container_width=True, hide_index=True
+                        )
                 else:
                     st.error(results)
 

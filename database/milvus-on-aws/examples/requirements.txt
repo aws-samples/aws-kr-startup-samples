@@ -1,6 +1,7 @@
 langchain
-langchain-milvus
 langchain-huggingface
+langchain-milvus
+sentence-transformers
 streamlit
 pandas
 python-dotenv
