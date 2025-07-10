@@ -1,8 +1,9 @@
-pymilvus
-sentence_transformers
-python-dotenv
+langchain
+langchain-huggingface
+langchain-milvus
+sentence-transformers
 streamlit
-langchain_milvus
-langchain_huggingface
-boto3
+pandas
+python-dotenv
+pymilvus
 pymupdf
