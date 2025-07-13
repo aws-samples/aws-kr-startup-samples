@@ -24,7 +24,7 @@ The Qwen3 Embedding model series is the latest proprietary model of the Qwen fam
 
 ### Option 1: Using Jupyter Notebook
 
-The notebook in `src/notebook/deploy_bge_m3_on_sagemaker_endpoint.ipynb` provides step-by-step instructions for:
+The notebook in `src/notebook/deploy_qwen3_embedding_06b_on_sagemaker_endpoint.ipynb` provides step-by-step instructions for:
 
 1. Downloading the model checkpoint from Hugging Face
 2. Uploading the model to Amazon S3
