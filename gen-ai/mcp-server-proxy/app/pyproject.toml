@@ -1,0 +1,12 @@
+[project]
+name = "mcp-server-proxy"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=2.10.5",
+    "mcp>=1.10.1",
+    "starlette>=0.46.2",
+    "boto3>=1.39.9"
+]

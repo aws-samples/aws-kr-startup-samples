@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "aws-api-mcp-server": {
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-api-mcp-server@latest"
+      ],
+      "env": {
+        "AWS_REGION": "ap-northeast-2"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
