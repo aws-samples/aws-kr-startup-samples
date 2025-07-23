@@ -52,6 +52,11 @@ To add additional dependencies, for example other CDK libraries, just add them t
 
 ## Prerequisites
 
+**Install AWS CDK CLI**
+
+If you don't have AWS CDK CLI installed, please follow the installation guide:
+**[AWS CDK Getting Started - Installation](https://docs.aws.amazon.com/ko_kr/cdk/v2/guide/getting-started.html#getting-started-install)**
+
 **Bootstrap AWS environment for AWS CDK app**
 
 Before any AWS CDK app can be deployed, you have to bootstrap your AWS environment to create certain AWS resources that the AWS CDK CLI (Command Line Interface) uses to deploy your AWS CDK app.
@@ -154,12 +159,12 @@ Check the CloudFormation outputs for connection details:
 ![vscode-server](./assets/images/vscode-server.png)
 
 1. **Open in Browser**
-   
+
    Use the CloudFront URL (recommended):
    ```
    https://<CloudFront-Domain-Name>
    ```
-   
+
    Or direct access:
    ```
    http://<EC2-Public-DNS>:8081
@@ -168,6 +173,9 @@ Check the CloudFormation outputs for connection details:
 2. **Login**
    - Enter the password from CloudFormation outputs
    - Access VS Code web interface
+
+### VS code Terminal Access 
+![vscode-terminal](./assets/images/vscode-terminal.png)
 
 
 
@@ -180,7 +188,7 @@ Check the CloudFormation outputs for connection details:
 Static data is automatically deployed to S3 during the CDK deployment process. The following CSV files are included in the `assets/data/` directory and will be uploaded to your S3 data lake bucket:
 
 - `raw_data/ticket/category/category.csv` - Event categories
-- `raw_data/ticket/date/date.csv` - Date dimension data  
+- `raw_data/ticket/date/date.csv` - Date dimension data
 - `raw_data/ticket/event/event.csv` - Event information
 - `raw_data/ticket/users/users.csv` - User data
 - `raw_data/ticket/listing/listing.csv` - Ticket listings
@@ -202,8 +210,12 @@ aws s3 ls s3://athena-data-lake-bucket-${ACCOUNT_ID}/raw_data/ticket/ --recursiv
 - Full Load + CDC (Change Data Capture) approach
 - Automated data synchronization between Aurora MySQL and S3
 
-For detailed setup and configuration, follow the workshop guide from this step:
-**[Aurora DMS to S3 Configuration](https://catalog.us-east-1.prod.workshops.aws/workshops/4afae33c-c126-461e-97a9-25ce668cdd51/en-US/data-ingestion/aurora-dms-s3)**
+> **⚠️ IMPORTANT: Follow Workshop Guide for Next Steps**
+> 
+> For detailed setup and configuration, **you must follow the workshop guide from this step onwards**:
+> **[Aurora DMS to S3 Configuration](https://catalog.us-east-1.prod.workshops.aws/workshops/4afae33c-c126-461e-97a9-25ce668cdd51/en-US/data-ingestion/aurora-dms-s3)**
+> 
+> All subsequent steps (DMS configuration, Glue Crawler setup, dbt transformation, etc.) should be completed following the workshop instructions rather than this README.
 
 **Data Generation**
 - Lambda function generates sample sales data in Aurora MySQL every 2 minutes
@@ -223,6 +235,8 @@ For detailed setup and configuration, follow the workshop guide from this step:
 - Integration with Athena for seamless querying experience
 
 ### 3. Data Transformation & Modeling
+
+![dbt-docs-model-dependency](./assets/images/dbt-docs-model-dependency.png)
 
 **DBT Transformation Staging Layer**
 - Raw data cleaning and standardization
