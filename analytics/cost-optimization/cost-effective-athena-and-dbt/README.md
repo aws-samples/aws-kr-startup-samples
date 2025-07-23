@@ -177,7 +177,8 @@ Check the CloudFormation outputs for connection details:
 ### VS code Terminal Access 
 ![vscode-terminal](./assets/images/vscode-terminal.png)
 
-
+### VS code setup
+![vscode-setup](./assets/images/vscode-setup.png)
 
 ## Data Pipeline Flow
 
