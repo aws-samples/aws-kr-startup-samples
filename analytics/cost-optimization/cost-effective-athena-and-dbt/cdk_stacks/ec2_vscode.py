@@ -85,6 +85,19 @@ class EC2VSCodeStack(Stack):
                                 cdk.Fn.import_value("S3Stack:ExportsOutputFnGetAttAthenaDataLakeBucket25753166Arn48064D29"),
                                 cdk.Fn.import_value("S3Stack:ExportsOutputFnGetAttAthenaDataLakeBucket25753166Arn48064D29") + "/*"
                             ]
+                        ),
+                        # 워크샵 자산 버킷 읽기 권한 추가
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=[
+                                "s3:GetObject",
+                                "s3:ListBucket",
+                                "s3:GetBucketLocation"
+                            ],
+                            resources=[
+                                "arn:aws:s3:::ws-assets-prod-*",
+                                "arn:aws:s3:::ws-assets-prod-*/*"
+                            ]
                         )
                     ]
                 ),
@@ -104,15 +117,42 @@ class EC2VSCodeStack(Stack):
                         )
                     ]
                 ),
-                "GlueReadAccess": iam.PolicyDocument(
+                "GlueFullAccess": iam.PolicyDocument(
                     statements=[
                         iam.PolicyStatement(
                             effect=iam.Effect.ALLOW,
                             actions=[
                                 "glue:GetDatabase",
+                                "glue:GetDatabases",
+                                "glue:CreateDatabase",
+                                "glue:UpdateDatabase",
+                                "glue:DeleteDatabase",
                                 "glue:GetTable",
                                 "glue:GetTables",
-                                "glue:GetPartitions"
+                                "glue:CreateTable",
+                                "glue:UpdateTable",
+                                "glue:DeleteTable",
+                                "glue:GetPartitions",
+                                "glue:GetPartition",
+                                "glue:CreatePartition",
+                                "glue:UpdatePartition",
+                                "glue:DeletePartition",
+                                "glue:BatchCreatePartition",
+                                "glue:BatchDeletePartition",
+                                "glue:BatchGetPartition",
+                                "glue:GetCatalogImportStatus",
+                                "glue:GetDataCatalogEncryptionSettings"
+                            ],
+                            resources=["*"]
+                        )
+                    ]
+                ),
+                "STSAccess": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            effect=iam.Effect.ALLOW,
+                            actions=[
+                                "sts:GetCallerIdentity"
                             ],
                             resources=["*"]
                         )
