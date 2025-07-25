@@ -161,7 +161,6 @@ if [ $? -eq 0 ]; then
         --set grafanaMcpServer.env.grafanaApiKey=${GRAFANA_API_KEY} \
         --set serviceAccount.create=true \
         --set serviceAccount.name=observability-sa \
-        --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="$POD_ROLE_ARN" \
         --set aws.region=$REGION \
         --wait
 

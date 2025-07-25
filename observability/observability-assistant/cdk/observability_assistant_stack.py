@@ -199,8 +199,8 @@ class ObservabilityAssistantStack(Stack):
         self.pod_identity_association = eks.CfnPodIdentityAssociation(
             self, "ObservabilityAssistantPodIdentity",
             cluster_name=self.cluster_name,
-            namespace="default",  # Adjust if using different namespace
-            service_account="observability-assistant-sa",
+            namespace="observability",  # Adjust if using different namespace
+            service_account="observability-sa",
             role_arn=self.pod_role.role_arn
         )
     

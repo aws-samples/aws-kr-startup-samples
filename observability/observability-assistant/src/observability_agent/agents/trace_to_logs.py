@@ -81,7 +81,7 @@ def trace_to_logs(trace_id: str, span_id: Optional[str] = None, service_name: Op
     # Create an internal agent to help with the process
     settings = get_default_settings()
     agent = Agent(
-        model=settings.bedrock.model_id,
+        model=settings.bedrock_model,
         tools=tools,
         system_prompt=SYSTEM_PROMPT
     )

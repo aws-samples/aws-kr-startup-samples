@@ -129,6 +129,11 @@ type TempoTagValuesResult struct {
 // Environment variable name for Tempo URL
 const EnvTempoURL = "TEMPO_URL"
 
+// Environment variable names for authentication
+const EnvTempoUsername = "TEMPO_USERNAME"
+const EnvTempoPassword = "TEMPO_PASSWORD"
+const EnvTempoToken = "TEMPO_TOKEN"
+
 // Default Tempo URL when environment variable is not set
 const DefaultTempoURL = "http://localhost:3200"
 
@@ -149,15 +154,6 @@ func NewSearchTracesTool() mcp.Tool {
 		mcp.WithString("url",
 			mcp.Description(fmt.Sprintf("Tempo server URL (default: %s from %s env var)", tempoURL, EnvTempoURL)),
 			mcp.DefaultString(tempoURL),
-		),
-		mcp.WithString("username",
-			mcp.Description("Username for basic authentication"),
-		),
-		mcp.WithString("password",
-			mcp.Description("Password for basic authentication"),
-		),
-		mcp.WithString("token",
-			mcp.Description("Bearer token for authentication"),
 		),
 		mcp.WithString("start",
 			mcp.Description("Start time for the query (default: 1h ago)"),
@@ -189,15 +185,6 @@ func NewGetTraceByIDTool() mcp.Tool {
 			mcp.Description(fmt.Sprintf("Tempo server URL (default: %s from %s env var)", tempoURL, EnvTempoURL)),
 			mcp.DefaultString(tempoURL),
 		),
-		mcp.WithString("username",
-			mcp.Description("Username for basic authentication"),
-		),
-		mcp.WithString("password",
-			mcp.Description("Password for basic authentication"),
-		),
-		mcp.WithString("token",
-			mcp.Description("Bearer token for authentication"),
-		),
 		mcp.WithString("start",
 			mcp.Description("Start time for the search (unix epoch seconds)"),
 		),
@@ -220,15 +207,6 @@ func NewSearchTagsTool() mcp.Tool {
 		mcp.WithString("url",
 			mcp.Description(fmt.Sprintf("Tempo server URL (default: %s from %s env var)", tempoURL, EnvTempoURL)),
 			mcp.DefaultString(tempoURL),
-		),
-		mcp.WithString("username",
-			mcp.Description("Username for basic authentication"),
-		),
-		mcp.WithString("password",
-			mcp.Description("Password for basic authentication"),
-		),
-		mcp.WithString("token",
-			mcp.Description("Bearer token for authentication"),
 		),
 		mcp.WithString("scope",
 			mcp.Description("Scope of the tags (resource|span|intrinsic). Default: all scopes"),
@@ -265,15 +243,6 @@ func NewSearchTagValuesTool() mcp.Tool {
 		mcp.WithString("url",
 			mcp.Description(fmt.Sprintf("Tempo server URL (default: %s from %s env var)", tempoURL, EnvTempoURL)),
 			mcp.DefaultString(tempoURL),
-		),
-		mcp.WithString("username",
-			mcp.Description("Username for basic authentication"),
-		),
-		mcp.WithString("password",
-			mcp.Description("Password for basic authentication"),
-		),
-		mcp.WithString("token",
-			mcp.Description("Bearer token for authentication"),
 		),
 		mcp.WithString("start",
 			mcp.Description("Start time for the search (unix epoch seconds)"),
@@ -318,17 +287,10 @@ func HandleSearchTraces(ctx context.Context, request mcp.CallToolRequest) (*mcp.
 	}
 	logger.Printf("Using Tempo URL: %s", tempoURL)
 
-	// Extract authentication parameters
-	var username, password, token string
-	if usernameArg, ok := args["username"].(string); ok {
-		username = usernameArg
-	}
-	if passwordArg, ok := args["password"].(string); ok {
-		password = passwordArg
-	}
-	if tokenArg, ok := args["token"].(string); ok {
-		token = tokenArg
-	}
+	// Get authentication from environment variables
+	username := os.Getenv(EnvTempoUsername)
+	password := os.Getenv(EnvTempoPassword)
+	token := os.Getenv(EnvTempoToken)
 
 	// Set defaults for optional parameters
 	start := time.Now().Add(-1 * time.Hour).Unix()
@@ -422,17 +384,10 @@ func HandleGetTraceByID(ctx context.Context, request mcp.CallToolRequest) (*mcp.
 	}
 	logger.Printf("Using Tempo URL: %s", tempoURL)
 
-	// Extract authentication parameters
-	var username, password, token string
-	if usernameArg, ok := args["username"].(string); ok {
-		username = usernameArg
-	}
-	if passwordArg, ok := args["password"].(string); ok {
-		password = passwordArg
-	}
-	if tokenArg, ok := args["token"].(string); ok {
-		token = tokenArg
-	}
+	// Get authentication from environment variables
+	username := os.Getenv(EnvTempoUsername)
+	password := os.Getenv(EnvTempoPassword)
+	token := os.Getenv(EnvTempoToken)
 
 	// Extract optional time parameters
 	var start, end *int64
@@ -511,17 +466,10 @@ func HandleSearchTags(ctx context.Context, request mcp.CallToolRequest) (*mcp.Ca
 	}
 	logger.Printf("Using Tempo URL: %s", tempoURL)
 
-	// Extract authentication parameters
-	var username, password, token string
-	if usernameArg, ok := args["username"].(string); ok {
-		username = usernameArg
-	}
-	if passwordArg, ok := args["password"].(string); ok {
-		password = passwordArg
-	}
-	if tokenArg, ok := args["token"].(string); ok {
-		token = tokenArg
-	}
+	// Get authentication from environment variables
+	username := os.Getenv(EnvTempoUsername)
+	password := os.Getenv(EnvTempoPassword)
+	token := os.Getenv(EnvTempoToken)
 
 	// Extract optional parameters
 	var scope string
@@ -621,17 +569,10 @@ func HandleSearchTagValues(ctx context.Context, request mcp.CallToolRequest) (*m
 	}
 	logger.Printf("Using Tempo URL: %s", tempoURL)
 
-	// Extract authentication parameters
-	var username, password, token string
-	if usernameArg, ok := args["username"].(string); ok {
-		username = usernameArg
-	}
-	if passwordArg, ok := args["password"].(string); ok {
-		password = passwordArg
-	}
-	if tokenArg, ok := args["token"].(string); ok {
-		token = tokenArg
-	}
+	// Get authentication from environment variables
+	username := os.Getenv(EnvTempoUsername)
+	password := os.Getenv(EnvTempoPassword)
+	token := os.Getenv(EnvTempoToken)
 
 	// Extract optional parameters
 	var start, end *int64
