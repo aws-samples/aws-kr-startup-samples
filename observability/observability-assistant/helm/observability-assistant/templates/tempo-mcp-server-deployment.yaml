@@ -36,6 +36,12 @@ spec:
           env:
             - name: TEMPO_URL
               value: {{ .Values.tempoMcpServer.env.tempoUrl | quote }}
+            - name: TEMPO_USERNAME
+              value: {{ .Values.tempoMcpServer.env.tempoUsername | quote }}
+            - name: TEMPO_PASSWORD
+              value: {{ .Values.tempoMcpServer.env.tempoPassword | quote }}
+            - name: TEMPO_TOKEN
+              value: {{ .Values.tempoMcpServer.env.tempoToken | quote }}
           livenessProbe:
             tcpSocket:
               port: http

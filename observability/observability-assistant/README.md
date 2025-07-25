@@ -2,6 +2,25 @@
 
 A specialized AI-powered agent that helps analyze traces, logs, and metrics from observability platforms. The assistant can convert trace IDs to related logs, query observability data, and provide actionable insights through both CLI and web interfaces.
 
+## 🏗️ Project Overview
+
+This project leverages several key components to provide comprehensive observability insights:
+
+### **Agent Framework**
+- **Strands Agent**: The core agent framework that orchestrates AI-powered observability analysis and interactions
+
+### **MCP Server Integration**
+- **Grafana MCP Server**: Connects directly to your Grafana instance to query Prometheus metrics and Loki logs
+- **Tempo MCP Server**: Dedicated server for distributed tracing queries since Grafana MCP Server doesn't include Tempo tools
+
+### **Data Source Requirements**
+Your Grafana instance must be properly configured with the following datasources to function correctly:
+- **Prometheus**: For metrics collection and querying
+- **Loki**: For log aggregation and search
+- **Tempo**: For distributed tracing (accessed via dedicated Tempo MCP Server)
+
+This architecture enables seamless correlation between metrics, logs, and traces through natural language interactions.
+
 ## 🎯 Features
 
 ### 🔍 **Natural Language Observability Queries**
@@ -22,87 +41,27 @@ A specialized AI-powered agent that helps analyze traces, logs, and metrics from
 - **Real-time analysis**: Streaming responses for immediate feedback during debugging sessions
 - **Actionable recommendations**: Get specific suggestions for troubleshooting and optimization
 
-### 🔌 **MCP Server Integration**
-- **Grafana MCP Server**: Direct integration with Prometheus and Loki datasources
-- **Tempo MCP Server**: Specialized server for distributed tracing queries
-- **Extensible architecture**: Model Context Protocol enables easy addition of new observability tools
-- **Multi-server support**: Connect to multiple MCP servers for comprehensive coverage
-
 ### 💻 **Multiple Interfaces**
 - **CLI interface**: Command-line tool for direct interaction
 - **Web interface**: Streamlit-based web UI for browser access
 
 ## 🏗️ Architecture
 
-### Integration Architecture
-```mermaid
-graph TB
-    A[User Interface] --> B[Observability Agent]
-    B --> C[MCP Tool Registry]
-    B --> D[Datasource Manager]
-    B --> G[AWS Bedrock]
-    
-    C --> E[Grafana MCP Server]
-    C --> K[Tempo MCP Server]
-    D --> E
-    
-    E --> H[Prometheus]
-    E --> J[Loki]
-    K --> I[Tempo]
-```
+![arc](assets/architecture.png)
 
-## 🚀 Getting Started
-
-### Prerequisites
-- **Python 3.11+**
-- **AWS Account** with Bedrock access
-- **Grafana instance** with Prometheus and Loki datasources
-- **Tempo instance** for distributed tracing
-- **MCP servers** for Grafana and Tempo integration
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd observability-assistant
-   ```
-
-2. **Create and activate a virtual environment**
-   ```bash
-   # Create virtual environment
-   python -m venv .venv
-   
-   # Activate virtual environment
-   # On macOS/Linux:
-   source .venv/bin/activate
-   
-   # On Windows:
-   # .venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -e .
-   ```
-
-3. **Configure environment variables**
-   ```bash
-   # Copy the environment template
-   cp env.template .env
-   
-   # Edit .env with your actual values
-   # Required variables:
-   # - BEDROCK_MODEL_ID
-   # - BEDROCK_REGION (or AWS_REGION)
-   # - GRAFANA_MCP_URL
-   ```
-
-## 🚀 Production Deployment (EKS)
+## 🚀 Deployment (EKS)
 
 For production deployment to Amazon EKS with CDK and Helm:
 
 ### Prerequisites
+- **AWS Account** with Bedrock access
+- **Grafana instance** with Prometheus, Loki, and Tempo datasources configured
+- **Grafana Service Account Token**: You'll need to create a service account and generate an API token for authentication. Follow the [Grafana Service Accounts documentation](https://grafana.com/docs/grafana/latest/administration/service-accounts/) to:
+  1. Create a service account in your Grafana instance
+  2. Assign appropriate permissions (Viewer role minimum, Editor recommended for full functionality)
+  3. Generate a service account token
+  4. Use this token as your `GRAFANA_API_KEY` environment variable
+- **Tempo instance** for distributed tracing
 - **AWS CDK**: Install with `npm install -g aws-cdk`
 - **Helm**: Install with `curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash`
 - **Existing EKS cluster**: The deployment targets an existing cluster
@@ -127,8 +86,14 @@ For production deployment to Amazon EKS with CDK and Helm:
    export GRAFANA_URL="https://your-grafana-instance.com"
    export GRAFANA_API_KEY="your-grafana-api-key"
    export TEMPO_URL="https://your-tempo-instance.com"
-   export BEDROCK_MODEL_ID="anthropic.claude-3-7-sonnet-20250219-v1:0"
+   export BEDROCK_MODEL_ID="us.anthropic.claude-3-7-sonnet-20250219-v1:0"
    export BEDROCK_REGION="us-east-1"
+   
+   # Optional: Set Tempo authentication (if required by your Tempo instance)
+   export TEMPO_USERNAME="your-tempo-username"
+   export TEMPO_PASSWORD="your-tempo-password"
+   # OR use bearer token instead of username/password
+   export TEMPO_TOKEN="your-tempo-bearer-token"
    ```
 
 4. **Deploy everything**:
@@ -141,7 +106,7 @@ For production deployment to Amazon EKS with CDK and Helm:
    ./deploy.sh my-eks-cluster ap-northeast-2
    ```
 
-5. **Access the web interface**:
+5. **Access the web interface with url from**:
    ```bash
    kubectl get service observability-assistant -n observability
    ```
@@ -155,75 +120,25 @@ See [cdk/README.md](cdk/README.md) for detailed deployment instructions.
 
 ## 📖 Usage Guide
 
-### CLI Interface
+### Web Interface (EKS Deployment)
 
-**Start the interactive CLI:**
-```bash
-python -m observability_agent.interfaces.cli
-```
+After deploying to EKS, access the web interface through the Kubernetes service:
 
-**Example interactions:**
-```
-You: Find logs for trace ID abc123def456
-Assistant: I'll help you find logs related to trace ID abc123def456...
+1. **Get the service URL:**
+   ```bash
+   kubectl -n observability get service observability-assistant
+   ```
 
-You: What logs are associated with trace abc123def456 and span 789xyz?
-Assistant: Searching for logs with trace ID abc123def456 and span ID 789xyz...
+2. **Access the web interface:**
+   - Copy the external IP or load balancer URL from the service output
+   - Open your browser and navigate to the service URL
+   - The web interface provides an intuitive chat-based interface for observability queries
 
-You: exit
-```
+**Example interactions through the web interface:**
+![](assets/web_interface.png)
+![](assets/web_interface_2.png)
+![](assets/web_interface_3.png)
 
-### Web Interface
-
-**Start the Streamlit web app:**
-```bash
-streamlit run src/observability_agent/interfaces/web.py
-```
-
-Then open your browser to `http://localhost:8501` for the web interface.
-
-### Configuration
-
-All settings are configured through **environment variables**. The application will load variables from a `.env` file if present.
-
-**Required environment variables:**
-- `BEDROCK_MODEL_ID`: The Bedrock model to use (default: anthropic.claude-3-5-sonnet-20240620-v1:0)
-- `BEDROCK_REGION`: AWS region for Bedrock (default: ap-northeast-2)  
-- `GRAFANA_MCP_URL`: URL of your Grafana MCP server
-
-**Optional environment variables:**
-- `AWS_REGION`: Alternative to BEDROCK_REGION
-- `ADDITIONAL_MCP_URLS`: Comma-separated list of additional MCP server URLs
-
-**Configuration files:**
-- `env.template`: Template showing all available environment variables
-- `.env`: Your local environment variables (copy from env.template)
-
-## 🛠️ Development
-
-### Project Structure Guidelines
-- **File size limit**: Maximum 500 lines per file
-- **Import patterns**: Use domain-specific imports (`observability_agent.datasources.cache`)
-- **Testing**: Each domain can be tested independently
-
-### Running Tests
-```bash
-# Install development dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Code formatting
-black src/
-isort src/
-```
-
-### Adding New Features
-1. Follow the domain-based organization
-2. Maintain single responsibility per file
-3. Use proper import patterns
-4. Update documentation and tests
 
 ## 🤝 Contributing
 

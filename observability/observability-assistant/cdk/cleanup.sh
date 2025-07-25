@@ -67,6 +67,34 @@ else
     print_warning "Helm not found, skipping Helm cleanup"
 fi
 
+# Clean up ECR repositories before destroying stack
+print_status "Cleaning up ECR repositories..."
+ECR_REPOS=("observability-assistant/agent" "observability-assistant/tempo-mcp-server")
+
+for repo in "${ECR_REPOS[@]}"; do
+    if aws ecr describe-repositories --repository-names "$repo" --region "$REGION" &>/dev/null; then
+        print_status "Deleting images in ECR repository: $repo"
+        # Get all image tags and delete them
+        IMAGE_TAGS=$(aws ecr list-images --repository-name "$repo" --region "$REGION" --query 'imageIds[*].imageTag' --output text 2>/dev/null || true)
+        if [ -n "$IMAGE_TAGS" ] && [ "$IMAGE_TAGS" != "None" ]; then
+            for tag in $IMAGE_TAGS; do
+                aws ecr batch-delete-image --repository-name "$repo" --region "$REGION" --image-ids imageTag="$tag" &>/dev/null || true
+            done
+        fi
+        
+        # Also delete untagged images
+        UNTAGGED_IMAGES=$(aws ecr list-images --repository-name "$repo" --region "$REGION" --filter tagStatus=UNTAGGED --query 'imageIds[*].imageDigest' --output text 2>/dev/null || true)
+        if [ -n "$UNTAGGED_IMAGES" ] && [ "$UNTAGGED_IMAGES" != "None" ]; then
+            for digest in $UNTAGGED_IMAGES; do
+                aws ecr batch-delete-image --repository-name "$repo" --region "$REGION" --image-ids imageDigest="$digest" &>/dev/null || true
+            done
+        fi
+        print_status "ECR repository $repo cleaned up"
+    else
+        print_status "ECR repository $repo not found, skipping"
+    fi
+done
+
 print_status "Destroying CDK stack..."
 cdk destroy \
     --context cluster_name=$CLUSTER_NAME \
@@ -77,11 +105,9 @@ cdk destroy \
 
 if [ $? -eq 0 ]; then
     print_status "Cleanup completed successfully!"
-    print_warning "Note: ECR repositories may still contain images that incur storage costs."
-    print_status "To clean up ECR repositories manually:"
-    echo "  aws ecr delete-repository --repository-name observability-assistant/agent --force --region $REGION"
-    echo "  aws ecr delete-repository --repository-name observability-assistant/tempo-mcp-server --force --region $REGION"
 else
-    print_error "Cleanup failed!"
+    print_error "CDK stack destruction failed!"
+    print_warning "You may need to manually delete the stack from AWS Console"
+    print_status "ECR repositories have been cleaned up, so you can retry the cleanup"
     exit 1
 fi

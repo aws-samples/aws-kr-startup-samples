@@ -37,6 +37,12 @@ This directory contains CDK and Helm deployment scripts for the Observability As
    export TEMPO_URL="https://your-tempo-instance.com"
    export BEDROCK_MODEL_ID="anthropic.claude-3-7-sonnet-20250219-v1:0"
    export BEDROCK_REGION="us-east-1"
+   
+   # Optional: Set Tempo authentication (if required by your Tempo instance)
+   export TEMPO_USERNAME="your-tempo-username"
+   export TEMPO_PASSWORD="your-tempo-password"
+   # OR use bearer token instead of username/password
+   export TEMPO_TOKEN="your-tempo-bearer-token"
    ```
 
 ## Deployment

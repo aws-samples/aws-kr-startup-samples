@@ -1,9 +1,11 @@
 """Settings for the observability agent."""
 import os
 import sys
+import boto3
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
+from strands.models import BedrockModel
 
 # Try to load .env file if it exists
 try:
@@ -31,7 +33,9 @@ class BedrockSettings(BaseModel):
 class Settings(BaseModel):
     """Settings for the observability agent."""
     
-    bedrock: BedrockSettings = Field(description="Bedrock settings")
+    model_config = {"arbitrary_types_allowed": True}
+    
+    bedrock_model: BedrockModel = Field(description="Bedrock settings")
     mcp_servers: List[MCPConfig] = Field(description="MCP server configurations")
 
 
@@ -72,16 +76,17 @@ def get_default_settings() -> Settings:
                 print(f"  {var}=http://your-tempo-mcp-server:8000/mcp")
         sys.exit(1)
     
+    session = boto3.Session(region_name=os.getenv("BEDROCK_REGION",  "us-east-1"))
     # Load Bedrock settings from environment
-    bedrock_settings = BedrockSettings(
-        model_id=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-7-sonnet-20250219-v1:0"),
-        region=os.getenv("BEDROCK_REGION", os.getenv("AWS_REGION", "us-east-1"))
+    bedrock_model = BedrockModel(
+        model_id=os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-3-7-sonnet-20250219-v1:0"),
+        boto_session=session
     )
     
     # Load MCP server configuration from environment
     mcp_servers = [MCPConfig(grafana_mcp_url=grafana_mcp_url, tempo_mcp_url=tempo_mcp_url)]
     
     return Settings(
-        bedrock=bedrock_settings,
+        bedrock_model=bedrock_model,
         mcp_servers=mcp_servers
     ) 

@@ -2,6 +2,7 @@
 import os
 from typing import Optional, List, Any, Dict
 from strands import Agent
+from strands.models import BedrockModel
 
 from observability_agent.agents.trace_to_logs import trace_to_logs
 from observability_agent.datasources.cache import load_datasources_config
@@ -58,9 +59,6 @@ class CoordinatorAgent:
             return self
         
         try:
-            # Set AWS region environment variable
-            os.environ['AWS_REGION'] = self.settings.bedrock.region
-            
             # Initialize the singleton ToolRegistry
             self.tool_registry = ToolRegistry.get_instance(self.settings)
             self.tool_registry.initialize()
@@ -77,11 +75,11 @@ class CoordinatorAgent:
             
             # Collect available tools (after tool registry is initialized)
             available_tools = self._collect_available_tools()
-            
+
             # Create the main agent
             self.agent = Agent(
                 system_prompt=SYSTEM_PROMPT,
-                model=self.settings.bedrock.model_id,
+                model=self.settings.bedrock_model,
                 tools=available_tools,
                 callback_handler=None
             )

@@ -80,13 +80,10 @@ The `search_traces` tool allows you to search for traces in Grafana Tempo:
 * Required parameters:
   * `query`: Tempo trace search query string (e.g., `{service.name="frontend"}`, `{duration>1s}`)
 * Optional parameters:
-  * `url`: The Tempo server URL (default: from TEMPO_MCP_URL environment variable or http://localhost:3200)
+  * `url`: The Tempo server URL (default: from TEMPO_URL environment variable or http://localhost:3200)
   * `start`: Start time for the query (default: 1h ago)
   * `end`: End time for the query (default: now)
   * `limit`: Maximum number of traces to return (default: 20)
-  * `username`: Username for basic authentication (optional)
-  * `password`: Password for basic authentication (optional)
-  * `token`: Bearer token for authentication (optional)
 
 ### Get Trace by ID Tool
 
@@ -95,27 +92,21 @@ The `get_trace_by_id` tool allows you to retrieve a specific trace by its trace 
 * Required parameters:
   * `traceID`: The trace ID to retrieve
 * Optional parameters:
-  * `url`: The Tempo server URL (default: from TEMPO_MCP_URL environment variable or http://localhost:3200)
+  * `url`: The Tempo server URL (default: from TEMPO_URL environment variable or http://localhost:3200)
   * `start`: Start time for the search (unix epoch seconds)
   * `end`: End time for the search (unix epoch seconds)
-  * `username`: Username for basic authentication (optional)
-  * `password`: Password for basic authentication (optional)
-  * `token`: Bearer token for authentication (optional)
 
 ### Search Tags Tool
 
 The `search_tags` tool allows you to search for available tag names in Grafana Tempo:
 
 * Optional parameters:
-  * `url`: The Tempo server URL (default: from TEMPO_MCP_URL environment variable or http://localhost:3200)
+  * `url`: The Tempo server URL (default: from TEMPO_URL environment variable or http://localhost:3200)
   * `scope`: Scope of the tags (resource|span|intrinsic). Default: all scopes
   * `start`: Start time for the search (unix epoch seconds)
   * `end`: End time for the search (unix epoch seconds)
   * `limit`: Maximum number of tag values to return
   * `maxStaleValues`: Limits the search for tag names
-  * `username`: Username for basic authentication (optional)
-  * `password`: Password for basic authentication (optional)
-  * `token`: Bearer token for authentication (optional)
 
 ### Search Tag Values Tool
 
@@ -124,20 +115,20 @@ The `search_tag_values` tool allows you to search for values of a specific tag i
 * Required parameters:
   * `tagName`: The tag name to search values for (e.g., 'service.name', 'http.method')
 * Optional parameters:
-  * `url`: The Tempo server URL (default: from TEMPO_MCP_URL environment variable or http://localhost:3200)
+  * `url`: The Tempo server URL (default: from TEMPO_URL environment variable or http://localhost:3200)
   * `start`: Start time for the search (unix epoch seconds)
   * `end`: End time for the search (unix epoch seconds)
   * `limit`: Maximum number of tag values to return
   * `maxStaleValues`: Limits the search for tag values
-  * `username`: Username for basic authentication (optional)
-  * `password`: Password for basic authentication (optional)
-  * `token`: Bearer token for authentication (optional)
 
 #### Environment Variables
 
 The Tempo MCP server supports the following environment variables:
 
-* `TEMPO_MCP_URL`: Default Tempo server URL to use if not specified in the request
+* `TEMPO_URL`: Default Tempo server URL to use if not specified in the request
+* `TEMPO_USERNAME`: Username for basic authentication (optional)
+* `TEMPO_PASSWORD`: Password for basic authentication (optional)  
+* `TEMPO_TOKEN`: Bearer token for authentication (optional, alternative to username/password)
 
 ## Using with Claude Desktop
 
@@ -155,7 +146,28 @@ Example Claude Desktop configuration:
       "command": "path/to/tempo-mcp-server",
       "args": [],
       "env": {
-        "TEMPO_MCP_URL": "http://localhost:3200"
+        "TEMPO_URL": "http://localhost:3200",
+        "TEMPO_USERNAME": "your-username",
+        "TEMPO_PASSWORD": "your-password"
+      },
+      "disabled": false,
+      "autoApprove": ["search_traces", "get_trace_by_id", "search_tags", "search_tag_values"]
+    }
+  }
+}
+```
+
+Or using bearer token authentication:
+
+```json
+{
+  "mcpServers": {
+    "temposerver": {
+      "command": "path/to/tempo-mcp-server",
+      "args": [],
+      "env": {
+        "TEMPO_URL": "http://localhost:3200",
+        "TEMPO_TOKEN": "your-bearer-token"
       },
       "disabled": false,
       "autoApprove": ["search_traces", "get_trace_by_id", "search_tags", "search_tag_values"]
@@ -171,7 +183,22 @@ For Docker:
   "mcpServers": {
     "temposerver": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "-p", "8000:8000", "-e", "TEMPO_MCP_URL=http://host.docker.internal:3200", "tempo-mcp-server"],
+      "args": ["run", "--rm", "-i", "-p", "8000:8000", "-e", "TEMPO_URL=http://host.docker.internal:3200", "-e", "TEMPO_USERNAME=your-username", "-e", "TEMPO_PASSWORD=your-password", "tempo-mcp-server"],
+      "disabled": false,
+      "autoApprove": ["search_traces", "get_trace_by_id", "search_tags", "search_tag_values"]
+    }
+  }
+}
+```
+
+Or using bearer token authentication:
+
+```json
+{
+  "mcpServers": {
+    "temposerver": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "-p", "8000:8000", "-e", "TEMPO_URL=http://host.docker.internal:3200", "-e", "TEMPO_TOKEN=your-bearer-token", "tempo-mcp-server"],
       "disabled": false,
       "autoApprove": ["search_traces", "get_trace_by_id", "search_tags", "search_tag_values"]
     }
@@ -193,7 +220,20 @@ You can also integrate the Tempo MCP server with the Cursor editor. To do this, 
   "mcpServers": {
     "tempo-mcp-server": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "-p", "8000:8000", "-e", "TEMPO_MCP_URL=http://host.docker.internal:3200", "tempo-mcp-server:latest"]
+      "args": ["run", "--rm", "-i", "-p", "8000:8000", "-e", "TEMPO_URL=http://host.docker.internal:3200", "-e", "TEMPO_USERNAME=your-username", "-e", "TEMPO_PASSWORD=your-password", "tempo-mcp-server:latest"]
+    }
+  }
+}
+```
+
+Or using bearer token authentication:
+
+```json
+{
+  "mcpServers": {
+    "tempo-mcp-server": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "-p", "8000:8000", "-e", "TEMPO_URL=http://host.docker.internal:3200", "-e", "TEMPO_TOKEN=your-bearer-token", "tempo-mcp-server:latest"]
     }
   }
 }
