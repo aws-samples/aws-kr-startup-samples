@@ -75,6 +75,4 @@ cdk deploy --require-approval never
 # 참고 자료
 
 - [Model Context Protocol 공식 문서](https://modelcontextprotocol.io/)
-- [langchain-aws 라이브러리 문서](https://python.langchain.com/docs/integrations/providers/aws/)
-- [LangChain MCP Adapters 리포지토리](https://github.com/langchain-ai/langchain-mcp-adapters)
-- [LangGraph 프레임워크 공식 문서](https://langchain-ai.github.io/langgraph/) 
+- [Strands Agents 공식 문서](https://strandsagents.com/latest/)
