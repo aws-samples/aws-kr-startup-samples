@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "observability-assistant.fullname" . }}
+  labels:
+    {{- include "observability-assistant.labels" . | nindent 4 }}
+    app.kubernetes.io/component: observability-assistant
+spec:
+  replicas: {{ .Values.observabilityAssistant.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "observability-assistant.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: observability-assistant
+  template:
+    metadata:
+      labels:
+        {{- include "observability-assistant.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: observability-assistant
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: observability-assistant
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.observabilityAssistant.image.repository }}:{{ .Values.observabilityAssistant.image.tag }}"
+          imagePullPolicy: {{ .Values.observabilityAssistant.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8501
+              protocol: TCP
+          env:
+            - name: GRAFANA_MCP_URL
+              value: "http://grafana-mcp-server:{{ .Values.grafanaMcpServer.service.port }}/mcp"
+            - name: TEMPO_MCP_URL
+              value: "http://tempo-mcp-server:{{ .Values.tempoMcpServer.service.port }}/mcp"
+            - name: AWS_REGION
+              value: "{{ .Values.aws.region | default "us-west-2" }}"
+            - name: AWS_DEFAULT_REGION
+              value: "{{ .Values.aws.region | default "us-west-2" }}"
+            - name: BEDROCK_MODEL_ID
+              value: "{{ .Values.observabilityAssistant.env.bedrockModelId }}"
+            - name: BEDROCK_REGION
+              value: "{{ .Values.observabilityAssistant.env.bedrockRegion }}"
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.observabilityAssistant.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }} 
