@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo-mcp-server
+  labels:
+    {{- include "observability-assistant.labels" . | nindent 4 }}
+    app.kubernetes.io/component: tempo-mcp-server
+spec:
+  type: {{ .Values.tempoMcpServer.service.type }}
+  ports:
+    - port: {{ .Values.tempoMcpServer.service.port }}
+      targetPort: {{ .Values.tempoMcpServer.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "observability-assistant.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: tempo-mcp-server 

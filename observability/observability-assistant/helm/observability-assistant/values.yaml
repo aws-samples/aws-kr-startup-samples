@@ -1,0 +1,98 @@
+observabilityAssistant:
+  image:
+    repository: observability-assistant
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: LoadBalancer
+    port: 80
+    targetPort: 8501
+  replicaCount: 1
+  env:
+    bedrockModelId: "anthropic.claude-3-7-sonnet-20250219-v1:0"
+    bedrockRegion: "us-east-1"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+grafanaMcpServer:
+  image:
+    repository: mcp/grafana
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  replicaCount: 1
+  env:
+    grafanaUrl: ""
+    grafanaApiKey: ""
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+tempoMcpServer:
+  image:
+    repository: tempo-mcp-server
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  replicaCount: 1
+  env:
+    tempoUrl: ""
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Global settings
+nameOverride: ""
+fullnameOverride: ""
+
+# Image pull secrets
+imagePullSecrets: []
+
+# Security context
+podSecurityContext: {}
+
+securityContext: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# AWS Configuration
+aws:
+  region: "ap-northeast-2"
+
+# Service Account
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: "observability-assistant-sa" 
