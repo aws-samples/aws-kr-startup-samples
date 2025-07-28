@@ -77,6 +77,4 @@ Access `http://<MCP Server URL from module-02>/app` to see the deployed Streamli
 # References
 
 - [Model Context Protocol Official Documentation](https://modelcontextprotocol.io/)
-- [langchain-aws Library Documentation](https://python.langchain.com/docs/integrations/providers/aws/)
-- [LangChain MCP Adapters Repository](https://github.com/langchain-ai/langchain-mcp-adapters)
-- [LangGraph Framework Official Documentation](https://langchain-ai.github.io/langgraph/)
+- [Strands Agents Documentation](https://strandsagents.com/latest/)
