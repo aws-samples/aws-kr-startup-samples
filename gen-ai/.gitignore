@@ -1,0 +1,29 @@
+# Model files (too large for Git)
+wan21-on-sagemaker/model/
+*.bin
+*.safetensors
+*.ckpt
+*.pth
+*.pt
+
+# Build artifacts
+*.log
+*.pyc
+__pycache__/
+
+# Environment files
+.env
+.venv/
+venv/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
