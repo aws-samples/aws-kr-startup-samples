@@ -3,28 +3,41 @@ FROM --platform=$TARGETPLATFORM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 기본 패키지 설치
+# Install basic packages
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsm6 \
     libxext6 \
+    nginx \
     build-essential \
     ninja-build \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 작업 디렉토리 설정
+# Set working directory
 WORKDIR /opt/ml/code
 
-# 필요한 Python 패키지 설치
+# Install required Python packages
 COPY requirements.txt /opt/ml/code/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 추론 코드 복사
+# Copy inference code
 COPY . /opt/ml/code/
 
-# 모델 디렉토리 생성
+# Create model directory
 RUN mkdir -p /opt/ml/model
 
-# 컨테이너 시작 시 실행할 스크립트
+# Expose port for execution
+EXPOSE 8080
+
+# Enable synchronous execution mode for CUDA debugging
+ENV CUDA_LAUNCH_BLOCKING=1
+ENV TORCH_USE_CUDA_DSA=1
+
+# GPU memory optimization settings
+ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+ENV CUDA_MEMORY_FRACTION=0.95
+
+
+# Script to run when container starts
 ENTRYPOINT ["python", "/opt/ml/code/serve.py"]

@@ -1,1 +1,5 @@
-{"prompt": "test", "task": "t2i-14B", "size": "1280*720"}
+{
+    "task": "t2i-14B",
+    "prompt": "A beautiful cat sitting in a garden, cinematic, 4k",
+    "size": "1280*720"
+}

@@ -86,7 +86,7 @@ def generate_video(
         
         # Generate video using Wan2.1 model
         result = model.generate(
-            prompt=prompt,
+            input_prompt=prompt,
             size=size_config,
             frame_num=81,  # Default frame number
             shift=shift,
@@ -134,7 +134,7 @@ def generate_image(
         
         # Generate image using Wan2.1 model (T2I)
         result = model.generate(
-            prompt=prompt,
+            input_prompt=prompt,
             size=size_config,
             frame_num=1,  # Image is 1 frame
             shift=shift,

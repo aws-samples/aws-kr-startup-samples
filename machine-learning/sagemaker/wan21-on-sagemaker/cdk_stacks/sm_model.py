@@ -29,6 +29,7 @@ class SageMakerWanModelStack(Stack):
                 image=docker_image.image_uri,
                 model_data_url=f"s3://{os.environ.get('S3_BUCKET_NAME', 'wan-model-bucket-default')}/models/wan2.1-t2v-1.3b/model.tar.gz",
                 environment={
+                    "PRELOAD_TASK": "t2v-1.3B",
                     "S3_BUCKET_NAME": os.environ.get('S3_BUCKET_NAME', 'wan-model-bucket-default'),
                     "MODEL_S3_KEY": "models/wan2.1-t2v-1.3b/",
                     "DOWNLOAD_FROM_HF": "false",
