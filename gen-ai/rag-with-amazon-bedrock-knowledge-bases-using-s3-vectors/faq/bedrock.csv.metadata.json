@@ -1,0 +1,21 @@
+{
+    "metadataAttributes": {},
+    "documentStructureConfiguration": {
+        "type": "RECORD_BASED_STRUCTURE_METADATA",
+        "recordBasedStructureMetadata": {
+            "contentFields": [
+                {
+                    "fieldName": "question"
+                }
+            ],
+            "metadataFieldsSpecification": {
+                "fieldsToInclude": [
+                    {
+                        "fieldName": "answer"
+                    }
+                ],
+                "fieldsToExclude": []
+            }
+        }
+    }
+}

@@ -1,0 +1,5 @@
+bs4
+requests
+boto3 >= "1.39.14"
+strands-agents
+strands-agents-tools

@@ -1,0 +1,10 @@
+{
+    "region": "us-west-2",
+    "kb_id": "KNOWLEDGE_BASE_ID",
+    "ds_id": "DATA_SOURCE_ID",
+    "bucket_name": "s3-vectors-ACCOUNT-REGION-faqs",
+    "vector_bucket_name": "s3-vectors-ACCOUNT-REGION-embeddings",
+    "index_name": "s3-vectors-index",
+    "embedding_model": "cohere.embed-multilingual-v3",
+    "generation_model": "anthropic.claude-3-5-sonnet-20241022-v2:0"
+}

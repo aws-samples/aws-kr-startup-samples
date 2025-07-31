@@ -1,0 +1,40 @@
+question,answer
+Amazon Q Business란 무엇인가요?,"Amazon Q Business는 정보를 찾고, 인사이트를 얻고, 직장에서 조치를 취하는 데 사용할 수 있는 가장 유능한 생성형 AI 기반 어시스턴트입니다. 엔터프라이즈 시스템의 데이터 및 정보를 기반으로 질문에 답하고, 요약을 제공하며, 콘텐츠를 생성하고, 작업을 안전하게 완료할 수 있습니다."
+Amazon Q Business를 시작하려면 어떻게 해야 하나요?,시작하려면AWS Management Console의 Amazon Q Business로 이동합니다. 자세한 내용은기술 설명서를 참조하세요.
+최종 사용자는 Amazon Q Business와 어떻게 상호 작용하나요?,"Amazon Q Business에는 사용자가 자연어로 복잡한 질문을 하고, 문서를 작성 또는 비교하고, 문서 요약을 생성하고, 서드 파티 애플리케이션과 상호 작용할 수 있는 사용자 인터페이스가 내장되어 있습니다. 최종 사용자는 Amazon Q Business를 공개 웹 페이지 또는 직원 인트라넷에서 사용하고 소프트웨어 애플리케이션의 사용자 인터페이스에 임베드할 수 있습니다."
+Amazon Q Business는 보안을 어떻게 처리하고 제공된 엔터프라이즈 데이터만을 기반으로 응답이 이루어지도록 보장하나요?,"Amazon Q Business는 데이터에 대한 액세스 제어를 지원하므로 사용자는 자신의 권한에 따라 올바른 콘텐츠에 액세스할 수 있습니다. Amazon Q Business 웹 경험을 외부 SAML 2.0 지원 ID 제공업체(예: Okta, Azure AD, Ping ID)와 통합하여 사용자 인증 및 권한 부여를 관리할 수 있습니다."
+Amazon Q Business 사용자에게 사용자 권한에 따라 적절한 수준의 정보가 제공되도록 하려면 어떻게 해야 하나요?,Amazon Q Business는 엔터프라이즈 액세스 및 액세스 제어 목록(ACL) 권한을 관리하여 관리자에게 세분화된 보안과 구성 가능한 제어를 제공합니다. 사용자가 Amazon Q Business에 질문을 하면 엔터프라이즈 시스템의 데이터를 분석하여 사용자가 액세스할 수 있는 콘텐츠로만 응답을 생성합니다.
+Amazon Q Business 관리자는 어떤 엔터프라이즈 제어 기능을 사용할 수 있나요?,관리자는 기업 문서만 사용해서 응답하도록 Amazon Q Business를 구성할 수 있습니다. 기업 문서에 답변이 없을 경우 외부 지식을 사용하여 쿼리에 응답하는 것을 허용할 수 있습니다. 관리자는 허용 및 차단된 주제와 단어를 구성할 수도 있습니다. 또한 최종 사용자의 파일 업로드 기능을 활성화하거나 비활성화할 수도 있습니다.
+Amazon Q Business는 어떤 언어를 지원하나요?,Amazon Q Business는 영어로 응답하도록 최적화되어 있습니다. 언어 지원에 대한 자세한 내용은설명서를 참조하세요.
+Amazon Q Business를 사용할 수 있는 AWS 리전은 어디인가요?,자세한 내용은리전별 AWS 서비스를 참조하세요.
+Amazon Q Business에서 사용할 수 있는 플러그인은 무엇인가요?,"Amazon Q Business는 Jira, ServiceNow, Salesforce, PagerDuty 등과 같은 인기 있는 서드 파티 애플리케이션과 상호 작용할 수 있는 플러그인을 제공합니다. 관리자가 이러한 플러그인을 활성화하면 Amazon Q Business 애플리케이션에 대한 50여 개 작업의 라이브러리를 즉시 사용할 수 있습니다. 자세한 내용은설명서를 참조하세요."
+Amazon Q Business에서 채팅 기록을 저장하거나 삭제하려면 어떻게 해야 하나요?,Amazon Q Business는 대화 기록을 한 달간 자동으로 저장합니다. 관리자는 애플리케이션에서 대화 기록을 삭제할 수 있습니다.
+Amazon Q Business에서 채팅 기록을 저장하거나 삭제하려면 어떻게 해야 하나요?,Amazon Q Business는 대화 기록을 한 달간 자동으로 저장합니다. 관리자는 애플리케이션에서 대화 기록을 삭제할 수 있습니다.
+Amazon Q Business에 데이터베이스 및 데이터 레이크의 답변을 포함할 수 있나요?,"Amazon Q Business는 Amazon QuickSight와의 통합을 통해 다양한 데이터베이스, 데이터 웨어하우스, 데이터 레이크와 통합됩니다. 여기에는 Amazon Redshift, PostgreSQL, MySQL, Oracle 등 20개 이상의 정형 데이터 소스에 대한 지원이 포함됩니다."
+Amazon Q Business는 어떤 파일 유형을 지원하나요?,"Amazon Q Business는 .PDF, .CSV, .DOCX, .HTML, .JSON, .PPT, 오디오 및 비디오 파일과 같은 다수의 일반적인 문서 유형 및 형식을 지원합니다. 지원되는 문서와 파일 유형 목록은설명서를 참조하세요."
+내가 가지고 있는 대형 언어 모델(LLM)을 선택할 수 있나요?,아니요. 하지만 Amazon Q Business 내에서 Amazon Bedrock의 다양한 파운데이션 모델을 사용할 수 있습니다.
+Amazon Q Business는 증분 데이터 업데이트를 어떻게 처리하나요?,Amazon Q Business는 데이터 소스에 연결할 수 있는 사전 구축된 여러 커넥터를 제공하므로 최소한의 구성으로 생성형 AI 솔루션을 구현할 수 있습니다. 커넥터는 전체 동기화 또는 증분 데이터 동기화를 위한 모드를 제공합니다. 자세히 알아보려면Amazon Q Business 커넥터 페이지를 참조하세요.
+Amazon Q Business용 사용자 지정 커넥터를 추가할 수 있나요?,예. 사용자 지정 커넥터를 추가한 다음Amazon Q SDK를 사용하여 구현할 수 있습니다.
+Amazon Q Business를 다른 엔터프라이즈 애플리케이션에 연결할 수 있나요?,"예. 사전 구축된 사용자 지정 플러그인을 사용하여 서드 파티 애플리케이션에 연결하면 주가, 남은 직원 휴가, 패키지 위치 등의 실시간 데이터를 검색할 수 있습니다."
+최종 사용자에게 Amazon Q Business 애플리케이션에 대한 보안 액세스를 제공하려면 어떻게 해야 합니까?,AWS IAM Identity Center 또는 IAM을 통한 ID 페더레이션을 사용하면 Amazon Q Business에 안전하게 사용자를 연결할 수 있습니다. 자세한 내용은설명서를 참조하세요.
+IAM Identity Center로 해결되는 문제는 무엇인가요?,"IAM Identity Center는 각 AWS 계정의 권한을 별도로 페더레이션하고 관리해야 하는 관리 복잡성을 없애줍니다. 단일 인터페이스에서 AWS 애플리케이션을 설정할 수 있고 단일 위치에서 클라우드 애플리케이션에 대한 액세스 권한을 할당할 수 있습니다. IAM Identity Center를AWS CloudTrail과 통합하고 AWS 계정 및SAML지원 클라우드 애플리케이션(예: Microsoft 365, Salesforce 및 Box)에 대한 Single Sign-On(SSO) 액세스를 중앙에서 감사하면 액세스 가시성을 개선하는 데도 도움이 됩니다."
+AWS IAM Identity Center를 사용해야 하는 이유는 무엇인가요?,"AWS IAM Identity Center는 AWS를 이용할 때 권장되는 시작점입니다. 인력 사용자의 AWS 액세스를 관리하기 위한 기본 도구로 사용되어야 합니다. 선호하는 ID 소스의 ID를 관리하고 AWS 내 사용을 위해 한 번 연결할 수 있으며, 세분화된 권한을 정의하고 계정 전체에 일관된 방식으로 적용할 수 있습니다. 계정 수가 늘어남에 따라 AWS IAM Identity Center는 모든 클라우드 애플리케이션에 대한 사용자 액세스를 관리하는 단일 위치로 사용할 수 있는 옵션을 제공합니다."
+개인화 기능을 활성화할 수 있나요?,Amazon Q Business 개인화 기능은 추가 설정 없이 상황에 맞는 보다 유용한 응답을 위해 AWS IAM Identity Center에 연결한 조직의 ID 제공업체로부터 받은 직원 프로필 데이터를 자동으로 사용합니다.
+Amazon Q Business로부터 관련성이 높고 맞춤화된 답변을 받기 위한 모범 사례는 무엇입니까?,Amazon Q Business로부터 가장 유용하고 맞춤화된 답변을 얻으려면'Amazon Q Business 사용에 대한 빠른 가이드'를 읽어보세요. 이 가이드는 질문을 명확하게 표현하고 필요한 컨텍스트를 제공하는 방법을 설명합니다.
+Amazon Q Business에 사용 가능한 통합은 무엇인가요?,"관리자는 Google Chrome, Microsoft Edge, Mozilla Firefox용 브라우저 확장 프로그램에 대한 액세스를 활성화하고 Slack, Microsoft 365용 Microsoft Outlook 및 Word 및 Microsoft Teams와 통합하여 Amazon Q Business의 기능을 타사 애플리케이션으로 확장할 수 있습니다."
+Amazon Q Business를 사용하여 사용자가 업로드한 오디오 또는 비디오 파일에 대한 인사이트를 생성할 수 있나요?,"예, Amazon Q Business는 팟캐스트, 음악, 광고, 회의 녹화 파일, 비디오 프레젠테이션 등의 오디오 및 비디오 파일에서 답변을 검색할 수 있습니다. 지원되는 미디어 파일 유형 목록은설명서를 참조하세요."
+Amazon Q Business로부터 문서에 포함된 이미지에 대한 답변을 받을 수 있나요?,"예. Amazon Q Business는 PDF, Microsoft PowerPoint 및 Word, Google Docs 및 Presentations를 포함하여 문서에 포함된 다이어그램, 정보 그래픽, 차트, 이미지 기반 콘텐츠와 같은 시각적 요소를 통해 답변을 표시할 수 있습니다."
+Amazon Q Business는 HIPAA 적격인가요?,"예. Amazon Q Business는 HIPAA 적격 서비스이므로, 의료 및 생명 과학 조직은 이제 이를 사용하여 HIPAA(미국 건강 보험 양도 및 책임에 관한 법)에 따라 규제되는 민감한 워크로드를 실행할 수 있습니다."
+Amazon Q Apps란 무엇이며 사용자는 어떻게 앱을 생성할 수 있나요?,Amazon Q Apps를 사용하면 Amazon Q Business의 엔터프라이즈 데이터를 기반으로 생성형 AI로 구동되는 사용자 지정 앱을 생성할 수 있습니다. 사용자는 Amazon Q Business와의 대화를 통해 앱 요구 사항을 자연어로 설명하거나 공유 앱에서 복사본을 생성하여 한 단계로 앱을 생성할 수 있습니다.
+Amazon Q Apps 및 앱 라이브러리에 대한 액세스를 관리할 수 있나요?,예. 관리자는 Amazon Q 콘솔의 Amazon Q Business 애플리케이션 기능 설정을 통해 웹 경험 사용자가 Amazon Q Apps를 생성하고 실행하는 기능을 비활성화할 수 있습니다. 관리자는 라이브러리에서 게시된 앱을 제거할 수도 있습니다.
+Amazon Q Apps를 사용하는 사람의 역할에 따라 다르게 반응하도록 Amazon Q Apps를 구성할 수 있나요?,"예. Amazon Q Business는 사용자 역할에 따라 응답을 구조화하는 기능이 이미 지원되고 있습니다. 연결된 데이터 소스에 대한 사용자 수준 권한의 ACL과 특정 사용자 그룹의 특정 주제를 차단하는 주제 수준 제어 기능을 제공합니다. 결과적으로, 이는 Amazon Q Apps의 출력에 반영됩니다. 또한 Amazon Q Apps는 Amazon Q Business에서 사용할 수 있는 개인화 기능을 활용합니다."
+Amazon Q Apps 사용자는 피드백을 제공하려면 어떻게 해야 하나요?,Amazon Q Apps 라이브러리에는 사용자가 유용하다고 생각되는 게시된 앱을 추천할 수 있는 ‘좋아요’ 버튼이 있습니다. 사용자는 좋아요 및 싫어요 기능을 활용하여 Amazon Q 채팅 대화에서 생성된 프롬프트의 품질과 Amazon Q Apps Creator에서 생성된 새로운 앱의 품질에 대한 피드백을 보낼 수 있습니다.
+Amazon Q Apps는 보안 및 거버넌스 제어를 어떻게 처리하나요?,"Amazon Q Apps는 Amazon Q Business의 엔터프라이즈급 보안 및 액세스 제어 기능을 그대로 지원하여 사용자 권한에 따라 적절한 데이터 액세스를 제공합니다. 인증, 권한 부여, 액세스 관리 간소화를 위해 AWS Identity and Access Management(IAM) 및 IAM 페더레이션과 통합됩니다. 관리자는 Amazon Q Apps에 대한 액세스를 완전히 비활성화할 수 있으며, 게시된 앱을 개별적으로 확인하고 공유 라이브러리에서 제거하여 강력한 엔터프라이즈 제어를 제공하고 조직 정책 및 규정을 준수할 수 있습니다. 또한 관리자는 앱 범주 레이블을 생성하여 앱 라이브러리를 특정 요구 사항에 맞게 조정할 수 있습니다. 앱 작성자는 1명 이상의 사용자와 앱을 공유하여 개인 정보 보호를 적용함으로써 앱의 가시성 및 사용을 제한할 수 있습니다."
+Amazon Q Apps는 보안 및 거버넌스 제어를 어떻게 처리하나요?,"Amazon Q Apps는 Amazon Q Business의 엔터프라이즈급 보안 및 액세스 제어 기능을 그대로 지원하여 사용자 권한에 따라 적절한 데이터 액세스를 제공합니다. 인증, 권한 부여, 액세스 관리 간소화를 위해 AWS Identity and Access Management(IAM) 및 IAM 페더레이션과 통합됩니다. 관리자는 Amazon Q Apps에 대한 액세스를 완전히 비활성화할 수 있으며, 게시된 앱을 개별적으로 확인하고 공유 라이브러리에서 제거하여 강력한 엔터프라이즈 제어를 제공하고 조직 정책 및 규정을 준수할 수 있습니다. 또한 관리자는 앱 범주 레이블을 생성하여 앱 라이브러리를 특정 요구 사항에 맞게 조정할 수 있습니다. 앱 작성자는 한 명 이상의 사용자와 앱을 공유하여 프라이버시를 적용함으로써 앱의 가시성 및 사용을 제한할 수 있습니다."
+Amazon Q Apps에 액세스하고 시작하려면 어떻게 해야 하나요?,Amazon Q Apps를 시작하려면Amazon Q Business 웹 환경을 설정하고 애플리케이션 설정에서 Amazon Q Apps가 활성화되어 있는지 확인하세요. 설정이 완료되면 Amazon Q Business 웹 애플리케이션에 액세스 가능한 사용자가 배포된 웹 경험 내에서 Amazon Q Apps를 액세스하고 생성할 수 있습니다. 자세한 내용은설명서를 참조하세요.
+Amazon Q Apps를 다른 사람과 공유할 수 있나요?,예. 사용자는 앱을 특정 Amazon Q Business 멤버와 공유하거나 동일한 Amazon Q Business 애플리케이션 환경 내의 모든 사용자를 위한 공유 라이브러리에 게시할 수 있습니다. 승인된 모든 사용자는 게시된 Amazon Q Apps를 있는 그대로 실행하거나 특정한 니즈에 맞게 사용자 지정할 수 있습니다.
+"Amazon Q Apps를 조직의 특정 부서(예: HR, 법무 및 재무 부서)와만 공유하려면 어떻게 해야 하나요?",주어진 Amazon Q Business 웹 환경의 모든 사용자는 게시된 Amazon Q Apps에 액세스할 수 있습니다. 특정 조직 단위에 대한 액세스를 제한하려면 별도의 Amazon Q Business 애플리케이션 환경을 생성해야 합니다.
+Amazon Q Apps를 API를 통해 다른 애플리케이션과 함께 사용하고 통합할 수 있나요?,예. Amazon Q Apps 출력을 원활하게 생성하고 사용할 수 있게 해주는 API를 통해 원하는 도구와 엔터프라이즈 애플리케이션에 Amazon Q Apps의 기능을 활용할 수 있습니다.API 통합 가이드에서 자세히 알아보세요.
+앱을 생성 또는 실행할 수 있는 사용자를 결정할 수 있나요?,관리자는 Amazon Q Business 콘솔의 사용자 액세스 및 구독 설정에서 앱 생성 및 실행 기능을 활성화하거나 비활성화할 수 있습니다.
+앱에서 생성된 사용자 정보 및 출력을 수집할 수 있나요?,"예. Amazon Q 앱에 양식 카드를 추가하면 사용자 입력을 수집할 수 있습니다. 앱 작성자는 이러한 앱을 통해 사용자 정보를 수집할 수 있으며, 나중에 이 정보를 생성된 출력 및 추가 분석을 위한 데이터 소스로 사용할 수 있습니다."
+앱에서 생성된 사용자 정보 및 출력을 수집할 수 있나요?,"예. Amazon Q 앱에 양식 카드를 추가하면 사용자 입력을 수집할 수 있습니다. 앱 작성자는 이러한 앱을 통해 사용자 정보를 수집할 수 있으며, 나중에 이 정보를 생성된 출력 및 추가 분석을 위한 데이터 소스로 사용할 수 있습니다."
