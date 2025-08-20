@@ -392,39 +392,6 @@ aws cloudwatch get-metric-statistics \
   --period 300 --statistics Maximum --region us-east-1
 ```
 
-## Advanced Usage
-
-### Custom Security Policies
-Extend `aws_security_scanner.py` to add custom security checks:
-```python
-def check_custom_policy(aws_resources):
-    """Add your custom security logic here"""
-    rule = {
-        "rule_id": "CUSTOM_RULE",
-        "rule_name": "Custom Security Check",
-        "service": "Custom",
-        "description": "Your custom security policy",
-        "severity": "HIGH",
-        "compliance_status": "COMPLIANT",
-        # ... implementation
-    }
-    return rule
-```
-
-### Additional RSS Feeds
-Add more security news sources in `security_news.py`:
-```python
-self.feeds = [
-    "https://aws.amazon.com/security/security-bulletins/rss/feed/",
-    "https://knvd.krcert.or.kr/rss/securityNotice.do",
-    "https://knvd.krcert.or.kr/rss/securityInfo.do",
-    "https://your-custom-feed.com/rss",  # Add custom feeds
-]
-```
-
-### Custom Report Templates
-Modify `report_template/sample_report.html` for custom report layouts using Tailwind CSS and Chart.js.
-
 ## Clean Up
 
 To remove all resources:
