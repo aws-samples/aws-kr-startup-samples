@@ -1,2 +1,2 @@
-strands-agents
-strands-agents-tools
+strands-agents==1.5.0
+requests

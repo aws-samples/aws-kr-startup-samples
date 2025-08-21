@@ -1,8 +1,8 @@
 # AWS Security Analysis with Strands Agents
 
-This project demonstrates how to build an intelligent AWS security analysis system using **Strands Agents SDK** and **AWS Lambda**. The system automatically scans AWS resources, analyzes CloudTrail events, monitors security news, and generates comprehensive HTML reports.
+AWS 리소스 보안 분석을 위한 지능형 시스템입니다. **Strands Agents SDK**와 **AWS Lambda**를 사용하여 자동으로 AWS 리소스를 스캔하고, CloudTrail 이벤트를 분석하며, 보안 뉴스를 모니터링하여 종합적인 HTML 보고서를 생성합니다.
 
-## Architecture
+## 🏗 Architecture
 
 ```mermaid
 graph TB
@@ -18,23 +18,9 @@ graph TB
         RA[Report Agent<br/>report_agent.py]
     end
     
-    subgraph "Strands Agent SDK"
-        SA[Strands Agent]
-        BM[Bedrock Model]
-        ST[Strands Tools]
-        
-        subgraph "Built-in Tools"
-            RSS[RSS Tool]
-            PR[Python REPL]
-            CT_TOOL[Current Time]
-        end
-    end
-    
     subgraph "AWS Services"
         BR[Amazon Bedrock<br/>Claude 3.5 Haiku]
         S3[Amazon S3<br/>Results Storage]
-        CW[CloudWatch<br/>Logs & Monitoring]
-        IAM[IAM Roles<br/>& Permissions]
         
         subgraph "Scanned Resources"
             EC2[EC2 Instances]
@@ -56,18 +42,10 @@ graph TB
     WF --> SN
     WF --> RA
     
-    AS --> SA
-    CT --> SA
-    SN --> SA
-    RA --> SA
-    
-    SA --> BM
-    SA --> ST
-    ST --> RSS
-    ST --> PR
-    ST --> CT_TOOL
-    
-    BM --> BR
+    AS --> BR
+    CT --> BR
+    SN --> BR
+    RA --> BR
     
     AS --> EC2
     AS --> SG
@@ -76,354 +54,158 @@ graph TB
     AS --> KMS
     AS --> SM
     
-    SN --> RSS
-    RSS --> AWS_RSS
-    RSS --> KRCERT
+    SN --> AWS_RSS
+    SN --> KRCERT
     
     WF --> S3
     RA --> S3
-    
-    style WF fill:#e1f5fe
-    style SA fill:#f3e5f5
-    style BR fill:#fff3e0
-    style S3 fill:#e8f5e8
 ```
 
-## Features
+## 🚀 Quick Start
 
-### Intelligent Security Analysis
-- **AWS Resource Scanning**: Automatically discovers and analyzes 90+ AWS resources
-- **Security Policy Evaluation**: Checks compliance against AWS security best practices
-- **CloudTrail Analysis**: Analyzes recent CloudTrail events for security insights
-- **Real-time Security News**: Monitors AWS and KRCERT security bulletins
-
-### Strands Agent Integration
-- **Multi-Agent Architecture**: Specialized agents for different security domains
-- **Tool Integration**: Leverages RSS, Python REPL, and time tools
-- **Bedrock Integration**: Uses Amazon Bedrock Claude 3.5 Haiku for intelligent analysis
-- **Asynchronous Processing**: Efficient sequential execution of security scans
-
-### Comprehensive Reporting
-- **HTML Reports**: Professional security reports with charts and visualizations
-- **S3 Storage**: Automatic storage of scan results and reports
-- **Compliance Scoring**: Overall security compliance percentage
-- **Risk Categorization**: High, medium, and low risk item classification
-
-## Prerequisites
-
+### Prerequisites
 - AWS CLI configured with appropriate permissions
 - Node.js 18+ and AWS CDK v2
-- Python 3.12+
 - Access to Amazon Bedrock (Claude 3.5 Haiku model)
 
-## Installation and Deployment
-
-### 1. Clone the Repository
+### 1. Deploy
 ```bash
 git clone <repository-url>
 cd aws-security-analysis-strands
+./deploy.sh
 ```
 
-### 2. Install CDK Dependencies
+### 2. Run Security Analysis
 ```bash
-npm install -g aws-cdk
-pip install -r requirements.txt
-```
-
-### 3. Configure AWS Bedrock Access
-Ensure you have access to Amazon Bedrock and the Claude 3.5 Haiku model in your AWS region:
-```bash
-aws bedrock list-foundation-models --region us-east-1
-```
-
-If you don't have access, request model access in the AWS Console:
-1. Go to Amazon Bedrock console
-2. Navigate to "Model access" in the left sidebar
-3. Click "Request model access"
-4. Select "Anthropic Claude 3.5 Haiku" and submit request
-
-### 4. Create Lambda Layer with Dependencies
-The project uses a custom packaging script to create Lambda layers with the correct architecture:
-
-```bash
-# Install dependencies with correct architecture for Lambda
-python package_for_lambda.py
-```
-
-This script:
-- Installs Python dependencies with `--python-version 3.12 --platform manylinux2014_x86_64`
-- Creates `dependencies.zip` with proper `/opt/python` structure for Lambda layers
-- Creates `app.zip` with Lambda function code
-- Handles architecture compatibility issues (feedparser, sgmllib3k, html2text)
-
-### 5. Bootstrap CDK (First Time Only)
-```bash
-cdk bootstrap
-```
-
-This creates the necessary S3 bucket and IAM roles for CDK deployments in your account.
-
-### 6. Deploy the Stack
-```bash
-cdk deploy --require-approval never
-```
-
-The deployment creates:
-- Lambda function with 15-minute timeout and 2GB memory
-- Lambda layer with Strands Agent dependencies
-- S3 bucket for storing scan results and reports
-- IAM roles with necessary permissions
-- CloudWatch log groups for monitoring
-
-## Testing and Usage
-
-### Manual Lambda Execution
-```bash
-# Invoke the Lambda function
+# 비동기 실행 (권장)
 aws lambda invoke \
   --function-name AWSSecurityAgentFunction \
   --region us-east-1 \
+  --invocation-type Event \
+  --payload '{}' \
   response.json
-
-# Check the response
-cat response.json
 ```
 
-### Monitor Execution Progress
+### 3. Check Results
 ```bash
-# Follow CloudWatch logs in real-time
-aws logs tail /aws/lambda/AWSSecurityAgentFunction --follow --region us-east-1
+# S3에서 결과 확인
+aws s3 ls s3://aws-security-scan-<account-id>-<region>/security_report/ --recursive
 
-# Or check specific log streams
-aws logs describe-log-streams \
-  --log-group-name "/aws/lambda/AWSSecurityAgentFunction" \
-  --order-by LastEventTime --descending \
-  --max-items 5 --region us-east-1
-```
-
-### Check Results in S3
-The system automatically stores results in S3 with timestamped folders:
-```bash
-# List all scan results
-aws s3 ls s3://aws-security-scan-<account-id>-<region>/ --recursive
-
-# Example output:
-# aws_security_scanner/20250820_051521/result.json
-# cloudtrail_scanner/20250820_051521/result.json  
-# security_news_scrapper/20250820_051521/result.json
-# security_report/20250820_143350/security_report.html
-```
-
-### Download and View Reports
-```bash
-# Download the latest HTML report
+# 최신 HTML 보고서 다운로드
 aws s3 cp s3://aws-security-scan-<account-id>-<region>/security_report/latest/security_report.html ./report.html
 
-# Open in browser (macOS)
-open report.html
-
-# Open in browser (Linux)
-xdg-open report.html
+# 브라우저에서 열기
+open report.html  # macOS
 ```
 
-### Test Individual Components
-You can test individual scanners by modifying the Lambda handler or using the AWS Console test feature with different event payloads.
+## 📊 Features
 
-## Project Structure
+### 🔍 **Security Analysis**
+- **AWS Resource Scanning**: 90+ AWS 리소스 자동 검사
+- **Security Policy Evaluation**: AWS 보안 모범 사례 준수 확인
+- **CloudTrail Analysis**: 최근 CloudTrail 이벤트 보안 분석
+- **Security News Monitoring**: AWS 및 KRCERT 보안 공지 실시간 모니터링
+
+### 📈 **Intelligent Reporting**
+- **HTML Reports**: 차트와 시각화가 포함된 전문적인 보안 보고서
+- **Compliance Scoring**: 전체 보안 준수율 백분율
+- **Risk Categorization**: 높음, 중간, 낮음 위험도 분류
+- **S3 Storage**: 스캔 결과 및 보고서 자동 저장
+
+## 🛠 Configuration
+
+### Environment Variables (자동 설정)
+- `SECURITY_SCAN_BUCKET`: S3 버킷 (결과 저장용)
+- `BYPASS_TOOL_CONSENT`: 자동 도구 실행 활성화
+- `PYTHONPATH`: Python 모듈 경로 (`/opt/python`)
+
+### IAM Permissions (자동 구성)
+Lambda 함수는 다음 권한이 필요합니다:
+- Amazon Bedrock (Claude 3.5 Haiku 모델)
+- S3 (결과 버킷 읽기/쓰기)
+- EC2, RDS, KMS, Secrets Manager (리소스 스캔)
+- CloudTrail (이벤트 분석)
+- CloudWatch Logs (로깅)
+
+## 📁 Project Structure
 
 ```
-├── app.py                      # CDK app entry point
-├── agent_lambda_stack.py       # CDK stack definition with Lambda and Layer
-├── agent_handler.py           # Lambda function handler
-├── workflow_agent.py          # Main workflow orchestrator
-├── package_for_lambda.py      # Lambda packaging script for dependencies
-├── lambda/                    # Lambda function code
-│   ├── aws_security_scanner.py    # AWS resource security scanner
-│   ├── cloudtrail_tool.py         # CloudTrail event analyzer
-│   ├── security_news.py           # Security news aggregator
-│   ├── report_agent.py            # HTML report generator
-│   └── requirements.txt           # Lambda dependencies (strands-agents, etc.)
-├── report_template/           # HTML report templates
-│   └── sample_report.html         # Report template with Tailwind CSS
-├── packaging/                 # Build output directory
-├── cdk.json                   # CDK configuration
-└── requirements.txt           # CDK dependencies
+├── deploy.sh                     # 자동 배포 스크립트
+├── app.py                        # CDK 앱 진입점
+├── agent_lambda_stack.py         # CDK 스택 정의
+├── agent_handler.py              # Lambda 함수 핸들러
+├── workflow_agent.py             # 메인 워크플로우 오케스트레이터
+├── lambda/                       # Lambda 함수 코드
+│   ├── aws_security_scanner.py   # AWS 리소스 보안 스캐너
+│   ├── cloudtrail_tool.py        # CloudTrail 이벤트 분석기
+│   ├── security_news.py          # 보안 뉴스 수집기
+│   └── report_agent.py           # HTML 보고서 생성기
+└── report_template/              # HTML 보고서 템플릿
+    └── sample_report.html        # Tailwind CSS 포함 보고서 템플릿
 ```
 
-## Configuration
+## 🔧 Development
 
-### Environment Variables
-The Lambda function uses these environment variables (automatically set by CDK):
-- `SECURITY_SCAN_BUCKET`: S3 bucket for storing results
-- `BYPASS_TOOL_CONSENT`: Enables automatic tool execution
-- `PYTHONPATH`: Python module path for dependencies (`/opt/python`)
-- `TMPDIR`, `TEMP`, `TMP`: Set to `/tmp` for python_repl compatibility
-
-### IAM Permissions
-The Lambda function requires permissions for:
-- Amazon Bedrock (Claude 3.5 Haiku model)
-- S3 (read/write to results bucket)
-- EC2, RDS, KMS, Secrets Manager (resource scanning)
-- CloudTrail (event analysis)
-- CloudWatch Logs (logging)
-
-All permissions are automatically configured by the CDK stack.
-
-## Strands Agent Architecture
-
-### Agent Hierarchy
-```python
-WorkflowAgent
-├── AWSSecurityScanner (Strands Agent)
-├── CloudTrailTool (Strands Agent)  
-├── SecurityNewsScrapper (Strands Agent)
-└── ReportAgent (Strands Agent)
-```
-
-### Tool Integration
-Each agent leverages specific Strands tools:
-- **RSS Tool**: For security news aggregation from AWS and KRCERT feeds
-- **Python REPL**: For dynamic code execution and analysis (uses `/tmp` directory)
-- **Current Time**: For time-based filtering and analysis
-
-### Bedrock Model Configuration
-```python
-model = BedrockModel(
-    region_name="us-east-1",
-    model_id="us.anthropic.claude-3-5-haiku-20241022-v1:0"
-)
-```
-
-## Security Checks
-
-The system performs these security evaluations:
-
-### AWS Resource Security
-- **S3 Buckets**: Public access block settings
-- **Security Groups**: SSH access restrictions (port 22 from 0.0.0.0/0)
-- **EC2 Instances**: Security group configurations
-- **RDS**: Encryption and backup settings
-- **KMS Keys**: Key rotation and access policies
-- **Secrets Manager**: Secret rotation and access
-
-### CloudTrail Analysis
-- Recent security-relevant events
-- Unusual access patterns
-- Failed authentication attempts
-- Resource modification events
-
-### Security News Monitoring
-- AWS Security Bulletins RSS feed
-- KRCERT Security Notices
-- Recent 14-day security announcements
-- CVE and vulnerability information
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Bedrock Access Denied**
-   ```bash
-   # Check model access in AWS Console
-   aws bedrock list-foundation-models --region us-east-1
-   
-   # If access denied, request model access:
-   # AWS Console > Bedrock > Model access > Request model access
-   ```
-
-2. **Lambda Timeout (15 minutes)**
-   ```bash
-   # Check CloudWatch logs for bottlenecks
-   aws logs tail /aws/lambda/AWSSecurityAgentFunction --region us-east-1
-   
-   # Common causes:
-   # - Bedrock API throttling (ThrottlingException)
-   # - RSS feed loading issues
-   # - Large number of AWS resources
-   ```
-
-3. **Memory Issues**
-   ```bash
-   # Current configuration: 2GB memory
-   # Check memory usage in CloudWatch metrics
-   aws cloudwatch get-metric-statistics \
-     --namespace AWS/Lambda \
-     --metric-name MemoryUtilization \
-     --dimensions Name=FunctionName,Value=AWSSecurityAgentFunction
-   ```
-
-4. **Python REPL Errors**
-   ```bash
-   # The handler automatically changes to /tmp directory
-   # Check logs for "Read-only file system" errors
-   ```
-
-5. **Dependency Issues**
-   ```bash
-   # Rebuild Lambda layer with correct architecture
-   rm -rf packaging/_dependencies packaging/*.zip
-   python package_for_lambda.py
-   cdk deploy
-   ```
-
-### Monitoring and Debugging
-
-Check CloudWatch logs for detailed execution information:
+### 코드 변경 후 재배포
 ```bash
-# Real-time log monitoring
+./deploy.sh
+```
+
+### 로그 모니터링
+```bash
+# 실시간 로그 확인
 aws logs tail /aws/lambda/AWSSecurityAgentFunction --follow --region us-east-1
 
-# Get specific log events
+# 특정 로그 스트림 확인
 aws logs get-log-events \
   --log-group-name "/aws/lambda/AWSSecurityAgentFunction" \
   --log-stream-name "<log-stream-name>" \
   --region us-east-1
 ```
 
-Monitor Lambda metrics:
+### 결과 확인
 ```bash
-# Check concurrent executions
-aws cloudwatch get-metric-statistics \
-  --namespace AWS/Lambda \
-  --metric-name ConcurrentExecutions \
-  --dimensions Name=FunctionName,Value=AWSSecurityAgentFunction \
-  --start-time 2025-08-20T05:00:00Z \
-  --end-time 2025-08-20T07:00:00Z \
-  --period 300 --statistics Maximum --region us-east-1
+# 모든 스캔 결과 나열
+aws s3 ls s3://aws-security-scan-<account-id>-<region>/ --recursive
+
+# 특정 결과 다운로드
+aws s3 cp s3://aws-security-scan-<account-id>-<region>/security_news_scrapper/latest/result.json ./
 ```
 
-## Clean Up
+## 🧹 Clean Up
 
-To remove all resources:
 ```bash
 cdk destroy
 ```
 
-This will delete:
-- Lambda function and layer
-- S3 bucket (if empty)
-- IAM roles and policies
-- CloudWatch log groups
+## 🔒 Security Checks
 
-## Contributing
+시스템이 수행하는 보안 평가:
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with `cdk deploy`
-5. Submit a pull request
+### AWS Resource Security
+- **S3 Buckets**: 퍼블릭 액세스 차단 설정
+- **Security Groups**: SSH 액세스 제한 (포트 22, 0.0.0.0/0)
+- **EC2 Instances**: 보안 그룹 구성
+- **RDS**: 암호화 및 백업 설정
+- **KMS Keys**: 키 로테이션 및 액세스 정책
+- **Secrets Manager**: 시크릿 로테이션 및 액세스
 
-## License
+### CloudTrail Analysis
+- 최근 보안 관련 이벤트
+- 비정상적인 액세스 패턴
+- 인증 실패 시도
+- 리소스 수정 이벤트
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+### Security News Monitoring
+- AWS Security Bulletins RSS 피드
+- KRCERT 보안 공지
+- 최근 14일 보안 발표
+- CVE 및 취약점 정보
 
-## Acknowledgments
+## 📞 Support
 
-- **Strands Agent SDK**: For providing the intelligent agent framework
-- **Amazon Bedrock**: For powering the AI analysis capabilities
-- **AWS CDK**: For infrastructure as code deployment
-- **AWS Security Team**: For security best practices and guidelines
+문제가 발생하면 CloudWatch 로그를 확인하거나 이슈를 생성해주세요.
 
 ---
 
-**Built with Strands Agents and AWS**
+**Built with Strands Agents and AWS** 🚀

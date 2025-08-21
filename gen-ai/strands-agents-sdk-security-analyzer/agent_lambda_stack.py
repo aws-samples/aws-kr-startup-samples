@@ -23,7 +23,6 @@ class AgentLambdaStack(Stack):
         security_scan_bucket = s3.Bucket(
             self, "SecurityScanBucket",
             bucket_name=f"aws-security-scan-{self.account}-{self.region}",
-            versioned=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=RemovalPolicy.RETAIN,  # 데이터 보존

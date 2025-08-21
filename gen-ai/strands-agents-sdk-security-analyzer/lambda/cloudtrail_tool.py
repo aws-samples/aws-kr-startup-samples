@@ -20,7 +20,39 @@ from typing import Dict, Any, List
 
 from strands import Agent
 from strands.models import BedrockModel
-from strands_tools import python_repl
+from strands.tools import tool
+import subprocess
+import tempfile
+import os
+
+@tool
+def python_repl(code: str) -> str:
+    """Execute Python code in a temporary environment."""
+    try:
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(code)
+            temp_file = f.name
+        
+        # Execute the code
+        result = subprocess.run(
+            ['python', temp_file],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd='/tmp'
+        )
+        
+        # Clean up
+        os.unlink(temp_file)
+        
+        if result.returncode == 0:
+            return result.stdout
+        else:
+            return f"Error: {result.stderr}"
+            
+    except Exception as e:
+        return f"Error executing Python code: {str(e)}"
 
 # python_repl 자동 승인 설정
 os.environ["BYPASS_TOOL_CONSENT"] = "true"
