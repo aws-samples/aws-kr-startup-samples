@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS 보안 분석 레포트</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .expandable-content {
+            display: none;
+        }
+
+        .expandable-content.show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">AWS 보안 분석 레포트</h1>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-blue-600">AWS Account ID</h3>
+                    <p class="text-lg font-bold text-blue-800">742116419553</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-green-600">스캔 시간</h3>
+                    <p class="text-lg font-bold text-green-800">2025-08-18 13:38:31</p>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-purple-600">리전</h3>
+                    <p class="text-lg font-bold text-purple-800">us-east-1</p>
+                </div>
+                <div class="bg-orange-50 p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-orange-600">스캔된 리소스</h3>
+                    <p class="text-lg font-bold text-orange-800">135개</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Score -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">전체 보안 점수</h2>
+            <div class="flex items-center justify-center">
+                <div class="relative w-48 h-48">
+                    <canvas id="scoreChart" width="192" height="192"></canvas>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-green-600">100</div>
+                            <div class="text-sm text-gray-600">/ 100점</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 text-center">
+                <span
+                    class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    ✓ 우수한 보안 상태
+                </span>
+            </div>
+        </div>
+
+        <!-- Resource Summary -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">리소스 보안 상태</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                    <h3 class="text-lg font-semibold text-green-800">S3 버킷</h3>
+                    <p class="text-2xl font-bold text-green-600">97/97</p>
+                    <p class="text-sm text-green-600">모든 버킷이 보안 정책 준수</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                    <h3 class="text-lg font-semibold text-green-800">보안 그룹</h3>
+                    <p class="text-2xl font-bold text-green-600">37/37</p>
+                    <p class="text-sm text-green-600">SSH 접근 제한 완료</p>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                    <h3 class="text-lg font-semibold text-blue-800">IAM 루트 계정</h3>
+                    <p class="text-2xl font-bold text-blue-600">0/0</p>
+                    <p class="text-sm text-blue-600">검사 대상 없음</p>
+                </div>
+            </div>
+
+            <!-- Resource Details -->
+            <div class="space-y-4">
+                <div class="border rounded-lg">
+                    <button onclick="toggleExpand('s3-details')"
+                        class="w-full p-4 text-left bg-gray-50 hover:bg-gray-100 rounded-t-lg flex justify-between items-center">
+                        <span class="font-semibold">S3 버킷 상세 정보</span>
+                        <span class="text-gray-500">▼</span>
+                    </button>
+                    <div id="s3-details" class="expandable-content p-4">
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-green-800 mb-2">✓ 퍼블릭 액세스 차단</h4>
+                            <p class="text-sm text-gray-700 mb-2">모든 S3 버킷에서 퍼블릭 읽기/쓰기 액세스가 차단되어 있습니다.</p>
+                            <ul class="text-sm text-gray-600 list-disc list-inside">
+                                <li>검사된 버킷: 97개</li>
+                                <li>규정 준수: 100%</li>
+                                <li>위반 사항: 없음</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border rounded-lg">
+                    <button onclick="toggleExpand('sg-details')"
+                        class="w-full p-4 text-left bg-gray-50 hover:bg-gray-100 rounded-t-lg flex justify-between items-center">
+                        <span class="font-semibold">보안 그룹 상세 정보</span>
+                        <span class="text-gray-500">▼</span>
+                    </button>
+                    <div id="sg-details" class="expandable-content p-4">
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-green-800 mb-2">✓ SSH 접근 제한</h4>
+                            <p class="text-sm text-gray-700 mb-2">모든 보안 그룹에서 SSH(22번 포트) 퍼블릭 접근이 차단되어 있습니다.</p>
+                            <ul class="text-sm text-gray-600 list-disc list-inside">
+                                <li>검사된 보안 그룹: 37개</li>
+                                <li>규정 준수: 100%</li>
+                                <li>위반 사항: 없음</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CloudTrail Analysis -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">CloudTrail 활동 분석</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-semibold mb-3">위험 수준</h3>
+                    <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-500">
+                        <span class="text-green-800 font-semibold">낮음 (안전)</span>
+                        <p class="text-sm text-green-600 mt-1">모든 활동이 정상적인 AWS 서비스 통신</p>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-3">분석된 이벤트</h3>
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <span class="text-2xl font-bold text-blue-600">50건</span>
+                        <p class="text-sm text-blue-600">최근 3일간 활동</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <canvas id="activityChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">권장 조치사항</h2>
+            <div class="space-y-4">
+                <div class="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-500">
+                    <h3 class="font-semibold text-yellow-800">모니터링 강화</h3>
+                    <ul class="text-sm text-yellow-700 mt-2 list-disc list-inside">
+                        <li>CloudTrail 로그 보존 기간을 90일 이상으로 설정</li>
+                        <li>CloudWatch Logs와 연동하여 실시간 알림 구성</li>
+                        <li>AWS Config를 활성화하여 리소스 변경 추적</li>
+                    </ul>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                    <h3 class="font-semibold text-blue-800">액세스 관리</h3>
+                    <ul class="text-sm text-blue-700 mt-2 list-disc list-inside">
+                        <li>IAM 권한 정기 검토 및 최소 권한 원칙 적용</li>
+                        <li>루트 계정에 MFA 설정 및 사용 제한</li>
+                        <li>인간 사용자의 콘솔 로그인 활동 주기적 모니터링</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security News -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">최근 보안 뉴스</h2>
+            <div class="space-y-3">
+                <div class="border-b pb-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-semibold text-gray-800">CVE-2025-9039 - Amazon ECS agent introspection
+                                server 이슈</h3>
+                            <p class="text-sm text-gray-600">2025-08-14</p>
+                        </div>
+                        <a href="https://aws.amazon.com/security/security-bulletins/rss/aws-2025-018/" target="_blank"
+                            class="text-blue-600 hover:text-blue-800 text-sm font-medium">자세히보기 →</a>
+                    </div>
+                </div>
+                <div class="border-b pb-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-semibold text-gray-800">CVE-2025-8904 - Amazon EMR Secret Agent component 이슈
+                            </h3>
+                            <p class="text-sm text-gray-600">2025-08-13</p>
+                        </div>
+                        <a href="https://aws.amazon.com/security/security-bulletins/rss/aws-2025-017/" target="_blank"
+                            class="text-blue-600 hover:text-blue-800 text-sm font-medium">자세히보기 →</a>
+                    </div>
+                </div>
+                <div class="border-b pb-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-semibold text-gray-800">Amazon Q Developer Extension for Visual Studio Code
+                                보안 업데이트</h3>
+                            <p class="text-sm text-gray-600">2025-08-11</p>
+                        </div>
+                        <a href="https://aws.amazon.com/security/security-bulletins/rss/aws-2025-015/" target="_blank"
+                            class="text-blue-600 hover:text-blue-800 text-sm font-medium">자세히보기 →</a>
+                    </div>
+                </div>
+                <div class="border-b pb-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-semibold text-gray-800">MS 8월 보안 위협에 따른 정기 보안 업데이트 권고</h3>
+                            <p class="text-sm text-gray-600">2025-08-13</p>
+                        </div>
+                        <a href="https://knvd.krcert.or.kr/detailSecNo.do?IDX=6556" target="_blank"
+                            class="text-blue-600 hover:text-blue-800 text-sm font-medium">자세히보기 →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Security Score Chart
+        const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+        new Chart(scoreCtx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [100, 0],
+                    backgroundColor: ['#10B981', '#E5E7EB'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: '70%',
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Activity Chart
+        const activityCtx = document.getElementById('activityChart').getContext('2d');
+        new Chart(activityCtx, {
+            type: 'bar',
+            data: {
+                labels: ['GetServiceAttributes', 'DescribeTargetHealth', 'GenerateDataKey', 'AssumeRole'],
+                datasets: [{
+                    label: '이벤트 수',
+                    data: [44, 2, 2, 2],
+                    backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        // Toggle expand function
+        function toggleExpand(id) {
+            const element = document.getElementById(id);
+            const button = element.previousElementSibling.querySelector('span:last-child');
+
+            if (element.classList.contains('show')) {
+                element.classList.remove('show');
+                button.textContent = '▼';
+            } else {
+                element.classList.add('show');
+                button.textContent = '▲';
+            }
+        }
+    </script>
+</body>
+
+</html>
