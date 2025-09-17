@@ -1,5 +1,5 @@
 import streamlit as st
-from client import MCPAgent
+from agent import MCPAgent
 
 if "agent" not in st.session_state:
     st.session_state.agent = None
