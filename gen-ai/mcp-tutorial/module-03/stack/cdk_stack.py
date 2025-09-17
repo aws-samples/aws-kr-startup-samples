@@ -41,7 +41,7 @@ class McpServerAmazonECSStack(Stack):
         # Add Bedrock invoke permissions to the task role
         task_definition.add_to_task_role_policy(
             iam.PolicyStatement(
-                actions=["bedrock:InvokeModel"],
+                actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
                 resources=["*"]
             )
         )
