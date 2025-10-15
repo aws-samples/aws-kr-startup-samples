@@ -1,2 +1,0 @@
-strands-agents==1.5.0
-requests
