@@ -3,4 +3,4 @@ av==12.2.0
 bitsandbytes==0.43.1
 protobuf==4.25.8
 sentencepiece==0.2.0
-transformers==4.51.0
+transformers>=4.53.0
