@@ -251,17 +251,7 @@ def handler(event, context):
 		const defaultStage = slackEndpoint.defaultStage?.node.defaultChild as CfnStage;
 		defaultStage.accessLogSettings = {
 			destinationArn: apiGatewayLogGroup.logGroupArn,
-			format: JSON.stringify({
-				requestId: "$context.requestId",
-				ip: "$context.identity.sourceIp",
-				requestTime: "$context.requestTime",
-				httpMethod: "$context.httpMethod",
-				routeKey: "$context.routeKey",
-				status: "$context.status",
-				protocol: "$context.protocol",
-				responseLength: "$context.responseLength",
-				userAgent: "$context.identity.userAgent",
-			}),
+			format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","routeKey":"$context.routeKey","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","userAgent":"$context.identity.userAgent"}',
 		};
 
 		slackEndpoint.addRoutes({
