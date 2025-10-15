@@ -119,3 +119,6 @@ cdk.context.json*
 zap/
 */setup.py
 */source.bat
+
+.vscode/
+codeql-custom-queries-python/

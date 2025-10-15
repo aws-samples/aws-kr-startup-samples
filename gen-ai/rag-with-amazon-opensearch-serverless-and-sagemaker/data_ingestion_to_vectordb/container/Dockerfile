@@ -4,7 +4,7 @@ RUN pip --no-cache-dir install -U pip
 RUN pip --no-cache-dir install boto3==1.33.9 \
     langchain==0.1.0 \
     langchain-community==0.0.20 \
-    opensearch-py==2.2.0 \
+    opensearch-py==3.3.0 \
     beautifulsoup4==4.12.3
 
 # Include python script for retrieving credentials from AWS SecretsManager and Sagemaker helper classes

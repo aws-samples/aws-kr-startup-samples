@@ -6,7 +6,7 @@ RUN pip --no-cache-dir install "boto3>=1.26.159" \
     langchain-aws==0.1.6 \
     langchain-community==0.0.34 \
     SQLAlchemy==2.0.28 \
-    opensearch-py==2.2.0 \
+    opensearch-py==3.3.0 \
     beautifulsoup4==4.12.3
 
 # Include python script for retrieving credentials from AWS SecretsManager and Sagemaker helper classes

@@ -8,7 +8,7 @@ RUN pip --no-cache-dir install boto3==1.33.9 \
     langchain==0.1.11 \
     langchain-community==0.0.29 \
     SQLAlchemy==2.0.2 \
-    opensearch-py==2.2.0 \
+    opensearch-py==3.3.0 \
     beautifulsoup4==4.12.3
 
 # Include python script for retrieving credentials
