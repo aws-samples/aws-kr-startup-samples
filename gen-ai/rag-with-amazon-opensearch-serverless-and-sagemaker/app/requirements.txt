@@ -3,5 +3,5 @@ langchain>=0.3,<0.4
 langchain-aws>=0.2,<0.3
 langchain-community>=0.3,<0.4
 SQLAlchemy==2.0.28
-opensearch-py==2.2.0
+opensearch-py==3.3.0
 streamlit==1.37.0
