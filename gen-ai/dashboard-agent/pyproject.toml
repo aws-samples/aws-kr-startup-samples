@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dashboard-agent"
+version = "0.1.0"
+description = "A chatbot agent with workflow and tool execution capabilities"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+dependencies = [
+    "strands-agents>=1.13.0",
+    "strands-agents-tools",
+    "boto3>=1.28.0",
+    "pydantic>=2.0.0",
+    "mcp>=1.13.0",
+    "requests>=2.32.3",
+    "streamlit>=1.32.0",
+    "resend>=0.7.2"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+]
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
