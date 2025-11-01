@@ -275,27 +275,61 @@ async def create_message(request: MessagesRequest, raw_request: Request):
         logger.info(f"   Thinking: Enabled")
     
     try:
-        # 1. API 키 처리 (우선순위: 요청 헤더 x-api-key > 환경 변수 ANTHROPIC_API_KEY)
+        # 1. API 키 처리
+        # 우선순위: x-api-key 헤더 > Authorization Bearer 헤더 > ANTHROPIC_API_KEY 환경변수 > ANTHROPIC_AUTH_TOKEN 환경변수
+        
+        # x-api-key 헤더 체크
         header_api_key = raw_request.headers.get("x-api-key")
+        
+        # Authorization Bearer 헤더 체크 (Claude Code subscription 방식)
+        auth_header = raw_request.headers.get("authorization") or raw_request.headers.get("Authorization")
+        bearer_token = None
+        if auth_header and auth_header.startswith("Bearer "):
+            bearer_token = auth_header.replace("Bearer ", "").strip()
+        
+        # 환경변수 체크
         env_api_key = os.getenv("ANTHROPIC_API_KEY")
-        api_key = header_api_key or env_api_key
+        env_auth_token = os.getenv("ANTHROPIC_AUTH_TOKEN")
+        
+        # 우선순위에 따라 API 키 선택 및 인증 방식 결정
+        use_bearer_auth = False  # Authorization Bearer 헤더 사용 여부
+        
+        if header_api_key:
+            api_key = header_api_key
+            auth_source = f"x-api-key header: {mask_api_key(header_api_key)}"
+            use_bearer_auth = False
+        elif bearer_token:
+            api_key = bearer_token
+            auth_source = f"Authorization Bearer header (Claude Code subscription): {mask_api_key(bearer_token)}"
+            use_bearer_auth = True
+        elif env_api_key:
+            api_key = env_api_key
+            auth_source = f"ANTHROPIC_API_KEY environment variable: {mask_api_key(env_api_key)}"
+            use_bearer_auth = False
+        elif env_auth_token:
+            api_key = env_auth_token
+            auth_source = f"ANTHROPIC_AUTH_TOKEN environment variable (Claude Code): {mask_api_key(env_auth_token)}"
+            use_bearer_auth = True  # Claude Code 방식이므로 Bearer 사용
+        else:
+            api_key = None
+            auth_source = "None"
         
         # API 키 출처 로깅
-        if header_api_key:
-            logger.info(f"🔑 [AUTH] Using API key from request header: {mask_api_key(header_api_key)}")
-        elif env_api_key:
-            logger.info(f"🔑 [AUTH] Using API key from environment variable: {mask_api_key(env_api_key)}")
-        else:
-            logger.error("❌ [AUTH] Missing API key - no x-api-key header or ANTHROPIC_API_KEY environment variable")
+        logger.info(f"🔑 [AUTH] Using API key from {auth_source}")
         
         if not api_key:
+            logger.error("❌ [AUTH] Missing API key - Please provide one of:")
+            logger.error("   - x-api-key header")
+            logger.error("   - Authorization: Bearer <token> header (Claude Code)")
+            logger.error("   - ANTHROPIC_API_KEY environment variable")
+            logger.error("   - ANTHROPIC_AUTH_TOKEN environment variable (Claude Code)")
             raise HTTPException(
                 status_code=401,
                 detail={
                     "type": "error",
                     "error": {
                         "type": "authentication_error",
-                        "message": "Missing API key. Please provide x-api-key header or set ANTHROPIC_API_KEY environment variable."
+                        "message": "Missing API key. Please provide x-api-key header, Authorization Bearer header, or set ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN environment variable."
                     }
                 }
             )
@@ -313,10 +347,19 @@ async def create_message(request: MessagesRequest, raw_request: Request):
         
         # 4. Anthropic API 요청 헤더 준비
         headers = {
-            "x-api-key": api_key,
             "anthropic-version": "2023-06-01",
             "content-type": "application/json"
         }
+        
+        # 인증 방식에 따라 적절한 헤더 설정
+        if use_bearer_auth:
+            # Authorization Bearer 헤더 사용 (Claude Code 방식)
+            headers["Authorization"] = f"Bearer {api_key}"
+            logger.info(f"   Using Authorization Bearer header for authentication")
+        else:
+            # x-api-key 헤더 사용 (표준 Anthropic 방식)
+            headers["x-api-key"] = api_key
+            logger.info(f"   Using x-api-key header for authentication")
         
         # anthropic-beta 헤더 전달 (있는 경우)
         if "anthropic-beta" in raw_request.headers:
@@ -339,57 +382,65 @@ async def create_message(request: MessagesRequest, raw_request: Request):
             if request.stream:
                 logger.info("📡 [STREAM] Streaming request detected")
                 
-                # 스트리밍 요청
-                async with client.stream(
-                    "POST",
-                    api_url,
-                    headers=headers,
-                    json=request_data
-                ) as response:
-                    # 에러 체크
-                    if response.status_code != 200:
-                        error_text = await response.aread()
-                        logger.error(f"❌ [ERROR] Anthropic API error: {response.status_code}")
-                        logger.error(f"📋 [ERROR HEADERS] Response headers from Anthropic:")
-                        for header_name, header_value in response.headers.items():
-                            logger.error(f"   {header_name}: {header_value}")
-                        logger.error(f"   Error body: {error_text.decode()}")
-                        try:
-                            error_json = json.loads(error_text)
-                            raise HTTPException(status_code=response.status_code, detail=error_json)
-                        except json.JSONDecodeError:
-                            raise HTTPException(
-                                status_code=response.status_code,
-                                detail={"error": error_text.decode()}
-                            )
-                    
-                    logger.info(f"✅ [STREAM] Successfully connected to Anthropic API streaming endpoint")
-                    logger.info(f"   Status: {response.status_code}")
-                    logger.info(f"📤 [RESPONSE] Starting to stream response to client")
-                    
-                    # SSE 스트리밍 응답 전달
-                    chunk_count = 0
-                    async def stream_generator():
-                        nonlocal chunk_count
-                        try:
-                            async for chunk in response.aiter_bytes():
-                                chunk_count += 1
-                                if chunk_count == 1:
-                                    logger.debug(f"   First chunk received (size: {len(chunk)} bytes)")
-                                yield chunk
-                            logger.info(f"✅ [STREAM] Streaming completed - {chunk_count} chunks sent")
-                        except Exception as e:
-                            logger.error(f"❌ [STREAM] Error streaming response: {e}")
-                            raise
-                    
-                    return StreamingResponse(
-                        stream_generator(),
-                        media_type="text/event-stream",
-                        headers={
-                            "Cache-Control": "no-cache",
-                            "Connection": "keep-alive"
-                        }
-                    )
+                # 스트리밍 요청 - context manager를 사용하지 않고 직접 관리
+                streaming_response = await client.send(
+                    client.build_request(
+                        "POST",
+                        api_url,
+                        headers=headers,
+                        json=request_data
+                    ),
+                    stream=True
+                )
+                
+                # 에러 체크
+                if streaming_response.status_code != 200:
+                    error_text = await streaming_response.aread()
+                    logger.error(f"❌ [ERROR] Anthropic API error: {streaming_response.status_code}")
+                    logger.error(f"📋 [ERROR HEADERS] Response headers from Anthropic:")
+                    for header_name, header_value in streaming_response.headers.items():
+                        logger.error(f"   {header_name}: {header_value}")
+                    logger.error(f"   Error body: {error_text.decode()}")
+                    try:
+                        error_json = json.loads(error_text)
+                        raise HTTPException(status_code=streaming_response.status_code, detail=error_json)
+                    except json.JSONDecodeError:
+                        raise HTTPException(
+                            status_code=streaming_response.status_code,
+                            detail={"error": error_text.decode()}
+                        )
+                
+                logger.info(f"✅ [STREAM] Successfully connected to Anthropic API streaming endpoint")
+                logger.info(f"   Status: {streaming_response.status_code}")
+                logger.info(f"📤 [RESPONSE] Starting to stream response to client")
+                
+                # SSE 스트리밍 응답 전달
+                chunk_count = 0
+                async def stream_generator():
+                    nonlocal chunk_count
+                    try:
+                        async for chunk in streaming_response.aiter_bytes():
+                            chunk_count += 1
+                            if chunk_count == 1:
+                                logger.debug(f"   First chunk received (size: {len(chunk)} bytes)")
+                            yield chunk
+                        logger.info(f"✅ [STREAM] Streaming completed - {chunk_count} chunks sent")
+                    except Exception as e:
+                        logger.error(f"❌ [STREAM] Error streaming response: {e}")
+                        raise
+                    finally:
+                        # 스트림 정리
+                        await streaming_response.aclose()
+                        logger.debug("   Stream closed")
+                
+                return StreamingResponse(
+                    stream_generator(),
+                    media_type="text/event-stream",
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive"
+                    }
+                )
             
             # 비스트리밍 요청인 경우
             else:
