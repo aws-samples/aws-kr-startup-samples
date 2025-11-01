@@ -2,6 +2,9 @@
 
 A CDK stack for generating AWS WAF logs for security analysis and monitoring practice through automated traffic generation.
 
+## 🏗️ Architecture Overview
+![WAF Log Generator Architecture](assets/waf-duckdb.png)
+
 ## 🏗️ Architecture Components
 
 - **API Gateway**: REST API with mock responses (`/users`, `/admin` endpoints)
@@ -70,7 +73,27 @@ s3://aws-waf-logs-{account}-{region}-{timestamp}/
 
 ## 🔍 Log Analysis Examples
 
-### Using DuckDB
+### DuckDB Setup
+```sql
+INSTALL httpfs;
+LOAD httpfs;
+
+CREATE SECRET (
+      TYPE s3,
+      KEY_ID '<ACCESS KEY>',
+      SECRET '<SECRET KEY>',
+      REGION 'us-east-1'
+  );
+```
+
+### Create table from s3
+```sql
+CREATE TABLE waf_logs_table_1 AS
+SELECT * FROM read_json_auto('<TARGET S3 PATH>/**/*.gz');
+
+```
+
+### Log Analysis DuckDB
 ```sql
 -- Analyze WAF logs
 SELECT 
