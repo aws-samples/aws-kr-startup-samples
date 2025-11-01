@@ -102,13 +102,13 @@ SELECT
     httpRequest.uri as uri,
     action,
     terminatingRuleId
-FROM 's3://your-bucket/AWSLogs/*/WAFLogs/*/*/*/*.gz'
+FROM waf_logs_table_1
 ORDER BY timestamp DESC;
 
 
 -- Top10 ip
 SELECT httpRequest.clientIp, COUNT(*) AS requests
-FROM 's3://your-bucket/AWSLogs/*/WAFLogs/*/*/*/*.gz'
+FROM waf_logs_table_1
 WHERE to_timestamp(timestamp / 1000) >= current_date - INTERVAL 7 DAY
 GROUP BY httpRequest.clientIp
 ORDER BY requests DESC
