@@ -10,9 +10,11 @@ import traceback
 import os
 import httpx
 
+import boto3
+
 import sys
 
-# Configure logging
+# Configure logging with both console and file handlers
 logging.basicConfig(
     level=logging.DEBUG,  # Change to INFO level to show more details
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -21,6 +23,23 @@ logging.basicConfig(
 # Apply the filter to the root logger to catch all messages
 root_logger = logging.getLogger()
 logger = logging.getLogger(__name__)
+
+# Add file handler to save logs to a file
+log_file = os.path.join(os.path.dirname(__file__), "logs", "app.log")
+os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.DEBUG)
+file_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(file_formatter)
+root_logger.addHandler(file_handler)
+
+# Also add console handler explicitly for completeness
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.DEBUG)
+console_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+console_handler.setFormatter(console_formatter)
+root_logger.addHandler(console_handler)
 
 
 app = FastAPI()
@@ -240,13 +259,80 @@ async def log_requests(request: Request, call_next):
 
     return response
 
+def invoke_bedrock(body, headers):
+
+    logger.info(f"=====INVOKE BEDROCK=====")
+    
+    model = "global.anthropic.claude-haiku-4-5-20251001-v1:0" # body["model"]
+    messages = body["messages"]
+    max_tokens = body["max_tokens"]
+    temperature = body["temperature"]
+    tools = body["tools"]
+
+
+    # anthropic_version = headers["anthropic_version"]
+    anthropic_beta = list(headers["anthropic-beta"].split(","))
+
+    client = boto3.client('bedrock-runtime', region_name='us-west-2')
+
+    request_data = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "anthropic_beta": anthropic_beta,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": messages,
+        "tools": tools
+    }
+    
+    res = client.invoke_model(
+        modelId = model,
+        body=json.dumps(request_data)
+    )
+
+    model_response = json.loads(res["body"].read())
+
+    logger.info(f"{model_response}")
+    
+    return model_response
+
+async def invoke_bedrock_stream(body):
+    
+    logger.info(f"=====INVOKE BEDROCK STREAM=====")
+    
+    model = "global.anthropic.claude-haiku-4-5-20251001-v1:0" # body["model"]
+    messages = body["messages"]
+    max_tokens = body["max_tokens"]
+    temperature = body["temperature"]
+    tools = body["tools"]
+
+
+    client = boto3.client('bedrock-runtime', region_name='us-west-2')
+
+    request_data = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": messages,
+        "tools": tools,
+    }
+    
+    res = client.invoke_model_with_response_stream(
+        modelId = model,
+        body=json.dumps(request_data)
+    )
+
+    for event in res["body"]:
+        chunk = json.loads(event["chunk"]["bytes"])
+        if chunk["type"] == "content_block_delta":
+            yield chunk["delta"].get("text", "")
+
 
 @app.post("/v1/messages")
 async def create_message(request: MessagesRequest, raw_request: Request):
     """
     Anthropic Messages API 프록시 엔드포인트
     
-    클라이언트 요청을 Anthropic API로 전달하고 응답을 pass-through합니다.
+    클라이언트 요청을 Anthropic API / Amazon Bedrock으로 전달하고 응답을 pass-through합니다.
     """
     # 요청 시작 로깅
     logger.info("="*80)
@@ -375,6 +461,22 @@ async def create_message(request: MessagesRequest, raw_request: Request):
             else:
                 logger.info(f"   {header_name}: {header_value}")
         logger.debug(f"   Full request data: {json.dumps(request_data, indent=2)}")
+
+
+        # 5-0. Bedrock API 호출
+        if request.stream:
+            return StreamingResponse(
+                invoke_bedrock_stream(request_data), 
+                media_type="text/event-stream",
+                headers={
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive"
+                    }
+                )
+
+        else:
+            response_bedrock = invoke_bedrock(request_data, headers)
+            return response_bedrock
         
         # 5. Anthropic API 호출
         async with httpx.AsyncClient(timeout=600.0) as client:
