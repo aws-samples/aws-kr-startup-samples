@@ -13,6 +13,10 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
 import sys
+from dotenv import load_dotenv
+
+# load .env
+load_dotenv(override=True)
 
 # Configure logging with both console and file handlers
 logging.basicConfig(
@@ -50,7 +54,6 @@ BEDROCK_FALLBACK_ENABLED = (
     os.getenv("BEDROCK_FALLBACK_ENABLED", "true").lower() == "true"
 )
 BEDROCK_AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-
 
 # Bedrock client initialization
 def get_bedrock_client():
@@ -394,73 +397,6 @@ async def log_requests(request: Request, call_next):
 
     return response
 
-def invoke_bedrock(body, headers):
-
-    logger.info(f"=====INVOKE BEDROCK=====")
-    
-    model = "global.anthropic.claude-haiku-4-5-20251001-v1:0" # body["model"]
-    messages = body["messages"]
-    max_tokens = body["max_tokens"]
-    temperature = body["temperature"]
-    tools = body["tools"]
-
-
-    # anthropic_version = headers["anthropic_version"]
-    anthropic_beta = list(headers["anthropic-beta"].split(","))
-
-    client = boto3.client('bedrock-runtime', region_name='us-west-2')
-
-    request_data = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "anthropic_beta": anthropic_beta,
-        "max_tokens": max_tokens,
-        "temperature": temperature,
-        "messages": messages,
-        "tools": tools
-    }
-    
-    res = client.invoke_model(
-        modelId = model,
-        body=json.dumps(request_data)
-    )
-
-    model_response = json.loads(res["body"].read())
-
-    logger.info(f"{model_response}")
-    
-    return model_response
-
-async def invoke_bedrock_stream(body):
-    
-    logger.info(f"=====INVOKE BEDROCK STREAM=====")
-    
-    model = "global.anthropic.claude-haiku-4-5-20251001-v1:0" # body["model"]
-    messages = body["messages"]
-    max_tokens = body["max_tokens"]
-    temperature = body["temperature"]
-    tools = body["tools"]
-
-
-    client = boto3.client('bedrock-runtime', region_name='us-west-2')
-
-    request_data = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": max_tokens,
-        "temperature": temperature,
-        "messages": messages,
-        "tools": tools,
-    }
-    
-    res = client.invoke_model_with_response_stream(
-        modelId = model,
-        body=json.dumps(request_data)
-    )
-
-    for event in res["body"]:
-        chunk = json.loads(event["chunk"]["bytes"])
-        if chunk["type"] == "content_block_delta":
-            yield chunk["delta"].get("text", "")
-
 
 @app.post("/v1/messages")
 async def create_message(request: MessagesRequest, raw_request: Request):
@@ -624,22 +560,81 @@ async def create_message(request: MessagesRequest, raw_request: Request):
                 logger.info(f"   {header_name}: {header_value}")
         logger.debug(f"   Full request data: {json.dumps(request_data, indent=2)}")
 
+        # Bedrock API Test
+        logger.info(f"🧪 [BEDROCK TEST] Testing Bedrock API call")
+        logger.info(f"   Stream mode: {request.stream}")
 
-        # 5-0. Bedrock API 호출
-        if request.stream:
-            return StreamingResponse(
-                invoke_bedrock_stream(request_data), 
-                media_type="text/event-stream",
-                headers={
-                        "Cache-Control": "no-cache",
-                        "Connection": "keep-alive"
-                    }
+        try:
+            if request.stream:
+                logger.info("📡 [BEDROCK TEST] Testing streaming call_bedrock_api")
+                bedrock_response = await call_bedrock_api(
+                    request_data, request.model, stream=True
                 )
 
-        else:
-            response_bedrock = invoke_bedrock(request_data, headers)
-            return response_bedrock
-        
+                # Handle Bedrock streaming response and return immediately
+                async def bedrock_test_stream_generator():
+                    try:
+                        for event in bedrock_response["body"]:
+                            chunk = event.get("chunk", {})
+                            if chunk:
+                                chunk_bytes = chunk.get("bytes", b"")
+                                if chunk_bytes:
+                                    # Parse the chunk and convert to Anthropic SSE format
+                                    chunk_data = json.loads(chunk_bytes.decode())
+                                    if chunk_data.get("type") == "content_block_delta":
+                                        # Convert to Anthropic SSE format
+                                        sse_data = f"data: {json.dumps(chunk_data)}\n\n"
+                                        yield sse_data.encode()
+                                    elif chunk_data.get("type") == "message_stop":
+                                        # Send final event
+                                        sse_data = f"data: {json.dumps(chunk_data)}\n\n"
+                                        yield sse_data.encode()
+                                        break
+                    except Exception as e:
+                        logger.error(f"❌ [BEDROCK TEST STREAM ERROR] Error in test streaming: {e}")
+                        error_event = f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                        yield error_event.encode()
+
+                logger.info("✅ [BEDROCK TEST] Streaming test successful - returning stream response")
+                return StreamingResponse(
+                    bedrock_test_stream_generator(),
+                    media_type="text/event-stream",
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive",
+                    },
+                )
+            else:
+                logger.info("💬 [BEDROCK TEST] Testing non-streaming call_bedrock_api")
+                bedrock_response = await call_bedrock_api(
+                    request_data, request.model, stream=False
+                )
+                logger.info("✅ [BEDROCK TEST] Non-streaming test successful - returning response")
+                logger.info(f"   Response ID: {bedrock_response.get('id', 'N/A')}")
+
+                # Save to response.json file for test
+                try:
+                    with open("response.json", "a") as f:
+                        json.dump(bedrock_response, f, indent=2)
+                        f.write("\n")
+                except Exception as e:
+                    logger.warning(f"Could not write test response to response.json: {e}")
+
+                return bedrock_response
+
+        except Exception as bedrock_test_error:
+            logger.error(f"❌ [BEDROCK TEST] Test call failed: {bedrock_test_error}")
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "type": "error",
+                    "error": {
+                        "type": "bedrock_test_error",
+                        "message": f"Bedrock test failed: {str(bedrock_test_error)}",
+                    },
+                },
+            )
+
         # 5. Anthropic API 호출
         async with httpx.AsyncClient(timeout=600.0) as client:
             # 스트리밍 요청인 경우
