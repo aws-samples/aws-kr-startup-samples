@@ -76,15 +76,34 @@ def get_bedrock_client():
 
 def convert_to_bedrock_format(request_data: dict) -> dict:
     """Convert Anthropic API request format to Bedrock format"""
+
+
+    messages = request_data.get("messages", [])
+
+    # add prompt caching (content[-1]에 cache checkpoint를 걸어도 될지 확인 필요)
+    if len(messages) > 0:
+        try:
+            messages[-1]["content"][-1]["cache_control"] = {"type": "ephemeral"}
+        except:
+            pass
+        
+
+
     bedrock_request = {
         "anthropic_version": "bedrock-2023-05-31",  # Required for Bedrock Claude models
         "max_tokens": request_data.get("max_tokens", 4096),
-        "messages": request_data.get("messages", []),
+        "messages": messages,
     }
 
     # Add optional parameters if they exist
     if "system" in request_data:
         bedrock_request["system"] = request_data["system"]
+        
+        # add prompt caching
+        if len(bedrock_request["system"]) > 0:
+            bedrock_request["system"][-1]["cache_control"] = {"type": "ephemeral"}
+
+
     if "temperature" in request_data:
         bedrock_request["temperature"] = request_data["temperature"]
     if "top_p" in request_data:
@@ -95,6 +114,13 @@ def convert_to_bedrock_format(request_data: dict) -> dict:
         bedrock_request["stop_sequences"] = request_data["stop_sequences"]
     if "tools" in request_data:
         bedrock_request["tools"] = request_data["tools"]
+
+        # add prompt caching
+        if len(bedrock_request["tools"]) > 0:
+            bedrock_request["tools"][-1]["cache_control"] = {"type": "ephemeral"}
+
+
+
     if "tool_choice" in request_data:
         bedrock_request["tool_choice"] = request_data["tool_choice"]
 
@@ -127,6 +153,7 @@ async def call_bedrock_api(
         bedrock_model = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
         logger.info(f"🔄 [BEDROCK FALLBACK] Using model: {bedrock_model}")
+        logger.error(f"🔄 [BEDROCK FALLBACK] Original model: {original_model}")
 
         # Convert request format
         bedrock_request = convert_to_bedrock_format(request_data)
