@@ -1,4 +1,4 @@
-# WAF Log Generator
+# WAF Log Analysis
 
 A CDK stack for generating AWS WAF logs for security analysis and monitoring practice through automated traffic generation.
 
@@ -88,7 +88,7 @@ CREATE SECRET (
 
 ### Create table from s3
 ```sql
-CREATE TABLE waf_logs_table_1 AS
+CREATE TABLE waf_logs_table AS
 SELECT * FROM read_json_auto('<TARGET S3 PATH>/**/*.gz');
 
 ```
@@ -102,13 +102,13 @@ SELECT
     httpRequest.uri as uri,
     action,
     terminatingRuleId
-FROM waf_logs_table_1
+FROM waf_logs_table
 ORDER BY timestamp DESC;
 
 
 -- Top10 ip
 SELECT httpRequest.clientIp, COUNT(*) AS requests
-FROM waf_logs_table_1
+FROM waf_logs_table
 WHERE to_timestamp(timestamp / 1000) >= current_date - INTERVAL 7 DAY
 GROUP BY httpRequest.clientIp
 ORDER BY requests DESC
