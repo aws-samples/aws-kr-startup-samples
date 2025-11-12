@@ -11,6 +11,7 @@ import os
 import httpx
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
+import time
 
 import sys
 from dotenv import load_dotenv
@@ -55,6 +56,19 @@ BEDROCK_FALLBACK_ENABLED = (
 )
 BEDROCK_AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 
+# Multi-user rate limiting configuration
+RATE_LIMIT_TRACKING_ENABLED = (
+    os.getenv("RATE_LIMIT_TRACKING_ENABLED", "true").lower() == "true"
+)
+RATE_LIMIT_TABLE_NAME = os.getenv("RATE_LIMIT_TABLE_NAME", "claude-proxy-rate-limits")
+RETRY_THRESHOLD_SECONDS = int(
+    os.getenv("RETRY_THRESHOLD_SECONDS", "30")
+)  # 30초 이하면 재시도
+MAX_RETRY_WAIT_SECONDS = int(
+    os.getenv("MAX_RETRY_WAIT_SECONDS", "10")
+)  # 최대 대기 시간
+
+
 # Bedrock client initialization
 def get_bedrock_client():
     """Initialize and return Bedrock Runtime client"""
@@ -71,12 +85,108 @@ def get_bedrock_client():
         return None
 
 
+# DynamoDB client for rate limit tracking
+def get_dynamodb_resource():
+    """Get DynamoDB resource for rate limit operations"""
+    try:
+        return boto3.resource("dynamodb", region_name=BEDROCK_AWS_REGION)
+    except Exception as e:
+        logger.error(f"Failed to initialize DynamoDB resource: {e}")
+        return None
+
+
+async def check_rate_limit_status(user_id: str) -> tuple[bool, int]:
+    """Check if user is currently rate limited
+
+    Args:
+        user_id: User identifier from query parameter (claude-code-user)
+
+    Returns:
+        tuple: (is_rate_limited, retry_after_seconds)
+    """
+    if not RATE_LIMIT_TRACKING_ENABLED:
+        return False, 0
+
+    try:
+        dynamodb = get_dynamodb_resource()
+        if not dynamodb:
+            return False, 0
+
+        table = dynamodb.Table(RATE_LIMIT_TABLE_NAME)
+
+        # Query by user_id only
+        response = table.get_item(Key={"user_id": user_id})
+
+        if "Item" not in response:
+            return False, 0
+
+        item = response["Item"]
+        retry_until = int(item.get("retry_until", 0))
+        current_time = int(time.time())
+
+        if retry_until > current_time:
+            # Still rate limited
+            remaining = retry_until - current_time
+            logger.info(
+                f"📊 [DDB] User {user_id} is rate limited for {remaining}s more"
+            )
+            return True, remaining
+        else:
+            # Rate limit expired, clean up
+            try:
+                table.delete_item(Key={"user_id": user_id})
+            except:
+                pass  # Ignore deletion errors
+            return False, 0
+
+    except Exception as e:
+        logger.warning(f"Error checking rate limit status: {e}")
+        return False, 0
+
+
+async def store_rate_limit_status(user_id: str, retry_after_seconds: int):
+    """Store rate limit information for a user
+
+    Args:
+        user_id: User identifier from query parameter (claude-code-user)
+        retry_after_seconds: Seconds to wait before retry
+    """
+    if not RATE_LIMIT_TRACKING_ENABLED:
+        return
+
+    try:
+        dynamodb = get_dynamodb_resource()
+        if not dynamodb:
+            return
+
+        table = dynamodb.Table(RATE_LIMIT_TABLE_NAME)
+        current_time = int(time.time())
+        retry_until = current_time + retry_after_seconds
+        ttl = retry_until + 3600  # TTL: 1 hour after retry_until
+
+        table.put_item(
+            Item={
+                "user_id": user_id,
+                "retry_until": retry_until,
+                "retry_after_seconds": retry_after_seconds,
+                "ttl": ttl,
+                "created_at": current_time,
+            }
+        )
+
+        logger.info(
+            f"📝 [DDB] Stored rate limit for user {user_id}: until {retry_until} ({retry_after_seconds}s)"
+        )
+
+    except Exception as e:
+        logger.warning(f"Error storing rate limit status: {e}")
+
+
 # Model mapping for fallback using global inference profiles
 
 
 def convert_to_bedrock_format(request_data: dict) -> dict:
     """Convert Anthropic API request format to Bedrock format"""
-
 
     messages = request_data.get("messages", [])
 
@@ -86,8 +196,6 @@ def convert_to_bedrock_format(request_data: dict) -> dict:
             messages[-1]["content"][-1]["cache_control"] = {"type": "ephemeral"}
         except:
             pass
-        
-
 
     bedrock_request = {
         "anthropic_version": "bedrock-2023-05-31",  # Required for Bedrock Claude models
@@ -98,11 +206,10 @@ def convert_to_bedrock_format(request_data: dict) -> dict:
     # Add optional parameters if they exist
     if "system" in request_data:
         bedrock_request["system"] = request_data["system"]
-        
+
         # add prompt caching
         if len(bedrock_request["system"]) > 0:
             bedrock_request["system"][-1]["cache_control"] = {"type": "ephemeral"}
-
 
     if "temperature" in request_data:
         bedrock_request["temperature"] = request_data["temperature"]
@@ -118,8 +225,6 @@ def convert_to_bedrock_format(request_data: dict) -> dict:
         # add prompt caching
         if len(bedrock_request["tools"]) > 0:
             bedrock_request["tools"][-1]["cache_control"] = {"type": "ephemeral"}
-
-
 
     if "tool_choice" in request_data:
         bedrock_request["tool_choice"] = request_data["tool_choice"]
@@ -429,12 +534,15 @@ async def log_requests(request: Request, call_next):
 async def create_message(request: MessagesRequest, raw_request: Request):
     """
     Anthropic Messages API 프록시 엔드포인트
-    
+
     클라이언트 요청을 Anthropic API / Amazon Bedrock으로 전달하고 응답을 pass-through합니다.
     """
+    # Extract user_id from query parameter (claude-code-user=xxxxx)
+    user_id = raw_request.query_params.get("claude-code-user", "default")
+
     # 요청 시작 로깅
     logger.info("=" * 80)
-    logger.info("📥 [REQUEST] New /v1/messages request received")
+    logger.info(f"📥 [REQUEST] New /v1/messages request received from user: {user_id}")
 
     # 모든 헤더 로깅 (x-api-key는 마스킹)
     logger.info("📋 [HEADERS] Request headers:")
@@ -462,7 +570,7 @@ async def create_message(request: MessagesRequest, raw_request: Request):
 
     try:
         # 1. API 키 처리
-        # 우선순위: x-api-key 헤더 > Authorization Bearer 헤더 > ANTHROPIC_API_KEY 환경변수 > ANTHROPIC_AUTH_TOKEN 환경변수
+        # 우선순위: x-api-key 헤더 > Authorization Bearer 헤더 > 환경변수 (fallback)
 
         # x-api-key 헤더 체크
         header_api_key = raw_request.headers.get("x-api-key")
@@ -507,6 +615,68 @@ async def create_message(request: MessagesRequest, raw_request: Request):
         # API 키 출처 로깅
         logger.info(f"🔑 [AUTH] Using API key from {auth_source}")
 
+        # Prepare request data early for potential Bedrock fallback
+        request_data = request.model_dump(exclude_none=True, exclude={"original_model"})
+
+        # thinking 필드를 dict로 변환 (ThinkingConfig -> dict)
+        if request.thinking is not None:
+            request_data["thinking"] = request.thinking.model_dump(exclude_none=True)
+
+        # Check rate limit status from DynamoDB before making Anthropic API call
+        if RATE_LIMIT_TRACKING_ENABLED:
+            is_rate_limited, remaining_seconds = await check_rate_limit_status(user_id)
+            if is_rate_limited:
+                logger.info(
+                    f"⏳ [RATE LIMIT CHECK] User {user_id} is rate limited for {remaining_seconds} more seconds"
+                )
+
+                # Skip Anthropic API call and go directly to Bedrock
+                if BEDROCK_FALLBACK_ENABLED:
+                    logger.info(
+                        "🔄 [FALLBACK] Skipping Anthropic API due to stored rate limit, using Bedrock directly"
+                    )
+                    try:
+                        bedrock_response = await call_bedrock_api(
+                            request_data, request.model, stream=request.stream
+                        )
+
+                        if request.stream:
+                            return bedrock_response  # Already a StreamingResponse
+                        else:
+                            logger.info(
+                                "✅ [BEDROCK FALLBACK] Successfully received response from Bedrock (via stored rate limit)"
+                            )
+                            logger.info(
+                                "📤 [RESPONSE] Returning Bedrock response to client"
+                            )
+                            logger.info("=" * 80)
+
+                            # Save to response.json
+                            try:
+                                with open("response.json", "a") as f:
+                                    json.dump(bedrock_response, f, indent=2)
+                                    f.write("\n")
+                            except Exception as e:
+                                logger.warning(
+                                    f"Could not write Bedrock response to response.json: {e}"
+                                )
+
+                            return bedrock_response
+
+                    except Exception as bedrock_error:
+                        logger.error(
+                            f"❌ [BEDROCK FALLBACK ERROR] Bedrock fallback failed: {bedrock_error}"
+                        )
+                        # Continue to try Anthropic API anyway
+                else:
+                    logger.warning(
+                        "⚠️ [RATE LIMIT] User is rate limited but Bedrock fallback is disabled"
+                    )
+            else:
+                logger.debug(
+                    f"✅ [RATE LIMIT CHECK] User {user_id} is not currently rate limited"
+                )
+
         # Log Bedrock fallback status
         if BEDROCK_FALLBACK_ENABLED:
             try:
@@ -527,18 +697,16 @@ async def create_message(request: MessagesRequest, raw_request: Request):
             logger.info(f"🚫 [BEDROCK CONFIG] Bedrock fallback is disabled")
 
         if not api_key:
-            logger.error("❌ [AUTH] Missing API key - Please provide one of:")
-            logger.error("   - x-api-key header")
-            logger.error("   - Authorization: Bearer <token> header (Claude Code)")
-            logger.error("   - ANTHROPIC_API_KEY environment variable")
-            logger.error("   - ANTHROPIC_AUTH_TOKEN environment variable (Claude Code)")
+            logger.error("❌ [AUTH] Missing API key")
+            logger.error("Please provide x-api-key header with your Anthropic API key:")
+            logger.error("   curl -H 'x-api-key: sk-ant-...' ...")
             raise HTTPException(
                 status_code=401,
                 detail={
                     "type": "error",
                     "error": {
                         "type": "authentication_error",
-                        "message": "Missing API key. Please provide x-api-key header, Authorization Bearer header, or set ANTHROPIC_API_KEY/ANTHROPIC_AUTH_TOKEN environment variable.",
+                        "message": "Missing API key. Please provide x-api-key header with your Anthropic API key.",
                     },
                 },
             )
@@ -547,14 +715,7 @@ async def create_message(request: MessagesRequest, raw_request: Request):
         api_base = os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com")
         api_url = f"{api_base}/v1/messages"
 
-        # 3. 요청 데이터 준비 (Anthropic 형식 유지)
-        request_data = request.model_dump(exclude_none=True, exclude={"original_model"})
-
-        # thinking 필드를 dict로 변환 (ThinkingConfig -> dict)
-        if request.thinking is not None:
-            request_data["thinking"] = request.thinking.model_dump(exclude_none=True)
-
-        # 4. Anthropic API 요청 헤더 준비
+        # 3. Anthropic API 요청 헤더 준비
         headers = {
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
@@ -587,82 +748,93 @@ async def create_message(request: MessagesRequest, raw_request: Request):
                 logger.info(f"   {header_name}: {header_value}")
         logger.debug(f"   Full request data: {json.dumps(request_data, indent=2)}")
 
-        # Bedrock API Test
-        logger.info(f"🧪 [BEDROCK TEST] Testing Bedrock API call")
-        logger.info(f"   Stream mode: {request.stream}")
+        # ########## Bedrock API Test ##########
+        # logger.info(f"🧪 [BEDROCK TEST] Testing Bedrock API call")
+        # logger.info(f"   Stream mode: {request.stream}")
 
-        try:
-            if request.stream:
-                logger.info("📡 [BEDROCK TEST] Testing streaming call_bedrock_api")
-                bedrock_response = await call_bedrock_api(
-                    request_data, request.model, stream=True
-                )
+        # try:
+        #     if request.stream:
+        #         logger.info("📡 [BEDROCK TEST] Testing streaming call_bedrock_api")
+        #         bedrock_response = await call_bedrock_api(
+        #             request_data, request.model, stream=True
+        #         )
 
-                # Handle Bedrock streaming response and return immediately
-                async def bedrock_test_stream_generator():
-                    try:
-                        for event in bedrock_response["body"]:
-                            chunk = event.get("chunk", {})
-                            if chunk:
-                                chunk_bytes = chunk.get("bytes", b"")
-                                if chunk_bytes:
-                                    # Parse the chunk and convert to Anthropic SSE format
-                                    chunk_data = json.loads(chunk_bytes.decode())
-                                    if chunk_data.get("type") == "content_block_delta":
-                                        # Convert to Anthropic SSE format
-                                        sse_data = f"data: {json.dumps(chunk_data)}\n\n"
-                                        yield sse_data.encode()
-                                    elif chunk_data.get("type") == "message_stop":
-                                        # Send final event
-                                        sse_data = f"data: {json.dumps(chunk_data)}\n\n"
-                                        yield sse_data.encode()
-                                        break
-                    except Exception as e:
-                        logger.error(f"❌ [BEDROCK TEST STREAM ERROR] Error in test streaming: {e}")
-                        error_event = f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
-                        yield error_event.encode()
+        #         # Handle Bedrock streaming response and return immediately
+        #         async def bedrock_test_stream_generator():
+        #             try:
+        #                 for event in bedrock_response["body"]:
+        #                     chunk = event.get("chunk", {})
+        #                     if chunk:
+        #                         chunk_bytes = chunk.get("bytes", b"")
+        #                         if chunk_bytes:
+        #                             # Parse the chunk and convert to Anthropic SSE format
+        #                             chunk_data = json.loads(chunk_bytes.decode())
+        #                             if chunk_data.get("type") == "content_block_delta":
+        #                                 # Convert to Anthropic SSE format
+        #                                 sse_data = f"data: {json.dumps(chunk_data)}\n\n"
+        #                                 yield sse_data.encode()
+        #                             elif chunk_data.get("type") == "message_stop":
+        #                                 # Send final event
+        #                                 sse_data = f"data: {json.dumps(chunk_data)}\n\n"
+        #                                 yield sse_data.encode()
+        #                                 break
+        #             except Exception as e:
+        #                 logger.error(
+        #                     f"❌ [BEDROCK TEST STREAM ERROR] Error in test streaming: {e}"
+        #                 )
+        #                 error_event = (
+        #                     f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+        #                 )
+        #                 yield error_event.encode()
 
-                logger.info("✅ [BEDROCK TEST] Streaming test successful - returning stream response")
-                return StreamingResponse(
-                    bedrock_test_stream_generator(),
-                    media_type="text/event-stream",
-                    headers={
-                        "Cache-Control": "no-cache",
-                        "Connection": "keep-alive",
-                    },
-                )
-            else:
-                logger.info("💬 [BEDROCK TEST] Testing non-streaming call_bedrock_api")
-                bedrock_response = await call_bedrock_api(
-                    request_data, request.model, stream=False
-                )
-                logger.info("✅ [BEDROCK TEST] Non-streaming test successful - returning response")
-                logger.info(f"   Response ID: {bedrock_response.get('id', 'N/A')}")
+        #         logger.info(
+        #             "✅ [BEDROCK TEST] Streaming test successful - returning stream response"
+        #         )
+        #         return StreamingResponse(
+        #             bedrock_test_stream_generator(),
+        #             media_type="text/event-stream",
+        #             headers={
+        #                 "Cache-Control": "no-cache",
+        #                 "Connection": "keep-alive",
+        #             },
+        #         )
+        #     else:
+        #         logger.info("💬 [BEDROCK TEST] Testing non-streaming call_bedrock_api")
+        #         bedrock_response = await call_bedrock_api(
+        #             request_data, request.model, stream=False
+        #         )
+        #         logger.info(
+        #             "✅ [BEDROCK TEST] Non-streaming test successful - returning response"
+        #         )
+        #         logger.info(f"   Response ID: {bedrock_response.get('id', 'N/A')}")
 
-                # Save to response.json file for test
-                try:
-                    with open("response.json", "a") as f:
-                        json.dump(bedrock_response, f, indent=2)
-                        f.write("\n")
-                except Exception as e:
-                    logger.warning(f"Could not write test response to response.json: {e}")
+        #         # Save to response.json file for test
+        #         try:
+        #             with open("response.json", "a") as f:
+        #                 json.dump(bedrock_response, f, indent=2)
+        #                 f.write("\n")
+        #         except Exception as e:
+        #             logger.warning(
+        #                 f"Could not write test response to response.json: {e}"
+        #             )
 
-                return bedrock_response
+        #         return bedrock_response
 
-        except Exception as bedrock_test_error:
-            logger.error(f"❌ [BEDROCK TEST] Test call failed: {bedrock_test_error}")
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "type": "error",
-                    "error": {
-                        "type": "bedrock_test_error",
-                        "message": f"Bedrock test failed: {str(bedrock_test_error)}",
-                    },
-                },
-            )
+        # except Exception as bedrock_test_error:
+        #     logger.error(f"❌ [BEDROCK TEST] Test call failed: {bedrock_test_error}")
+        #     raise HTTPException(
+        #         status_code=500,
+        #         detail={
+        #             "type": "error",
+        #             "error": {
+        #                 "type": "bedrock_test_error",
+        #                 "message": f"Bedrock test failed: {str(bedrock_test_error)}",
+        #             },
+        #         },
+        #     )
+        # ####### End of Bedrock API Test #######
 
-        # 5. Anthropic API 호출
+        # 4. Anthropic API 호출
         async with httpx.AsyncClient(timeout=600.0) as client:
             # 스트리밍 요청인 경우
             if request.stream:
@@ -688,71 +860,81 @@ async def create_message(request: MessagesRequest, raw_request: Request):
                     logger.error(f"   Error body: {error_text.decode()}")
 
                     # Check if this is a 429 rate limit error and fallback to Bedrock
-                    if (
-                        streaming_response.status_code == 429
-                        and BEDROCK_FALLBACK_ENABLED
-                    ):
+                    if streaming_response.status_code == 429:
+                        # Parse retry-after header
+                        retry_after = streaming_response.headers.get("retry-after")
+                        retry_after_seconds = int(retry_after) if retry_after else 0
+
                         logger.info(
-                            "🔄 [FALLBACK] Detected 429 rate limit error, attempting Bedrock fallback for streaming request"
+                            f"⏱️ [RATE LIMIT] retry-after: {retry_after_seconds} seconds for user {user_id}"
                         )
-                        try:
-                            # For streaming, we need to handle Bedrock streaming differently
-                            bedrock_response = await call_bedrock_api(
-                                request_data, request.model, stream=True
-                            )
 
-                            # Handle Bedrock streaming response
-                            async def bedrock_stream_generator():
-                                try:
-                                    for event in bedrock_response["body"]:
-                                        chunk = event.get("chunk", {})
-                                        if chunk:
-                                            chunk_bytes = chunk.get("bytes", b"")
-                                            if chunk_bytes:
-                                                # Parse the chunk and convert to Anthropic SSE format
-                                                chunk_data = json.loads(
-                                                    chunk_bytes.decode()
-                                                )
-                                                if (
-                                                    chunk_data.get("type")
-                                                    == "content_block_delta"
-                                                ):
-                                                    # Convert to Anthropic SSE format
-                                                    sse_data = f"data: {json.dumps(chunk_data)}\n\n"
-                                                    yield sse_data.encode()
-                                                elif (
-                                                    chunk_data.get("type")
-                                                    == "message_stop"
-                                                ):
-                                                    # Send final event
-                                                    sse_data = f"data: {json.dumps(chunk_data)}\n\n"
-                                                    yield sse_data.encode()
-                                                    break
-                                except Exception as e:
-                                    logger.error(
-                                        f"❌ [BEDROCK STREAM ERROR] Error in Bedrock streaming: {e}"
-                                    )
-                                    error_event = f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
-                                    yield error_event.encode()
+                        # Store rate limit info in DynamoDB for future requests
+                        if retry_after_seconds > 0:
+                            await store_rate_limit_status(user_id, retry_after_seconds)
 
+                        if BEDROCK_FALLBACK_ENABLED:
                             logger.info(
-                                "✅ [BEDROCK FALLBACK] Successfully switched to Bedrock streaming"
+                                "🔄 [FALLBACK] Detected 429 rate limit error, attempting Bedrock fallback for streaming request"
                             )
-                            return StreamingResponse(
-                                bedrock_stream_generator(),
-                                media_type="text/event-stream",
-                                headers={
-                                    "Cache-Control": "no-cache",
-                                    "Connection": "keep-alive",
-                                },
-                            )
+                            try:
+                                # For streaming, we need to handle Bedrock streaming differently
+                                bedrock_response = await call_bedrock_api(
+                                    request_data, request.model, stream=True
+                                )
 
-                        except Exception as bedrock_error:
-                            logger.error(
-                                f"❌ [BEDROCK FALLBACK ERROR] Bedrock fallback failed: {bedrock_error}"
-                            )
-                            print(bedrock_error)
-                            # If Bedrock also fails, return original Anthropic error
+                                # Handle Bedrock streaming response
+                                async def bedrock_stream_generator():
+                                    try:
+                                        for event in bedrock_response["body"]:
+                                            chunk = event.get("chunk", {})
+                                            if chunk:
+                                                chunk_bytes = chunk.get("bytes", b"")
+                                                if chunk_bytes:
+                                                    # Parse the chunk and convert to Anthropic SSE format
+                                                    chunk_data = json.loads(
+                                                        chunk_bytes.decode()
+                                                    )
+                                                    if (
+                                                        chunk_data.get("type")
+                                                        == "content_block_delta"
+                                                    ):
+                                                        # Convert to Anthropic SSE format
+                                                        sse_data = f"data: {json.dumps(chunk_data)}\n\n"
+                                                        yield sse_data.encode()
+                                                    elif (
+                                                        chunk_data.get("type")
+                                                        == "message_stop"
+                                                    ):
+                                                        # Send final event
+                                                        sse_data = f"data: {json.dumps(chunk_data)}\n\n"
+                                                        yield sse_data.encode()
+                                                        break
+                                    except Exception as e:
+                                        logger.error(
+                                            f"❌ [BEDROCK STREAM ERROR] Error in Bedrock streaming: {e}"
+                                        )
+                                        error_event = f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                                        yield error_event.encode()
+
+                                logger.info(
+                                    "✅ [BEDROCK FALLBACK] Successfully switched to Bedrock streaming"
+                                )
+                                return StreamingResponse(
+                                    bedrock_stream_generator(),
+                                    media_type="text/event-stream",
+                                    headers={
+                                        "Cache-Control": "no-cache",
+                                        "Connection": "keep-alive",
+                                    },
+                                )
+
+                            except Exception as bedrock_error:
+                                logger.error(
+                                    f"❌ [BEDROCK FALLBACK ERROR] Bedrock fallback failed: {bedrock_error}"
+                                )
+                                print(bedrock_error)
+                                # If Bedrock also fails, return original Anthropic error
 
                     # If not 429 or Bedrock fallback failed, return original error
                     try:
@@ -822,41 +1004,54 @@ async def create_message(request: MessagesRequest, raw_request: Request):
                     logger.error(f"   Error body: {response.text}")
 
                     # Check if this is a 429 rate limit error and fallback to Bedrock
-                    if response.status_code == 429 and BEDROCK_FALLBACK_ENABLED:
+                    if response.status_code == 429:
+                        # Parse retry-after header
+                        retry_after = response.headers.get("retry-after")
+                        retry_after_seconds = int(retry_after) if retry_after else 0
+
                         logger.info(
-                            "🔄 [FALLBACK] Detected 429 rate limit error, attempting Bedrock fallback"
+                            f"⏱️ [RATE LIMIT] retry-after: {retry_after_seconds} seconds for user {user_id}"
                         )
-                        try:
-                            # Attempt Bedrock fallback
-                            bedrock_response = await call_bedrock_api(
-                                request_data, request.model, stream=False
-                            )
 
-                            logger.info(
-                                "✅ [BEDROCK FALLBACK] Successfully received response from Bedrock"
-                            )
-                            logger.info(
-                                f"📤 [RESPONSE] Returning Bedrock response to client"
-                            )
-                            logger.info("=" * 80)
+                        # Store rate limit info in DynamoDB for future requests
+                        if retry_after_seconds > 0:
+                            await store_rate_limit_status(user_id, retry_after_seconds)
 
-                            # Save to response.json file (existing behavior)
+                        if BEDROCK_FALLBACK_ENABLED:
+                            logger.info(
+                                "🔄 [FALLBACK] Detected 429 rate limit error, attempting Bedrock fallback"
+                            )
                             try:
-                                with open("response.json", "a") as f:
-                                    json.dump(bedrock_response, f, indent=2)
-                                    f.write("\n")
-                            except Exception as e:
-                                logger.warning(
-                                    f"Could not write Bedrock response to response.json: {e}"
+                                # Attempt Bedrock fallback
+                                bedrock_response = await call_bedrock_api(
+                                    request_data, request.model, stream=False
                                 )
 
-                            return bedrock_response
+                                logger.info(
+                                    "✅ [BEDROCK FALLBACK] Successfully received response from Bedrock"
+                                )
+                                logger.info(
+                                    f"📤 [RESPONSE] Returning Bedrock response to client"
+                                )
+                                logger.info("=" * 80)
 
-                        except Exception as bedrock_error:
-                            logger.error(
-                                f"❌ [BEDROCK FALLBACK ERROR] Bedrock fallback failed: {bedrock_error}"
-                            )
-                            # If Bedrock also fails, return original Anthropic error
+                                # Save to response.json file (existing behavior)
+                                try:
+                                    with open("response.json", "a") as f:
+                                        json.dump(bedrock_response, f, indent=2)
+                                        f.write("\n")
+                                except Exception as e:
+                                    logger.warning(
+                                        f"Could not write Bedrock response to response.json: {e}"
+                                    )
+
+                                return bedrock_response
+
+                            except Exception as bedrock_error:
+                                logger.error(
+                                    f"❌ [BEDROCK FALLBACK ERROR] Bedrock fallback failed: {bedrock_error}"
+                                )
+                                # If Bedrock also fails, return original Anthropic error
 
                     # If not 429 or Bedrock fallback failed, return original error
                     try:
@@ -976,6 +1171,11 @@ async def create_message(request: MessagesRequest, raw_request: Request):
 # @app.get("/")
 # async def root():
 #     return {"message": "Anthropic Proxy"}
+
+
+# AWS Lambda Adapter를 사용하므로 별도의 handler 불필요
+# FastAPI 앱이 uvicorn으로 실행되고, Lambda Adapter가 자동으로 변환
+
 
 if __name__ == "__main__":
     import sys
