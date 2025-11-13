@@ -179,7 +179,12 @@ async def store_rate_limit_status(user_id: str, retry_after_seconds: int):
         )
 
     except Exception as e:
-        logger.warning(f"Error storing rate limit status: {e}")
+        logger.error(
+            f"❌ [DDB DEBUG] Exception caught in store_rate_limit_status: {type(e).__name__}: {e}"
+        )
+        import traceback
+
+        logger.error(f"❌ [DDB DEBUG] Traceback:\n{traceback.format_exc()}")
 
 
 # Model mapping for fallback using global inference profiles
@@ -258,7 +263,7 @@ async def call_bedrock_api(
         bedrock_model = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
         logger.info(f"🔄 [BEDROCK FALLBACK] Using model: {bedrock_model}")
-        logger.error(f"🔄 [BEDROCK FALLBACK] Original model: {original_model}")
+        logger.info(f"🔄 [BEDROCK FALLBACK] Original model: {original_model}")
 
         # Convert request format
         bedrock_request = convert_to_bedrock_format(request_data)
@@ -330,7 +335,7 @@ def mask_api_key(api_key: str) -> str:
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     # Log the validation error with request details
     logger.error(f"Validation Error for {request.method} {request.url.path}")
-    logger.error(f"Request Headers: {dict(request.headers)}")
+    logger.info(f"Request Headers: {dict(request.headers)}")
 
     # Try to log the request body
     try:
@@ -354,16 +359,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(ValueError)
 async def value_error_handler(request: Request, exc: ValueError):
     logger.error(f"ValueError for {request.method} {request.url.path}: {str(exc)}")
-    logger.error(f"Request Headers: {dict(request.headers)}")
+    logger.info(f"Request Headers: {dict(request.headers)}")
 
     try:
         body = await request.body()
         if body:
             try:
                 body_text = body.decode("utf-8")
-                logger.error(f"Request Body: {body_text}")
+                logger.info(f"Request Body: {body_text}")
             except UnicodeDecodeError:
-                logger.error(f"Request Body (bytes): {body[:200]}...")
+                logger.info(f"Request Body (bytes): {body[:200]}...")
     except Exception as e:
         logger.error(f"Could not read request body: {e}")
 
@@ -378,17 +383,17 @@ async def general_exception_handler(request: Request, exc: Exception):
         f"Unhandled Exception for {request.method} {request.url.path}: {str(exc)}"
     )
     logger.error(f"Exception Type: {type(exc).__name__}")
-    logger.error(f"Request Headers: {dict(request.headers)}")
-    logger.error(f"Traceback: {traceback.format_exc()}")
+    logger.info(f"Request Headers: {dict(request.headers)}")
+    logger.info(f"Traceback: {traceback.format_exc()}")
 
     try:
         body = await request.body()
         if body:
             try:
                 body_text = body.decode("utf-8")
-                logger.error(f"Request Body: {body_text}")
+                logger.info(f"Request Body: {body_text}")
             except UnicodeDecodeError:
-                logger.error(f"Request Body (bytes): {body[:200]}...")
+                logger.info(f"Request Body (bytes): {body[:200]}...")
     except Exception as e:
         logger.error(f"Could not read request body: {e}")
 
@@ -972,7 +977,7 @@ async def create_message(request: MessagesRequest, raw_request: Request):
                             f"✅ [STREAM] Streaming completed - {chunk_count} chunks sent"
                         )
                     except Exception as e:
-                        logger.error(f"❌ [STREAM] Error streaming response: {e}")
+                        logger.warning(f"❌ [STREAM] Error streaming response: {e}")
                         raise
                     finally:
                         # 스트림 정리
