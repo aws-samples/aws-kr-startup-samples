@@ -68,6 +68,12 @@ MAX_RETRY_WAIT_SECONDS = int(
     os.getenv("MAX_RETRY_WAIT_SECONDS", "10")
 )  # 최대 대기 시간
 
+# Token usage tracking configuration
+USAGE_TRACKING_ENABLED = (
+    os.getenv("USAGE_TRACKING_ENABLED", "true").lower() == "true"
+)
+USAGE_TABLE_NAME = os.getenv("USAGE_TABLE_NAME", "claude-proxy-usage")
+
 
 # Bedrock client initialization
 def get_bedrock_client():
@@ -182,6 +188,64 @@ async def store_rate_limit_status(user_id: str, retry_after_seconds: int):
         logger.warning(f"Error storing rate limit status: {e}")
 
 
+async def store_token_usage(
+    user_id: str,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    request_type: str,
+):
+    """Store token usage information for analytics and billing
+
+    Args:
+        user_id: User identifier from query parameter (claude-code-user)
+        model: Model name (e.g., "claude-sonnet-4-5-20250929")
+        input_tokens: Number of input tokens used
+        output_tokens: Number of output tokens used
+        request_type: "anthropic" or "bedrock"
+    """
+    if not USAGE_TRACKING_ENABLED:
+        return
+
+    try:
+        dynamodb = get_dynamodb_resource()
+        if not dynamodb:
+            return
+
+        table = dynamodb.Table(USAGE_TABLE_NAME)
+        current_time = int(time.time())
+        
+        # ISO 8601 형식의 timestamp (정렬 가능)
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(current_time))
+        
+        # TTL: 90일 후 자동 삭제
+        ttl = current_time + (90 * 24 * 3600)
+
+        # DynamoDB에 사용량 기록 저장 (append 방식)
+        table.put_item(
+            Item={
+                "user_id": user_id,
+                "timestamp": timestamp,
+                "model": model,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+                "request_type": request_type,
+                "ttl": ttl,
+                "created_at": current_time,
+            }
+        )
+
+        logger.debug(
+            f"📊 [USAGE] Stored for {user_id}: "
+            f"{input_tokens} in + {output_tokens} out tokens "
+            f"(model: {model}, type: {request_type})"
+        )
+
+    except Exception as e:
+        logger.warning(f"Error storing token usage: {e}")
+
+
 # Model mapping for fallback using global inference profiles
 
 
@@ -246,7 +310,7 @@ def convert_from_bedrock_format(bedrock_response: dict, original_model: str) -> 
 
 
 async def call_bedrock_api(
-    request_data: dict, original_model: str, stream: bool = False
+    request_data: dict, original_model: str, stream: bool = False, user_id: str = "unknown"
 ) -> dict:
     """Call AWS Bedrock API as fallback"""
     try:
@@ -297,6 +361,15 @@ async def call_bedrock_api(
                 logger.info(f"📊 [BEDROCK USAGE] Token usage:")
                 logger.info(f"   Input tokens: {usage.get('input_tokens', 0)}")
                 logger.info(f"   Output tokens: {usage.get('output_tokens', 0)}")
+                
+                # Store token usage in DynamoDB
+                await store_token_usage(
+                    user_id=user_id,
+                    model=original_model,
+                    input_tokens=usage.get("input_tokens", 0),
+                    output_tokens=usage.get("output_tokens", 0),
+                    request_type="bedrock",
+                )
 
             return anthropic_response
 
@@ -402,6 +475,10 @@ class ContentBlockText(BaseModel):
     type: Literal["text"]
     text: str
 
+class ContentBlockThinking(BaseModel):
+    type: Literal["thinking"]
+    thinking: str
+    signature: Optional[str] = None
 
 class ContentBlockImage(BaseModel):
     type: Literal["image"]
@@ -436,6 +513,7 @@ class Message(BaseModel):
                 ContentBlockImage,
                 ContentBlockToolUse,
                 ContentBlockToolResult,
+                ContentBlockThinking
             ]
         ],
     ]
@@ -637,7 +715,7 @@ async def create_message(request: MessagesRequest, raw_request: Request):
                     )
                     try:
                         bedrock_response = await call_bedrock_api(
-                            request_data, request.model, stream=request.stream
+                            request_data, request.model, stream=request.stream, user_id=user_id
                         )
 
                         if request.stream:
@@ -836,6 +914,83 @@ async def create_message(request: MessagesRequest, raw_request: Request):
 
         # 4. Anthropic API 호출
         async with httpx.AsyncClient(timeout=600.0) as client:
+            # ########## Force 429 Rate Limit Test ##########
+            if os.getenv("FORCE_RATE_LIMIT", "false").lower() == "true":
+                logger.warning("🧪 [TEST MODE] Simulating 429 rate limit error")
+                
+                retry_after_seconds = 60
+                logger.info(f"⏱️ [RATE LIMIT] retry-after: {retry_after_seconds} seconds for user {user_id}")
+                
+                # Store rate limit in DynamoDB
+                await store_rate_limit_status(user_id, retry_after_seconds)
+                
+                if BEDROCK_FALLBACK_ENABLED:
+                    logger.info("🔄 [FALLBACK] Simulated 429, attempting Bedrock fallback")
+                    try:
+                        bedrock_response = await call_bedrock_api(
+                            request_data, request.model, stream=request.stream, user_id=user_id
+                        )
+                        
+                        if request.stream:
+                            # Bedrock streaming response handler
+                            async def bedrock_stream_generator():
+                                try:
+                                    for event in bedrock_response["body"]:
+                                        chunk = event.get("chunk", {})
+                                        if chunk:
+                                            chunk_bytes = chunk.get("bytes", b"")
+                                            if chunk_bytes:
+                                                chunk_data = json.loads(chunk_bytes.decode())
+                                                if chunk_data.get("type") == "content_block_delta":
+                                                    sse_data = f"data: {json.dumps(chunk_data)}\n\n"
+                                                    yield sse_data.encode()
+                                                elif chunk_data.get("type") == "message_stop":
+                                                    sse_data = f"data: {json.dumps(chunk_data)}\n\n"
+                                                    yield sse_data.encode()
+                                                    break
+                                except Exception as e:
+                                    logger.error(f"❌ [BEDROCK STREAM ERROR] {e}")
+                                    error_event = f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                                    yield error_event.encode()
+                            
+                            logger.info("✅ [TEST MODE] Bedrock fallback successful")
+                            return StreamingResponse(
+                                bedrock_stream_generator(),
+                                media_type="text/event-stream",
+                                headers={
+                                    "Cache-Control": "no-cache",
+                                    "Connection": "keep-alive",
+                                },
+                            )
+                        else:
+                            logger.info("✅ [TEST MODE] Bedrock fallback successful")
+                            return bedrock_response
+                    except Exception as bedrock_error:
+                        logger.error(f"❌ [TEST MODE] Bedrock fallback failed: {bedrock_error}")
+                        raise HTTPException(
+                            status_code=503,
+                            detail={
+                                "type": "error",
+                                "error": {
+                                    "type": "service_unavailable",
+                                    "message": "Both Anthropic (simulated 429) and Bedrock failed"
+                                }
+                            }
+                        )
+                else:
+                    logger.warning("⚠️ [TEST MODE] Bedrock fallback disabled, returning 429")
+                    raise HTTPException(
+                        status_code=429,
+                        detail={
+                            "type": "error",
+                            "error": {
+                                "type": "rate_limit_error",
+                                "message": "Rate limit exceeded (simulated)"
+                            }
+                        }
+                    )
+            # ####### End of Force 429 Test #######
+            
             # 스트리밍 요청인 경우
             if request.stream:
                 logger.info("📡 [STREAM] Streaming request detected")
@@ -880,7 +1035,7 @@ async def create_message(request: MessagesRequest, raw_request: Request):
                             try:
                                 # For streaming, we need to handle Bedrock streaming differently
                                 bedrock_response = await call_bedrock_api(
-                                    request_data, request.model, stream=True
+                                    request_data, request.model, stream=True, user_id=user_id
                                 )
 
                                 # Handle Bedrock streaming response
@@ -1024,7 +1179,7 @@ async def create_message(request: MessagesRequest, raw_request: Request):
                             try:
                                 # Attempt Bedrock fallback
                                 bedrock_response = await call_bedrock_api(
-                                    request_data, request.model, stream=False
+                                    request_data, request.model, stream=False, user_id=user_id
                                 )
 
                                 logger.info(
@@ -1166,6 +1321,258 @@ async def create_message(request: MessagesRequest, raw_request: Request):
                 },
             },
         )
+
+
+@app.get("/v1/usage/me")
+async def get_my_usage(
+    raw_request: Request,
+    days: int = None,
+    date: str = None,
+    request_type: str = None,
+):
+    """
+    현재 유저의 토큰 사용량 조회 (쿼리 파라미터에서 user_id 자동 추출)
+    
+    Args:
+        days: 조회 기간 (일 단위) - date와 함께 사용 불가
+        date: 특정 날짜 조회 (YYYY-MM-DD 형식) - days와 함께 사용 불가
+        request_type: "anthropic", "bedrock", 또는 None (전체)
+    
+    Returns:
+        현재 유저의 토큰 사용량 통계
+    
+    Example:
+        GET /v1/usage/me?days=7&request_type=bedrock  # 최근 7일
+        GET /v1/usage/me?date=2025-11-14&request_type=bedrock  # 특정 날짜 하루
+    """
+    user_id = raw_request.query_params.get("claude-code-user", "default")
+    return await get_user_usage(user_id=user_id, days=days, date=date, request_type=request_type)
+
+
+async def get_user_usage(
+    user_id: str,
+    days: int = None,
+    date: str = None,
+    request_type: str = None,
+):
+    """
+    특정 유저의 토큰 사용량 조회
+    
+    Args:
+        user_id: 유저 식별자
+        days: 조회 기간 (일 단위) - date와 함께 사용 불가
+        date: 특정 날짜 (YYYY-MM-DD 형식) - days와 함께 사용 불가
+        request_type: "anthropic", "bedrock", 또는 None (전체)
+    
+    Returns:
+        유저의 토큰 사용량 통계 (총합, 일별 통계 등)
+    """
+    try:
+        from datetime import datetime, timedelta
+        from boto3.dynamodb.conditions import Key
+        
+        dynamodb = get_dynamodb_resource()
+        if not dynamodb:
+            return {"error": "DynamoDB not available"}
+        
+        table = dynamodb.Table(USAGE_TABLE_NAME)
+        
+        # date와 days 둘 다 없으면 기본값 7일
+        if date is None and days is None:
+            days = 7
+        
+        # 날짜 범위 계산 (UTC 기준)
+        if date:
+            # 특정 날짜 하루만 조회
+            start_date = date  # YYYY-MM-DD
+            end_date = date
+        else:
+            # days 기간 조회
+            start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+            end_date = datetime.utcnow().strftime("%Y-%m-%d")
+        
+        # DynamoDB 쿼리 실행
+        if date:
+            # 특정 날짜 하루만 조회 (YYYY-MM-DD로 시작하는 모든 timestamp)
+            response = table.query(
+                KeyConditionExpression=Key("user_id").eq(user_id)
+                & Key("timestamp").between(start_date, start_date + "T99:99:99")
+            )
+        else:
+            # days 기간 조회
+            response = table.query(
+                KeyConditionExpression=Key("user_id").eq(user_id)
+                & Key("timestamp").gte(start_date)
+            )
+        
+        items = response.get("Items", [])
+        
+        # request_type 필터링 (선택적)
+        if request_type:
+            items = [item for item in items if item.get("request_type") == request_type]
+        
+        # 전체 통계 계산
+        total_input = sum(item.get("input_tokens", 0) for item in items)
+        total_output = sum(item.get("output_tokens", 0) for item in items)
+        total_requests = len(items)
+        
+        # 일별 통계 계산
+        daily_stats = {}
+        for item in items:
+            day = item["timestamp"][:10]  # YYYY-MM-DD 추출
+            if day not in daily_stats:
+                daily_stats[day] = {
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "requests": 0,
+                }
+            daily_stats[day]["input_tokens"] += item.get("input_tokens", 0)
+            daily_stats[day]["output_tokens"] += item.get("output_tokens", 0)
+            daily_stats[day]["requests"] += 1
+        
+        # 응답 구성
+        result = {
+            "user_id": user_id,
+            "request_type": request_type or "all",
+            "summary": {
+                "total_input_tokens": total_input,
+                "total_output_tokens": total_output,
+                "total_tokens": total_input + total_output,
+                "total_requests": total_requests,
+            },
+            "daily_stats": daily_stats,
+        }
+        
+        # date 또는 days 정보 추가
+        if date:
+            result["date"] = date
+        else:
+            result["period_days"] = days
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error fetching usage for user {user_id}: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/v1/usage")
+async def get_all_users_usage(
+    days: int = None,
+    date: str = None,
+    request_type: str = "bedrock",
+):
+    """
+    전체 유저의 토큰 사용량 조회 (관리자용)
+    
+    Args:
+        days: 조회 기간 (일 단위) - date와 함께 사용 불가
+        date: 특정 날짜 (YYYY-MM-DD 형식) - days와 함께 사용 불가
+        request_type: "anthropic", "bedrock", 또는 "all" (기본 bedrock)
+    
+    Returns:
+        전체 유저의 토큰 사용량 통계
+    
+    Example:
+        GET /v1/usage?days=7&request_type=bedrock  # 최근 7일
+        GET /v1/usage?date=2025-11-14&request_type=bedrock  # 특정 날짜
+    """
+    try:
+        from datetime import datetime, timedelta
+        from boto3.dynamodb.conditions import Attr
+        
+        dynamodb = get_dynamodb_resource()
+        if not dynamodb:
+            return {"error": "DynamoDB not available"}
+        
+        table = dynamodb.Table(USAGE_TABLE_NAME)
+        
+        # date와 days 둘 다 없으면 기본값 7일
+        if date is None and days is None:
+            days = 7
+        
+        # 시작/종료 날짜 계산
+        if date:
+            # 특정 날짜 하루만
+            start_timestamp = date
+            end_timestamp = date + "T99:99:99"
+        else:
+            # days 기간
+            start_timestamp = (datetime.utcnow() - timedelta(days=days)).strftime(
+                "%Y-%m-%dT%H:%M:%S"
+            )
+            end_timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
+        
+        # Scan으로 데이터 조회 (FilterExpression 사용)
+        if date:
+            # 특정 날짜 필터링
+            if request_type == "all":
+                response = table.scan(
+                    FilterExpression=Attr("timestamp").between(start_timestamp, end_timestamp)
+                )
+            else:
+                response = table.scan(
+                    FilterExpression=Attr("timestamp").between(start_timestamp, end_timestamp)
+                    & Attr("request_type").eq(request_type)
+                )
+        else:
+            # days 기간 필터링
+            if request_type == "all":
+                response = table.scan(
+                    FilterExpression=Attr("timestamp").gte(start_timestamp)
+                )
+            else:
+                response = table.scan(
+                    FilterExpression=Attr("timestamp").gte(start_timestamp)
+                    & Attr("request_type").eq(request_type)
+                )
+        
+        items = response.get("Items", [])
+        
+        # 유저별 통계 집계
+        user_stats = {}
+        for item in items:
+            uid = item.get("user_id")
+            if uid not in user_stats:
+                user_stats[uid] = {
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "requests": 0,
+                }
+            user_stats[uid]["input_tokens"] += item.get("input_tokens", 0)
+            user_stats[uid]["output_tokens"] += item.get("output_tokens", 0)
+            user_stats[uid]["requests"] += 1
+        
+        # 총합 계산
+        total_users = len(user_stats)
+        total_input = sum(s["input_tokens"] for s in user_stats.values())
+        total_output = sum(s["output_tokens"] for s in user_stats.values())
+        total_requests = sum(s["requests"] for s in user_stats.values())
+        
+        # 응답 구성
+        result = {
+            "request_type": request_type,
+            "summary": {
+                "total_users": total_users,
+                "total_input_tokens": total_input,
+                "total_output_tokens": total_output,
+                "total_tokens": total_input + total_output,
+                "total_requests": total_requests,
+            },
+            "users": user_stats,
+        }
+        
+        # date 또는 days 정보 추가
+        if date:
+            result["date"] = date
+        else:
+            result["period_days"] = days
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error fetching all users usage: {e}")
+        return {"error": str(e)}
 
 
 # @app.get("/")
