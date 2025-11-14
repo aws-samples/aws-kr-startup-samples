@@ -30,8 +30,14 @@ root_logger = logging.getLogger()
 logger = logging.getLogger(__name__)
 
 # Add file handler to save logs to a file
+# Use /tmp for Lambda, /app/logs for Fargate (will be created if writable)
 log_file = os.path.join(os.path.dirname(__file__), "logs", "app.log")
-os.makedirs(os.path.dirname(log_file), exist_ok=True)
+try:
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+except:
+    # If /app is read-only (Lambda), use /tmp
+    log_file = "/tmp/logs/app.log"
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
 file_handler = logging.FileHandler(log_file)
 file_handler.setLevel(logging.DEBUG)
@@ -48,6 +54,13 @@ root_logger.addHandler(console_handler)
 
 
 app = FastAPI()
+
+
+# Health check endpoint for Lambda Web Adapter
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy"}
 
 
 # Bedrock configuration

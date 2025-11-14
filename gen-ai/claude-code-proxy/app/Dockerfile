@@ -1,8 +1,16 @@
-FROM public.ecr.aws/docker/library/python:3.12.0-slim-bullseye
-COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.1 /lambda-adapter /opt/extensions/lambda-adapter
+FROM public.ecr.aws/docker/library/python:3.12-slim
 
 WORKDIR /app
-ADD . .
-RUN pip install -r requirements.txt
 
-CMD ["python", "main.py"]
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY main.py .
+
+# Expose port
+EXPOSE 8080
+
+# Run uvicorn server
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

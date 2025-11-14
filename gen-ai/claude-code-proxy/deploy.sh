@@ -14,17 +14,23 @@ echo "🚀 Deploying Claude Proxy to AWS Lambda..."
 echo "📦 Creating ECR repository..."
 aws ecr create-repository --repository-name $ECR_REPO --region $REGION 2>/dev/null || echo "   ECR repository already exists"
 
-# 2. ECR 로그인
+# 2. Docker 이미지 빌드
+echo "🔨 Building Docker image..."
+cd app
+docker build --platform linux/arm64 --provenance=false -t claude-proxy:latest .
+cd ..
+
+# 3. ECR 로그인
 echo "🔐 Logging in to ECR..."
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
 
-# 3. Docker 이미지 태그 & 푸시
+# 4. Docker 이미지 태그 & 푸시
 echo "🐳 Pushing Docker image..."
 IMAGE_URI=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$ECR_REPO:latest
 docker tag claude-proxy:latest $IMAGE_URI
 docker push $IMAGE_URI
 
-# 4. DynamoDB 테이블 생성 (이미 있으면 무시)
+# 5. DynamoDB 테이블 생성 (이미 있으면 무시)
 echo "💾 Creating DynamoDB table..."
 aws dynamodb create-table \
   --table-name $TABLE_NAME \
@@ -35,7 +41,7 @@ aws dynamodb create-table \
   --billing-mode PAY_PER_REQUEST \
   --region $REGION 2>/dev/null || echo "   DynamoDB table already exists"
 
-# 5. IAM Role 생성 (이미 있으면 무시)
+# 6. IAM Role 생성 (이미 있으면 무시)
 echo "🔑 Creating IAM role..."
 ROLE_NAME="${FUNCTION_NAME}-role"
 aws iam create-role \
@@ -84,7 +90,7 @@ aws iam put-role-policy \
 echo "⏳ Waiting for IAM role to propagate..."
 sleep 10
 
-# 6. Lambda 함수 생성 또는 업데이트
+# 7. Lambda 함수 생성 또는 업데이트
 echo "⚡ Creating/updating Lambda function..."
 ROLE_ARN="arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME"
 
@@ -133,7 +139,7 @@ else
     --region $REGION
 fi
 
-# 7. Function URL 생성 (이미 있으면 무시)
+# 8. Function URL 생성 (이미 있으면 무시)
 echo "🌐 Creating Function URL..."
 aws lambda create-function-url-config \
   --function-name $FUNCTION_NAME \
@@ -149,7 +155,7 @@ aws lambda add-permission \
   --function-url-auth-type NONE \
   --region $REGION 2>/dev/null || true
 
-# 8. Function URL 출력
+# 9. Function URL 출력
 echo ""
 echo "✅ Deployment complete!"
 echo ""
