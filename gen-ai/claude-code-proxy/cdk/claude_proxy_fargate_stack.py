@@ -87,7 +87,9 @@ class ClaudeProxyFargateStack(Stack):
         )
 
         # Grant DynamoDB permissions
-        rate_limit_table.grant_read_write_data(fargate_service.task_definition.task_role)
+        rate_limit_table.grant_read_write_data(
+            fargate_service.task_definition.task_role
+        )
 
         # Grant Bedrock permissions
         fargate_service.task_definition.task_role.add_to_principal_policy(
@@ -124,4 +126,3 @@ class ClaudeProxyFargateStack(Stack):
                 f"arn:aws:bedrock:{self.region}::foundation-model/*",
             ],
         )
-

@@ -549,14 +549,19 @@ async def log_requests(request: Request, call_next):
 
 
 @app.post("/v1/messages")
-async def create_message(request: MessagesRequest, raw_request: Request):
+@app.post("/user/{user_id}/v1/messages")
+async def create_message(
+    request: MessagesRequest, raw_request: Request, user_id: str = "default"
+):
     """
     Anthropic Messages API 프록시 엔드포인트
 
     클라이언트 요청을 Anthropic API / Amazon Bedrock으로 전달하고 응답을 pass-through합니다.
+
+    Routes:
+    - /v1/messages (user_id = "default")
+    - /user/{user_id}/v1/messages (user_id from path)
     """
-    # Extract user_id from query parameter (claude-code-user=xxxxx)
-    user_id = raw_request.query_params.get("claude-code-user", "default")
 
     # 요청 시작 로깅
     logger.info("=" * 80)
