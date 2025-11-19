@@ -27,14 +27,13 @@ Client (Claude Code)
 
 - AWS CLI 설정 완료
 - Docker 설치
-- Node.js (CDK CLI용)
 - Python 3.12+
 
 ### 배포
 
 ```bash
 # 1. CDK CLI 설치 (한 번만)
-npm install -g aws-cdk
+pip install aws-cdk-lib
 
 # 2. Python 환경 설정
 cd cdk
