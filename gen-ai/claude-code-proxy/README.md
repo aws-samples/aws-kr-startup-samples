@@ -51,23 +51,7 @@ cdk deploy
 
 **끝!** 🎉 배포 완료되면 ALB URL이 출력됩니다.
 
-### 업데이트
-
-코드 변경 후:
-
-```bash
-cd cdk
-source .venv/bin/activate
-cdk deploy
-```
-
-### 삭제
-
-```bash
-cd cdk
-source .venv/bin/activate
-cdk destroy
-```
+> **참고**: `cdk deploy`는 Docker 이미지 빌드부터 ECR 업로드, 인프라 배포까지 자동으로 처리합니다.
 
 ## 💻 로컬 실행
 
