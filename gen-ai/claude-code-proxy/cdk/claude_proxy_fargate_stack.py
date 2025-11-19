@@ -45,6 +45,22 @@ class ClaudeProxyFargateStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,  # Keep data on stack deletion
         )
 
+        # DynamoDB Table for usage tracking
+        usage_table = dynamodb.Table(
+            self,
+            "UsageTable",
+            table_name="claude-proxy-usage",
+            partition_key=dynamodb.Attribute(
+                name="user_id", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="timestamp", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            time_to_live_attribute="ttl",
+            removal_policy=RemovalPolicy.RETAIN,  # Keep data on stack deletion
+        )
+
         # Fargate Service with ALB
         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
@@ -63,6 +79,8 @@ class ClaudeProxyFargateStack(Stack):
                     "BEDROCK_FALLBACK_ENABLED": "true",
                     "RATE_LIMIT_TRACKING_ENABLED": "true",
                     "RATE_LIMIT_TABLE_NAME": rate_limit_table.table_name,
+                    "USAGE_TRACKING_ENABLED": "true",
+                    "USAGE_TABLE_NAME": usage_table.table_name,
                     "AWS_DEFAULT_REGION": self.region,
                 },
                 log_driver=ecs.LogDrivers.aws_logs(
@@ -88,6 +106,9 @@ class ClaudeProxyFargateStack(Stack):
 
         # Grant DynamoDB permissions
         rate_limit_table.grant_read_write_data(
+            fargate_service.task_definition.task_role
+        )
+        usage_table.grant_read_write_data(
             fargate_service.task_definition.task_role
         )
 
