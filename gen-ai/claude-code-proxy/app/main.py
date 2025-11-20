@@ -323,9 +323,7 @@ async def call_bedrock_api(
 def mask_api_key(api_key: str) -> str:
     if not api_key:
         return "None"
-    if len(api_key) <= 12:
-        return api_key[:4] + "***"
-    return api_key[:10] + "***..." + api_key[-8:]
+    return "***MASKED***"
 
 
 @app.exception_handler(RequestValidationError)

@@ -48,11 +48,18 @@ async def create_message(
     logger.info(f"📥 [REQUEST] New /v1/messages request received from user: {user_id}")
 
     logger.info("📋 [HEADERS] Request headers:")
+    SAFE_HEADERS = {
+        "content-type",
+        "anthropic-version",
+        "anthropic-beta",
+        "user-agent",
+        "accept",
+    }
     for header_name, header_value in raw_request.headers.items():
-        if header_name.lower() in ["x-api-key", "authorization"]:
-            logger.info(f"   {header_name}: {_mask_api_key(header_value)}")
-        else:
+        if header_name.lower() in SAFE_HEADERS:
             logger.info(f"   {header_name}: {header_value}")
+        else:
+            logger.info(f"   {header_name}: [REDACTED]")
 
     logger.info(f"📦 [BODY] Request body:")
     logger.info(f"   Model: {request.model}")
@@ -86,21 +93,19 @@ async def create_message(
 
         if header_api_key:
             api_key = header_api_key
-            auth_source = f"x-api-key header: {_mask_api_key(header_api_key)}"
+            auth_source = "x-api-key header"
             use_bearer_auth = False
         elif bearer_token:
             api_key = bearer_token
-            auth_source = f"Authorization Bearer header (Claude Code subscription): {_mask_api_key(bearer_token)}"
+            auth_source = "Authorization Bearer header (Claude Code subscription)"
             use_bearer_auth = True
         elif env_api_key:
             api_key = env_api_key
-            auth_source = (
-                f"ANTHROPIC_API_KEY environment variable: {_mask_api_key(env_api_key)}"
-            )
+            auth_source = "ANTHROPIC_API_KEY environment variable"
             use_bearer_auth = False
         elif env_auth_token:
             api_key = env_auth_token
-            auth_source = f"ANTHROPIC_AUTH_TOKEN environment variable (Claude Code): {_mask_api_key(env_auth_token)}"
+            auth_source = "ANTHROPIC_AUTH_TOKEN environment variable (Claude Code)"
             use_bearer_auth = True
         else:
             api_key = None
@@ -203,12 +208,7 @@ async def create_message(
 
         logger.info(f"🚀 [FORWARD] Forwarding request to Anthropic API")
         logger.info(f"   Target URL: {api_url}")
-        logger.info(f"📋 [FORWARD HEADERS] Headers being sent to Anthropic:")
-        for header_name, header_value in headers.items():
-            if header_name.lower() in ["x-api-key", "authorization"]:
-                logger.info(f"   {header_name}: {_mask_api_key(header_value)}")
-            else:
-                logger.info(f"   {header_name}: {header_value}")
+        logger.info(f"📋 [FORWARD HEADERS] Sending headers: {', '.join(headers.keys())}")
         logger.debug(f"   Full request data: {json.dumps(request_data, indent=2)}")
 
         async with httpx.AsyncClient(timeout=600.0) as client:
@@ -260,8 +260,8 @@ async def create_message(
                                                     yield sse_data.encode()
                                                     break
                                 except Exception as e:
-                                    logger.error(f"❌ [BEDROCK STREAM ERROR] {e}")
-                                    error_event = f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                                    logger.error(f"❌ [BEDROCK STREAM ERROR] {e}", exc_info=True)
+                                    error_event = f"event: error\ndata: {json.dumps({'error': 'An internal error has occurred.'})}\n\n"
                                     yield error_event.encode()
 
                             logger.info("✅ [TEST MODE] Bedrock fallback successful")
@@ -373,9 +373,9 @@ async def create_message(
                                                         break
                                     except Exception as e:
                                         logger.error(
-                                            f"❌ [BEDROCK STREAM ERROR] Error in Bedrock streaming: {e}"
+                                            f"❌ [BEDROCK STREAM ERROR] Error in Bedrock streaming: {e}",
                                         )
-                                        error_event = f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                                        error_event = f"event: error\ndata: {json.dumps({'error': 'An internal server error occurred.'})}\n\n"
                                         yield error_event.encode()
 
                                 logger.info(

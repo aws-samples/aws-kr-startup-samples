@@ -113,7 +113,7 @@ async def get_user_usage(
 
     except Exception as e:
         logger.error(f"Error fetching usage for user {user_id}: {e}")
-        return {"error": str(e)}
+        return {"error": "An internal error has occurred."}
 
 
 @router.get("/v1/usage")
@@ -210,4 +210,4 @@ async def get_all_users_usage(
 
     except Exception as e:
         logger.error(f"Error fetching all users usage: {e}")
-        return {"error": str(e)}
+        return {"error": "An internal error has occurred."}
