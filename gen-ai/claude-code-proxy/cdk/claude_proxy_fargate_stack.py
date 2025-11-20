@@ -16,15 +16,13 @@ class ClaudeProxyFargateStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # VPC - use default or create new one
         vpc = ec2.Vpc(
             self,
             "ClaudeProxyVpc",
             max_azs=2,
-            nat_gateways=0,  # Use NAT Gateway if you need private subnet internet access
+            nat_gateways=0,
         )
 
-        # ECS Cluster
         cluster = ecs.Cluster(
             self,
             "ClaudeProxyCluster",
@@ -32,7 +30,6 @@ class ClaudeProxyFargateStack(Stack):
             container_insights=True,
         )
 
-        # DynamoDB Table for rate limiting
         rate_limit_table = dynamodb.Table(
             self,
             "RateLimitTable",
@@ -42,10 +39,9 @@ class ClaudeProxyFargateStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             time_to_live_attribute="ttl",
-            removal_policy=RemovalPolicy.RETAIN,  # Keep data on stack deletion
+            removal_policy=RemovalPolicy.RETAIN,
         )
 
-        # DynamoDB Table for usage tracking
         usage_table = dynamodb.Table(
             self,
             "UsageTable",
@@ -58,16 +54,15 @@ class ClaudeProxyFargateStack(Stack):
             ),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             time_to_live_attribute="ttl",
-            removal_policy=RemovalPolicy.RETAIN,  # Keep data on stack deletion
+            removal_policy=RemovalPolicy.RETAIN,
         )
 
-        # Fargate Service with ALB
         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
             "ClaudeProxyService",
             cluster=cluster,
-            cpu=512,  # 0.5 vCPU
-            memory_limit_mib=1024,  # 1 GB
+            cpu=512,
+            memory_limit_mib=1024,
             desired_count=1,
             task_image_options=ecs_patterns.ApplicationLoadBalancedTaskImageOptions(
                 image=ecs.ContainerImage.from_asset(
@@ -89,13 +84,10 @@ class ClaudeProxyFargateStack(Stack):
                 ),
             ),
             public_load_balancer=True,
-            # Deploy Fargate tasks in public subnet with public IP (no NAT Gateway needed)
             assign_public_ip=True,
-            # Health check configuration
             health_check_grace_period=Duration.seconds(60),
         )
 
-        # Configure target group health check
         fargate_service.target_group.configure_health_check(
             path="/health",
             interval=Duration.seconds(30),
@@ -104,20 +96,15 @@ class ClaudeProxyFargateStack(Stack):
             unhealthy_threshold_count=3,
         )
 
-        # Grant DynamoDB permissions
         rate_limit_table.grant_read_write_data(
             fargate_service.task_definition.task_role
         )
-        usage_table.grant_read_write_data(
-            fargate_service.task_definition.task_role
-        )
+        usage_table.grant_read_write_data(fargate_service.task_definition.task_role)
 
-        # Grant Bedrock permissions
         fargate_service.task_definition.task_role.add_to_principal_policy(
             statement=self._create_bedrock_policy()
         )
 
-        # Output the ALB DNS name
         from aws_cdk import CfnOutput
 
         CfnOutput(
