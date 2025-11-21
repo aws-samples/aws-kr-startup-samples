@@ -123,6 +123,69 @@ curl "http://YOUR-ALB-DNS/user/bob/v1/messages" ...
 
 각 유저별로 독립적인 rate limit이 추적됩니다.
 
+## 📈 사용량(토큰) 추적
+
+Bedrock 폴백 경로로 처리된 요청의 토큰 사용량을 DynamoDB에 기록합니다. 기본값은 활성화 상태이며, 기록 데이터는 비용 및 거버넌스 관점의 모니터링과 리포팅에 활용할 수 있습니다.
+
+- **기록 항목**
+  - `user_id`: 사용자 식별자
+  - `timestamp`: ISO 시각(UTC), 파티션 내 정렬 키
+  - `model`: 요청 시 지정한 원본 모델명(예: `claude-3-5-sonnet-20241022`)
+  - `input_tokens`, `output_tokens`, `total_tokens`
+  - `request_type`: `"bedrock"` (폴백 경로)
+  - `ttl`: 레코드 만료 시간(초). 기본 90일 보관 후 자동 만료
+  - `created_at`: UNIX epoch(초)
+
+- **DynamoDB 테이블 스키마**
+  - 테이블명: `claude-proxy-usage` (환경변수로 변경 가능)
+  - 파티션 키: `user_id` (String)
+  - 정렬 키: `timestamp` (String, 예: `2025-11-21T13:45:12`)
+  - TTL 속성: `ttl`
+  - 과금 모드: `PAY_PER_REQUEST`
+  - CDK 배포 시 자동 생성되며, ECS Task Role에 읽기/쓰기 권한이 부여됩니다.
+
+- **유저 식별과 조회 규칙**
+  - 메시지 호출 시: 경로 기반(`/user/{user_id}/v1/messages`)으로 사용자 식별
+  - 사용량 조회 시: 쿼리 파라미터 `claude-code-user`로 사용자 지정(기본값 `default`)
+
+- **엔드포인트**
+  - 내 사용량 조회(요약 및 일별 집계)
+    ```
+    GET /v1/usage/me?claude-code-user=<USER_ID>&days=7
+    GET /v1/usage/me?claude-code-user=<USER_ID>&date=YYYY-MM-DD
+    ```
+  - 전체 사용자 집계(요약 및 사용자별 합계)
+    ```
+    GET /v1/usage?days=7&request_type=bedrock|all
+    GET /v1/usage?date=YYYY-MM-DD&request_type=bedrock|all
+    ```
+
+- **응답 예시(개인 조회)**
+  ```json
+  {
+    "user_id": "alice",
+    "request_type": "bedrock",
+    "summary": {
+      "total_input_tokens": 1234,
+      "total_output_tokens": 567,
+      "total_tokens": 1801,
+      "total_requests": 9
+    },
+    "daily_stats": {
+      "2025-11-20": { "input_tokens": 300, "output_tokens": 120, "requests": 2 },
+      "2025-11-21": { "input_tokens": 934, "output_tokens": 447, "requests": 7 }
+    },
+    "period_days": 7
+  }
+  ```
+
+- **FallBack 테스트 방법**
+  - 빠른 테스트: 폴백 경로를 강제로 유도해 사용량 기록 생성
+    ```bash
+    # 요청 전 환경변수로 429 시뮬레이션
+    export FORCE_RATE_LIMIT=true
+    ```
+
 ## 환경변수
 
 | 변수 | 기본값 | 설명 |
@@ -132,6 +195,8 @@ curl "http://YOUR-ALB-DNS/user/bob/v1/messages" ...
 | `RETRY_THRESHOLD_SECONDS` | `30` | 재시도 임계값 (초) |
 | `MAX_RETRY_WAIT_SECONDS` | `10` | 최대 대기 시간 (초) |
 | `RATE_LIMIT_TABLE_NAME` | `claude-proxy-rate-limits` | DynamoDB 테이블 이름 |
+| `USAGE_TRACKING_ENABLED` | `true` | 사용량(토큰) 추적 활성화 |
+| `USAGE_TABLE_NAME` | `claude-proxy-usage` | 사용량 기록 DynamoDB 테이블 이름 |
 
 
 ## 프로젝트 구조
