@@ -19,6 +19,9 @@ pip install -r requirements.txt
 ## Deploy
 
 ```bash
+# Public ECR 403 에러 방지 (권장)
+docker logout public.ecr.aws
+
 # Bootstrap CDK (first time only)
 cdk bootstrap
 
