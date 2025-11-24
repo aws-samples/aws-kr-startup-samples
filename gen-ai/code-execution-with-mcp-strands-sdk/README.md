@@ -2,6 +2,10 @@
 
 This repository demonstrates a pair of Strands agents instrumented with Langfuse tracing and AWS MCP servers, following the workflow outlined in [Anthropic – *Code execution with MCP*](https://www.anthropic.com/engineering/code-execution-with-mcp).
 
+![Langfuse trace comparison](result.png)
+
+*Tip: for longer term maintenance, consider moving screenshots into a folder such as `docs/assets/` and updating the image path above accordingly.*
+
 ## Quick Start
 
 ```bash
