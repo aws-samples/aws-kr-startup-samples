@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..base import call_mcp_tool
+from core.mcp_config import call_mcp_tool
 
 SERVER_KEY = "amazon-ecs"
 
