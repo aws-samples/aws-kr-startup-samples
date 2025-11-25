@@ -4,6 +4,24 @@ This repository demonstrates Strands agent implementations instrumented with Lan
 
 ![Langfuse trace comparison](result.png)
 
+## Why Code Execution Approach?
+
+The Code Execution approach significantly improves efficiency compared to directly using MCP tools.
+
+![Langfuse trace comparison](result.png)
+
+### Performance Comparison
+
+| Metric | Code Execution | MCP Direct | Improvement |
+|--------|----------------|------------|-------------|
+| **Latency** | 30.65s | 59.62s | **~2x faster** |
+| **Total Tokens** | 34,322 | 163,370 | **~4.8x fewer** |
+| **Input Tokens** | 32,832 | 162,050 | ~4.9x fewer |
+| **Output Tokens** | 1,490 | 1,320 | Similar |
+| **Observations** | 13 | 10 | More granular |
+
+> **Key Insight**: The Code Execution approach dynamically discovers and invokes only the necessary MCP tools, while the Direct approach loads all available tools upfront, resulting in significantly higher token consumption due to large tool schemas in the context.
+
 ## Quick Start
 
 ```bash
