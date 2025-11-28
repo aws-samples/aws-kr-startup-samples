@@ -130,7 +130,5 @@ class ClaudeProxyFargateStack(Stack):
                 "bedrock:InvokeModel",
                 "bedrock:InvokeModelWithResponseStream",
             ],
-            resources=[
-                f"arn:aws:bedrock:{self.region}::foundation-model/*",
-            ],
+            resources=["*"],
         )
