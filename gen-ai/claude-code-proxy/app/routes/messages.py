@@ -11,6 +11,7 @@ from config import (
     BEDROCK_FALLBACK_ENABLED,
     RATE_LIMIT_TRACKING_ENABLED,
 )
+from utils import track_usage
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -112,6 +113,8 @@ async def create_message(
             auth_source = "None"
 
         logger.info(f"🔑 [AUTH] Using API key from {auth_source}")
+        if api_key:
+            logger.debug(f"   API key prefix: {api_key[:15]}..." if len(api_key) > 15 else "   API key too short")
 
         request_data = request.model_dump(exclude_none=True, exclude={"original_model"})
 
@@ -185,7 +188,11 @@ async def create_message(
                 },
             )
 
-        api_base = os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com")
+        # Claude Pro 구독자는 다른 엔드포인트 사용
+        if use_bearer_auth:
+            api_base = os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com")
+        else:
+            api_base = os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com")
         api_url = f"{api_base}/v1/messages"
 
         headers = {
@@ -206,8 +213,9 @@ async def create_message(
                 f"   anthropic-beta header: {raw_request.headers['anthropic-beta']}"
             )
 
-        logger.info(f"🚀 [FORWARD] Forwarding request to Anthropic API")
+        logger.info(f"🚀 [FORWARD] Forwarding request to {'Claude.ai' if use_bearer_auth else 'Anthropic'} API")
         logger.info(f"   Target URL: {api_url}")
+        logger.info(f"   Auth method: {'Bearer token' if use_bearer_auth else 'x-api-key'}")
         logger.info(f"📋 [FORWARD HEADERS] Sending headers: {', '.join(headers.keys())}")
         logger.debug(f"   Full request data: {json.dumps(request_data, indent=2)}")
 
@@ -260,7 +268,11 @@ async def create_message(
                                                     yield sse_data.encode()
                                                     break
                                 except Exception as e:
-                                    logger.error(f"❌ [BEDROCK STREAM ERROR] {e}", exc_info=True)
+                                    try:
+                                        error_str = str(e)
+                                    except:
+                                        error_str = f"{type(e).__name__}"
+                                    logger.error(f"❌ [BEDROCK STREAM ERROR] {error_str}")
                                     error_event = f"event: error\ndata: {json.dumps({'error': 'An internal error has occurred.'})}\n\n"
                                     yield error_event.encode()
 
@@ -372,8 +384,12 @@ async def create_message(
                                                         yield sse_data.encode()
                                                         break
                                     except Exception as e:
+                                        try:
+                                            error_str = str(e)
+                                        except:
+                                            error_str = f"{type(e).__name__}"
                                         logger.error(
-                                            f"❌ [BEDROCK STREAM ERROR] Error in Bedrock streaming: {e}",
+                                            f"❌ [BEDROCK STREAM ERROR] Error in Bedrock streaming: {error_str}",
                                         )
                                         error_event = f"event: error\ndata: {json.dumps({'error': 'An internal server error occurred.'})}\n\n"
                                         yield error_event.encode()
@@ -429,12 +445,28 @@ async def create_message(
                         logger.info(
                             f"✅ [STREAM] Streaming completed - {chunk_count} chunks sent"
                         )
+                    except httpx.ReadError as e:
+                        try:
+                            error_str = str(e)
+                        except:
+                            error_str = f"{type(e).__name__}"
+                        logger.error(f"❌ [STREAM] Connection error while streaming from Anthropic API: {error_str}")
+                        error_event = f'event: error\ndata: {json.dumps({"type": "error", "error": {"type": "api_error", "message": "Connection lost while streaming response"}})}\n\n'
+                        yield error_event.encode()
                     except Exception as e:
-                        logger.warning(f"❌ [STREAM] Error streaming response: {e}")
-                        raise
+                        try:
+                            error_str = str(e)
+                        except:
+                            error_str = f"{type(e).__name__}"
+                        logger.error(f"❌ [STREAM] Unexpected error streaming response: {error_str}")
+                        error_event = f'event: error\ndata: {json.dumps({"type": "error", "error": {"type": "api_error", "message": "An error occurred while streaming"}})}\n\n'
+                        yield error_event.encode()
                     finally:
-                        await streaming_response.aclose()
-                        logger.debug("   Stream closed")
+                        try:
+                            await streaming_response.aclose()
+                            logger.debug("   Stream closed")
+                        except Exception as e:
+                            logger.debug(f"   Error closing stream: {type(e).__name__}")
 
                 return StreamingResponse(
                     stream_generator(),
@@ -539,6 +571,16 @@ async def create_message(
                         logger.info(
                             f"   Cache read tokens: {usage.get('cache_read_input_tokens', 0)}"
                         )
+
+                    # Anthropic API usage is not tracked (only Bedrock fallback is tracked)
+                    # If you want to track Anthropic API usage, uncomment below:
+                    # await track_usage(
+                    #     user_id=user_id,
+                    #     model=response_json.get("model", request.model),
+                    #     input_tokens=usage.get("input_tokens", 0),
+                    #     output_tokens=usage.get("output_tokens", 0),
+                    #     request_type="anthropic",
+                    # )
 
                 if "content" in response_json:
                     content = response_json["content"]

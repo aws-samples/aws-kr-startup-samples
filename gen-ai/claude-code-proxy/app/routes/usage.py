@@ -52,45 +52,58 @@ async def get_user_usage(
         if date is None and days is None:
             days = 7
 
+        # Generate list of dates to query
         if date:
-            start_date = date
-            end_date = date
+            dates = [date]
         else:
-            start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
-            end_date = datetime.utcnow().strftime("%Y-%m-%d")
+            dates = [
+                (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
+                for i in range(days)
+            ]
 
-        if date:
-            response = table.query(
-                KeyConditionExpression=Key("user_id").eq(user_id)
-                & Key("timestamp").between(start_date, start_date + "T99:99:99")
-            )
-        else:
-            response = table.query(
-                KeyConditionExpression=Key("user_id").eq(user_id)
-                & Key("timestamp").gte(start_date)
-            )
-
-        items = response.get("Items", [])
-
-        if request_type:
-            items = [item for item in items if item.get("request_type") == request_type]
-
-        total_input = sum(item.get("input_tokens", 0) for item in items)
-        total_output = sum(item.get("output_tokens", 0) for item in items)
-        total_requests = len(items)
-
+        # Query daily aggregates for each date
         daily_stats = {}
-        for item in items:
-            day = item["timestamp"][:10]
-            if day not in daily_stats:
-                daily_stats[day] = {
-                    "input_tokens": 0,
-                    "output_tokens": 0,
-                    "requests": 0,
+        total_input = 0
+        total_output = 0
+        total_requests = 0
+
+        for query_date in dates:
+            user_period_key = f"{user_id}#{query_date}"
+
+            # Get item for this date (no Sort Key)
+            try:
+                response = table.get_item(Key={"user_period": user_period_key})
+                item = response.get("Item")
+                
+                if item:
+                    # Check request_type filter if specified
+                    if request_type and item.get("request_type") != request_type:
+                        continue
+                    
+                    day_input = item.get("input_tokens", 0)
+                    day_output = item.get("output_tokens", 0)
+                    day_requests = item.get("request_count", 0)
+                else:
+                    day_input = 0
+                    day_output = 0
+                    day_requests = 0
+            except Exception as e:
+                logger.warning(f"Error getting item for {user_period_key}: {e}")
+                day_input = 0
+                day_output = 0
+                day_requests = 0
+
+            if day_input > 0 or day_output > 0 or day_requests > 0:
+                daily_stats[query_date] = {
+                    "input_tokens": day_input,
+                    "output_tokens": day_output,
+                    "total_tokens": day_input + day_output,
+                    "requests": day_requests,
                 }
-            daily_stats[day]["input_tokens"] += item.get("input_tokens", 0)
-            daily_stats[day]["output_tokens"] += item.get("output_tokens", 0)
-            daily_stats[day]["requests"] += 1
+
+                total_input += day_input
+                total_output += day_output
+                total_requests += day_requests
 
         result = {
             "user_id": user_id,
@@ -124,7 +137,7 @@ async def get_all_users_usage(
 ):
     try:
         from datetime import datetime, timedelta
-        from boto3.dynamodb.conditions import Attr
+        from boto3.dynamodb.conditions import Key, Attr
 
         dynamodb = get_dynamodb_resource()
         if not dynamodb:
@@ -135,54 +148,60 @@ async def get_all_users_usage(
         if date is None and days is None:
             days = 7
 
+        # Generate list of dates to query
         if date:
-            start_timestamp = date
-            end_timestamp = date + "T99:99:99"
+            dates = [date]
         else:
-            start_timestamp = (datetime.utcnow() - timedelta(days=days)).strftime(
-                "%Y-%m-%dT%H:%M:%S"
-            )
-            end_timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-
-        if date:
-            if request_type == "all":
-                response = table.scan(
-                    FilterExpression=Attr("timestamp").between(
-                        start_timestamp, end_timestamp
-                    )
-                )
-            else:
-                response = table.scan(
-                    FilterExpression=Attr("timestamp").between(
-                        start_timestamp, end_timestamp
-                    )
-                    & Attr("request_type").eq(request_type)
-                )
-        else:
-            if request_type == "all":
-                response = table.scan(
-                    FilterExpression=Attr("timestamp").gte(start_timestamp)
-                )
-            else:
-                response = table.scan(
-                    FilterExpression=Attr("timestamp").gte(start_timestamp)
-                    & Attr("request_type").eq(request_type)
-                )
-
-        items = response.get("Items", [])
+            dates = [
+                (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
+                for i in range(days)
+            ]
 
         user_stats = {}
+
+        # Scan all items and filter by date range (no GSI)
+        response = table.scan(FilterExpression=Attr("period_type").eq("daily"))
+        items = response.get("Items", [])
+
+        # Continue scanning if there are more items
+        while "LastEvaluatedKey" in response:
+            response = table.scan(
+                FilterExpression=Attr("period_type").eq("daily"),
+                ExclusiveStartKey=response["LastEvaluatedKey"],
+            )
+            items.extend(response.get("Items", []))
+
+        # Filter items by date range and request_type in memory
+        filtered_items = []
+        for item in items:
+            user_period = item.get("user_period", "")
+            # Extract date from user_period (format: "user_id#YYYY-MM-DD")
+            if "#" in user_period:
+                item_date = user_period.split("#")[1]
+                if item_date in dates:
+                    # Filter by request_type if specified
+                    if request_type == "all" or item.get("request_type") == request_type:
+                        filtered_items.append(item)
+        items = filtered_items
+
+        # Aggregate by user
         for item in items:
             uid = item.get("user_id")
+            if not uid:
+                continue
+
             if uid not in user_stats:
                 user_stats[uid] = {
                     "input_tokens": 0,
                     "output_tokens": 0,
+                    "total_tokens": 0,
                     "requests": 0,
                 }
+
             user_stats[uid]["input_tokens"] += item.get("input_tokens", 0)
             user_stats[uid]["output_tokens"] += item.get("output_tokens", 0)
-            user_stats[uid]["requests"] += 1
+            user_stats[uid]["total_tokens"] += item.get("total_tokens", 0)
+            user_stats[uid]["requests"] += item.get("request_count", 0)
 
         total_users = len(user_stats)
         total_input = sum(s["input_tokens"] for s in user_stats.values())

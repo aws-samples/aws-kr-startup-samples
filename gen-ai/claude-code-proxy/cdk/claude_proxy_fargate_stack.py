@@ -16,11 +16,24 @@ class ClaudeProxyFargateStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        # VPC with public and private subnets
         vpc = ec2.Vpc(
             self,
             "ClaudeProxyVpc",
             max_azs=2,
-            nat_gateways=0,
+            nat_gateways=1,  # NAT Gateway for private subnet internet access
+            subnet_configuration=[
+                ec2.SubnetConfiguration(
+                    name="Public",
+                    subnet_type=ec2.SubnetType.PUBLIC,
+                    cidr_mask=24,
+                ),
+                ec2.SubnetConfiguration(
+                    name="Private",
+                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
+                    cidr_mask=24,
+                ),
+            ],
         )
 
         cluster = ecs.Cluster(
@@ -30,6 +43,10 @@ class ClaudeProxyFargateStack(Stack):
             container_insights=True,
         )
 
+        # Import existing tables if they exist, otherwise CDK will create them
+        # To use existing tables, comment out the Table() constructors and use from_table_name()
+        
+        # Option 1: Create new tables (default for first deployment)
         rate_limit_table = dynamodb.Table(
             self,
             "RateLimitTable",
@@ -47,15 +64,26 @@ class ClaudeProxyFargateStack(Stack):
             "UsageTable",
             table_name="claude-proxy-usage",
             partition_key=dynamodb.Attribute(
-                name="user_id", type=dynamodb.AttributeType.STRING
+                name="user_period", type=dynamodb.AttributeType.STRING
             ),
-            sort_key=dynamodb.Attribute(
-                name="timestamp", type=dynamodb.AttributeType.STRING
-            ),
+            # No sort key needed since we only track bedrock
+            # No GSI needed since usage queries are infrequent
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             time_to_live_attribute="ttl",
             removal_policy=RemovalPolicy.RETAIN,
         )
+        
+        # Option 2: Use existing tables (uncomment if tables already exist)
+        # rate_limit_table = dynamodb.Table.from_table_name(
+        #     self,
+        #     "RateLimitTable",
+        #     table_name="claude-proxy-rate-limits",
+        # )
+        # usage_table = dynamodb.Table.from_table_name(
+        #     self,
+        #     "UsageTable",
+        #     table_name="claude-proxy-usage",
+        # )
 
         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
@@ -77,14 +105,18 @@ class ClaudeProxyFargateStack(Stack):
                     "USAGE_TRACKING_ENABLED": "true",
                     "USAGE_TABLE_NAME": usage_table.table_name,
                     "AWS_DEFAULT_REGION": self.region,
+                    # "FORCE_RATE_LIMIT": "true",  # Uncomment to test Bedrock fallback
                 },
                 log_driver=ecs.LogDrivers.aws_logs(
                     stream_prefix="claude-proxy",
                     log_retention=logs.RetentionDays.ONE_WEEK,
                 ),
             ),
-            public_load_balancer=True,
-            assign_public_ip=True,
+            public_load_balancer=True,  # ALB는 public subnet에 배치
+            assign_public_ip=False,  # Fargate 태스크는 private subnet에 배치 (Public IP 없음)
+            task_subnets=ec2.SubnetSelection(
+                subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
+            ),  # Fargate를 private subnet에 명시적으로 배치
             health_check_grace_period=Duration.seconds(60),
         )
 

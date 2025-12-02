@@ -1,13 +1,11 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 import uvicorn
 import logging
 import json
-from typing import List, Dict, Any, Optional, Union
 import traceback
 import os
-import httpx
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 import time
@@ -26,12 +24,14 @@ from config import (
 )
 from models import MessagesRequest
 from routes.usage import router as usage_router
+from routes.ui import router as ui_router
 from routes import messages
+from utils import track_usage
 
 load_dotenv(override=True)
 
 logging.basicConfig(
-    level=logging.ERROR,
+    level=logging.INFO,  # INFO 로그를 보려면 DEBUG 또는 INFO로 설정
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
@@ -63,11 +63,24 @@ root_logger.addHandler(console_handler)
 app = FastAPI()
 
 app.include_router(usage_router)
+app.include_router(ui_router)
 
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/debug/env")
+async def debug_env():
+    """Debug endpoint to check environment variables"""
+    return {
+        "BEDROCK_FALLBACK_ENABLED": os.getenv("BEDROCK_FALLBACK_ENABLED"),
+        "RATE_LIMIT_TRACKING_ENABLED": os.getenv("RATE_LIMIT_TRACKING_ENABLED"),
+        "USAGE_TRACKING_ENABLED": os.getenv("USAGE_TRACKING_ENABLED"),
+        "FORCE_RATE_LIMIT": os.getenv("FORCE_RATE_LIMIT"),
+        "AWS_DEFAULT_REGION": os.getenv("AWS_DEFAULT_REGION"),
+    }
 
 
 def get_bedrock_client():
@@ -158,46 +171,7 @@ async def store_rate_limit_status(user_id: str, retry_after_seconds: int):
         logger.error(f"❌ [DDB] Error storing rate limit: {type(e).__name__}: {e}")
 
 
-async def store_token_usage(
-    user_id: str,
-    model: str,
-    input_tokens: int,
-    output_tokens: int,
-    request_type: str,
-):
-    if not USAGE_TRACKING_ENABLED:
-        return
-
-    try:
-        dynamodb = get_dynamodb_resource()
-        if not dynamodb:
-            return
-
-        table = dynamodb.Table(USAGE_TABLE_NAME)
-        current_time = int(time.time())
-        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(current_time))
-        ttl = current_time + (90 * 24 * 3600)
-
-        table.put_item(
-            Item={
-                "user_id": user_id,
-                "timestamp": timestamp,
-                "model": model,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "total_tokens": input_tokens + output_tokens,
-                "request_type": request_type,
-                "ttl": ttl,
-                "created_at": current_time,
-            }
-        )
-
-        logger.debug(
-            f"📊 [USAGE] {user_id}: {input_tokens}+{output_tokens} tokens ({model}, {request_type})"
-        )
-
-    except Exception as e:
-        logger.warning(f"Error storing token usage: {e}")
+# Removed: store_token_usage function replaced by track_usage from utils.py
 
 
 def convert_to_bedrock_format(request_data: dict) -> dict:
@@ -295,7 +269,7 @@ async def call_bedrock_api(
                 logger.info(f"   Input tokens: {usage.get('input_tokens', 0)}")
                 logger.info(f"   Output tokens: {usage.get('output_tokens', 0)}")
 
-                await store_token_usage(
+                await track_usage(
                     user_id=user_id,
                     model=original_model,
                     input_tokens=usage.get("input_tokens", 0),
@@ -351,7 +325,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(ValueError)
 async def value_error_handler(request: Request, exc: ValueError):
-    logger.error(f"ValueError for {request.method} {request.url.path}: {str(exc)}")
+    try:
+        error_msg = str(exc)
+    except Exception as e:
+        error_msg = f"[Error converting exception to string: {type(e).__name__}]"
+    
+    logger.error(f"ValueError for {request.method} {request.url.path}: {error_msg}")
     logger.info(f"Request Headers: {dict(request.headers)}")
 
     try:
@@ -366,18 +345,27 @@ async def value_error_handler(request: Request, exc: ValueError):
         logger.error(f"Could not read request body: {e}")
 
     return JSONResponse(
-        status_code=400, content={"error": "Invalid request", "detail": str(exc)}
+        status_code=400, content={"error": "Invalid request", "detail": error_msg}
     )
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
+    try:
+        error_msg = str(exc)
+    except Exception as e:
+        error_msg = f"[Error converting exception to string: {type(e).__name__}]"
+    
     logger.error(
-        f"Unhandled Exception for {request.method} {request.url.path}: {str(exc)}"
+        f"Unhandled Exception for {request.method} {request.url.path}: {error_msg}"
     )
     logger.error(f"Exception Type: {type(exc).__name__}")
     logger.info(f"Request Headers: {dict(request.headers)}")
-    logger.info(f"Traceback: {traceback.format_exc()}")
+    
+    try:
+        logger.info(f"Traceback: {traceback.format_exc()}")
+    except Exception as e:
+        logger.error(f"Could not format traceback: {type(e).__name__}")
 
     try:
         body = await request.body()
@@ -391,7 +379,7 @@ async def general_exception_handler(request: Request, exc: Exception):
         logger.error(f"Could not read request body: {e}")
 
     return JSONResponse(
-        status_code=500, content={"error": "Internal server error", "detail": str(exc)}
+        status_code=500, content={"error": "Internal server error", "detail": error_msg}
     )
 
 

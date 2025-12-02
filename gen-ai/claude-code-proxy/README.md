@@ -6,9 +6,12 @@ Anthropic API를 프록시하고, rate limit 발생 시 자동으로 AWS Bedrock
 
 - **Anthropic API 프록시**: Claude 4.5 Sonnet, Haiku 등 모든 모델 지원
 - **자동 Bedrock 폴백**: 429 rate limit 시 자동으로 AWS Bedrock으로 전환
+- **사용량 추적 대시보드**: Bedrock 사용량 및 예상 비용 실시간 모니터링 (`/ui`)
 - **멀티유저 rate limit 추적**: DynamoDB 기반 사용자별 rate limit 상태 추적
+- **보안 강화**: Private Subnet에 Fargate 배치, NAT Gateway를 통한 아웃바운드 통신
 - **ECS Fargate**: 안정적이고 확장 가능한 컨테이너 기반 배포
 - **API 키 플로우스루**: 클라이언트가 자신의 Anthropic API 키를 헤더로 전달
+- **Claude Pro 지원**: Bearer 토큰 인증 지원
 - **ALB 기반**: Application Load Balancer로 고가용성 보장
 
 ```
