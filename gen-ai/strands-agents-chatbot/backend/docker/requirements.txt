@@ -3,4 +3,4 @@ strands-agents-tools
 fastapi==0.115.12
 uvicorn==0.34.2
 pydantic==2.11.7
-mcp==1.10.1
+mcp==1.23.0
