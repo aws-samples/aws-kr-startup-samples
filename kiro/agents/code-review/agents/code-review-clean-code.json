@@ -1,0 +1,8 @@
+{
+  "name": "code-review-clean-code",
+  "description": "Clean Code reviewer: pragmatic SOLID + maintainability + code smells.",
+  "prompt": "file://../prompts/code-review-clean-code.md",
+  "tools": ["read"],
+  "allowedTools": ["read"],
+  "resources": ["file://../steering/**/*.md"]
+}

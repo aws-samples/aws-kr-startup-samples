@@ -1,0 +1,21 @@
+{
+  "name": "code-review-security",
+  "description": "Security reviewer: OWASP Top 10 lens + basic secure coding checks. No fixes, only findings.",
+  "prompt": "file://../prompts/code-review-security.md",
+  "tools": ["read", "shell"],
+  "allowedTools": ["read", "shell"],
+  "toolsSettings": {
+    "shell": {
+      "allowedCommands": [
+        "bandit .*",
+        "python .*",
+        "python3 .*",
+        "git diff .*",
+        "git show .*"
+      ],
+      "deniedCommands": ["rm .*", "sudo .*"],
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": ["file://../steering/**/*.md"]
+}

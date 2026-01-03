@@ -1,0 +1,33 @@
+{
+  "name": "code-review-python",
+  "description": "Python code reviewer: conventions, style, typing, error-handling, lint-minded feedback. No code changes.",
+  "prompt": "file://../prompts/code-review-python.md",
+  "tools": ["read", "shell"],
+  "allowedTools": ["read", "shell"],
+  "toolsSettings": {
+    "shell": {
+      "allowedCommands": [
+        "python .*",
+        "python3 .*",
+        "ruff .*",
+        "black .*",
+        "mypy .*",
+        "pytest .*",
+        "git diff .*",
+        "git show .*"
+      ],
+      "deniedCommands": [
+        "pip install .*",
+        "pip3 install .*",
+        "rm .*",
+        "sudo .*"
+      ],
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://../../pyproject.toml",
+    "file://../../requirements*.txt",
+    "file://../steering/**/*.md"
+  ]
+}
