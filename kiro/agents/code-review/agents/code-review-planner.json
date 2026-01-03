@@ -1,0 +1,24 @@
+{
+  "name": "code-review-planner",
+  "description": "Top-level code review orchestrator: gather diff + related scope, delegate to subagents, synthesize into CODE-REVIEW.md, then invoke code-review-manager.",
+  "prompt": "file://../prompts/code-review-planner.md",
+  "mcpServers": {
+    "aws-mcp": {
+      "command": "uvx",
+      "args": [
+        "mcp-proxy-for-aws@latest",
+        "https://aws-mcp.us-east-1.api.aws/mcp",
+        "--metadata",
+        "AWS_REGION=us-west-2"
+      ]
+    }
+  },
+  "tools": ["*"],
+  "toolAliases": {},
+  "allowedTools": ["read", "shell", "write"],
+  "resources": ["file://AGENTS.md", "file://README.md"],
+  "hooks": {},
+  "toolsSettings": {},
+  "useLegacyMcpJson": false,
+  "model": null
+}

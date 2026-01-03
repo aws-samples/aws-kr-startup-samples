@@ -1,0 +1,8 @@
+{
+  "name": "code-review-readable",
+  "description": "Readable Code reviewer: apply The Art of Readable Code lens (clarity, naming, comments, control flow).",
+  "prompt": "file://../prompts/code-review-readable.md",
+  "tools": ["read"],
+  "allowedTools": ["read"],
+  "resources": ["file://../steering/**/*.md"]
+}

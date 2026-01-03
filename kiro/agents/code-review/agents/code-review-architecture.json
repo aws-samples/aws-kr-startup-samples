@@ -1,0 +1,21 @@
+{
+  "name": "code-review-architecture",
+  "description": "Architecture reviewer: repo structure, modules, build/deploy concerns, operational readiness.",
+  "prompt": "file://../prompts/code-review-architecture.md",
+  "tools": ["read", "shell"],
+  "allowedTools": ["read", "shell"],
+  "toolsSettings": {
+    "shell": {
+      "allowedCommands": [
+        "ls .*",
+        "tree .*",
+        "git diff .*",
+        "git show .*",
+        "git log .*"
+      ],
+      "deniedCommands": ["rm .*", "sudo .*"],
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": ["file://../../README.md", "file://../steering/**/*.md"]
+}
