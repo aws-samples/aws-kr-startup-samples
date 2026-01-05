@@ -5,7 +5,7 @@ Git 변경사항을 자동으로 분석하고 다각도로 코드 리뷰를 수�
 ## 주요 기능
 
 - 🔍 **자동 변경 감지**: git diff/status 기반으로 리뷰 대상 자동 파악
-- 🌐 **다국어 지원**: Python, TypeScript/JavaScript 언어별 전문 리뷰
+- 🌐 **다중 언어 지원**: Python, TypeScript/JavaScript 언어별 전문 리뷰
 - 📚 **다각도 분석**: 가독성, Clean Code, 아키텍처, 보안 관점의 종합 리뷰
 - 📋 **Task Plan 생성**: 우선순위별 개선 작업 목록 자동 생성
 
