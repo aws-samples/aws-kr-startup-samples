@@ -28,6 +28,10 @@ def build_converse_request(request: AnthropicRequest) -> dict[str, Any]:
     if request_metadata:
         payload["requestMetadata"] = request_metadata
 
+    additional_fields = _build_additional_model_request_fields(request)
+    if additional_fields:
+        payload["additionalModelRequestFields"] = additional_fields
+
     return payload
 
 
@@ -204,3 +208,12 @@ def _normalize_request_metadata(metadata: dict[str, Any] | None) -> dict[str, st
         if 1 <= len(key) <= 256 and len(value) <= 256:
             cleaned[key] = value
     return cleaned or None
+
+
+def _build_additional_model_request_fields(
+    request: AnthropicRequest,
+) -> dict[str, Any] | None:
+    fields: dict[str, Any] = {}
+    if request.thinking is not None:
+        fields["thinking"] = request.thinking
+    return fields or None

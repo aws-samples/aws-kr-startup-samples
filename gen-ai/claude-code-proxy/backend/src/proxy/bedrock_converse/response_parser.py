@@ -39,7 +39,11 @@ def _normalize_output_content(content: Any) -> list[dict[str, Any]]:
         return []
     output: list[dict[str, Any]] = []
     for block in content:
-        if "text" in block:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") in ("thinking", "redacted_thinking"):
+            output.append(block)
+        elif "text" in block:
             output.append({"type": "text", "text": block["text"]})
         elif "toolUse" in block:
             tool_use = block["toolUse"]
@@ -61,6 +65,10 @@ def _normalize_output_content(content: Any) -> list[dict[str, Any]]:
                     "is_error": tool_result.get("status") == "error",
                 }
             )
+        elif "reasoningContent" in block:
+            thinking_block = _normalize_reasoning_content(block["reasoningContent"])
+            if thinking_block:
+                output.append(thinking_block)
     return output
 
 
@@ -78,3 +86,31 @@ def _normalize_stop_reason(stop_reason: Any) -> str | None:
     if isinstance(stop_reason, str):
         return stop_reason
     return None
+
+
+def _normalize_reasoning_content(content: Any) -> dict[str, Any] | None:
+    if not isinstance(content, dict):
+        return None
+
+    if "redactedContent" in content:
+        return {"type": "redacted_thinking", "data": content.get("redactedContent")}
+
+    reasoning_text = None
+    signature = None
+    if "reasoningText" in content and isinstance(content["reasoningText"], dict):
+        reasoning_text = content["reasoningText"].get("text")
+        signature = content["reasoningText"].get("signature")
+    else:
+        reasoning_text = content.get("text")
+        signature = content.get("signature")
+
+    if reasoning_text is None and signature is None:
+        return None
+
+    thinking_block: dict[str, Any] = {
+        "type": "thinking",
+        "thinking": reasoning_text or "",
+    }
+    if signature is not None:
+        thinking_block["signature"] = signature
+    return thinking_block

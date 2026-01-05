@@ -76,6 +76,21 @@ def test_build_converse_request_metadata_limit_and_filter():
     assert len(request_metadata) == 16
 
 
+def test_build_converse_request_thinking_fields():
+    request = AnthropicRequest(
+        model="claude-test",
+        messages=[{"role": "user", "content": "Hello"}],
+        thinking={"type": "enabled", "budget_tokens": 128},
+    )
+
+    payload = build_converse_request(request)
+
+    assert payload["additionalModelRequestFields"]["thinking"] == {
+        "type": "enabled",
+        "budget_tokens": 128,
+    }
+
+
 def test_parse_converse_response_text_and_tools():
     data = {
         "id": "resp_1",
@@ -124,6 +139,46 @@ def test_parse_converse_response_text_and_tools():
     assert response.content[2]["content"] == [{"type": "text", "text": "2"}]
 
 
+def test_parse_converse_response_thinking_blocks():
+    data = {
+        "id": "resp_2",
+        "stopReason": "end_turn",
+        "usage": {"inputTokens": 5, "outputTokens": 3},
+        "output": {
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {
+                        "reasoningContent": {
+                            "reasoningText": {
+                                "text": "Let me think.",
+                                "signature": "sig-123",
+                            }
+                        }
+                    },
+                    {"reasoningContent": {"redactedContent": {"redacted": True}}},
+                    {"text": "Answer"},
+                ],
+            }
+        },
+    }
+
+    response, usage = parse_converse_response(data, model="claude-test")
+
+    assert usage.input_tokens == 5
+    assert usage.output_tokens == 3
+    assert response.content[0] == {
+        "type": "thinking",
+        "thinking": "Let me think.",
+        "signature": "sig-123",
+    }
+    assert response.content[1] == {
+        "type": "redacted_thinking",
+        "data": {"redacted": True},
+    }
+    assert response.content[2] == {"type": "text", "text": "Answer"}
+
+
 @pytest.mark.asyncio
 async def test_stream_event_translation_end_turn_with_usage():
     state = StreamState(message_id="msg_test")
@@ -160,3 +215,66 @@ async def test_stream_event_translation_end_turn_with_usage():
     assert events[4]["delta"]["stop_reason"] == "end_turn"
     assert events[4]["usage"]["output_tokens"] == 5
     assert events[5]["type"] == "message_stop"
+
+
+@pytest.mark.asyncio
+async def test_stream_event_translation_thinking_blocks():
+    state = StreamState(message_id="msg_test")
+    model = "claude-test"
+
+    events = []
+    for event in [
+        {"messageStart": {"conversationId": "conv1"}},
+        {
+            "contentBlockStart": {
+                "contentBlockIndex": 0,
+                "start": {"reasoningContent": {"text": ""}},
+            }
+        },
+        {
+            "contentBlockDelta": {
+                "contentBlockIndex": 0,
+                "delta": {"reasoningContent": {"text": "Let me think"}},
+            }
+        },
+        {
+            "contentBlockDelta": {
+                "contentBlockIndex": 0,
+                "delta": {"reasoningContent": {"signature": "sig-456"}},
+            }
+        },
+        {"contentBlockStop": {"contentBlockIndex": 0}},
+    ]:
+        async for payload in _convert_converse_event(event, state, model):
+            events.append(payload)
+
+    assert events[0]["type"] == "message_start"
+    assert events[1]["type"] == "content_block_start"
+    assert events[1]["content_block"]["type"] == "thinking"
+    assert events[2]["type"] == "content_block_delta"
+    assert events[2]["delta"] == {"type": "thinking_delta", "thinking": "Let me think"}
+    assert events[3]["type"] == "content_block_delta"
+    assert events[3]["delta"] == {"type": "signature_delta", "signature": "sig-456"}
+    assert events[4]["type"] == "content_block_stop"
+
+
+@pytest.mark.asyncio
+async def test_stream_event_translation_redacted_thinking():
+    state = StreamState(message_id="msg_test")
+    model = "claude-test"
+
+    events = []
+    event = {
+        "contentBlockStart": {
+            "contentBlockIndex": 0,
+            "start": {"reasoningContent": {"redactedContent": {"redacted": True}}},
+        }
+    }
+    async for payload in _convert_converse_event(event, state, model):
+        events.append(payload)
+
+    assert events[0]["type"] == "content_block_start"
+    assert events[0]["content_block"] == {
+        "type": "redacted_thinking",
+        "data": {"redacted": True},
+    }

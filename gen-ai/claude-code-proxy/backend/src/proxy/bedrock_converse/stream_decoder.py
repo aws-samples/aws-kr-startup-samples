@@ -1,6 +1,6 @@
 """Decode Bedrock Converse stream events to Anthropic SSE format."""
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, AsyncIterator
 
 from botocore.eventstream import EventStreamBuffer
@@ -28,6 +28,7 @@ class StreamState:
     usage: dict[str, Any] | None = None
     message_started: bool = False
     message_stopped: bool = False
+    started_blocks: set[int] = field(default_factory=set)
 
 
 class ConverseStreamDecoder:
@@ -101,6 +102,7 @@ async def _convert_converse_event(
         start = start_event.get("start", {})
         content_block = _map_content_block_start(start)
         if content_block:
+            state.started_blocks.add(index)
             yield {
                 "type": "content_block_start",
                 "index": index,
@@ -112,6 +114,15 @@ async def _convert_converse_event(
         delta_event = event["contentBlockDelta"]
         index = delta_event.get("contentBlockIndex", 0)
         delta = delta_event.get("delta", {})
+        if "reasoningContent" in delta and index not in state.started_blocks:
+            content_block = _map_reasoning_content_start(delta["reasoningContent"])
+            if content_block:
+                state.started_blocks.add(index)
+                yield {
+                    "type": "content_block_start",
+                    "index": index,
+                    "content_block": content_block,
+                }
         delta_payload = _map_content_block_delta(delta)
         if delta_payload:
             yield {
@@ -123,7 +134,9 @@ async def _convert_converse_event(
 
     if "contentBlockStop" in event:
         stop_event = event["contentBlockStop"]
-        yield {"type": "content_block_stop", "index": stop_event.get("contentBlockIndex", 0)}
+        index = stop_event.get("contentBlockIndex", 0)
+        state.started_blocks.discard(index)
+        yield {"type": "content_block_stop", "index": index}
         return
 
     if "messageStop" in event:
@@ -176,6 +189,8 @@ def _map_content_block_start(start: dict[str, Any]) -> dict[str, Any] | None:
             "name": tool.get("name"),
             "input": {},
         }
+    if "reasoningContent" in start:
+        return _map_reasoning_content_start(start["reasoningContent"])
     return None
 
 
@@ -184,8 +199,33 @@ def _map_content_block_delta(delta: dict[str, Any]) -> dict[str, Any] | None:
         return {"type": "text_delta", "text": delta["text"]}
     if "toolUse" in delta:
         return {"type": "input_json_delta", "partial_json": delta["toolUse"].get("input", "")}
+    if "reasoningContent" in delta:
+        return _map_reasoning_content_delta(delta["reasoningContent"])
+    return None
+
+
+def _map_reasoning_content_start(content: Any) -> dict[str, Any] | None:
+    if not isinstance(content, dict):
+        return None
+    if "redactedContent" in content:
+        return {"type": "redacted_thinking", "data": content.get("redactedContent")}
+
+    thinking_block: dict[str, Any] = {"type": "thinking", "thinking": ""}
+    if "signature" in content and "text" not in content:
+        thinking_block["signature"] = content.get("signature") or ""
+    return thinking_block
+
+
+def _map_reasoning_content_delta(content: Any) -> dict[str, Any] | None:
+    if not isinstance(content, dict):
+        return None
+    if "text" in content:
+        return {"type": "thinking_delta", "thinking": content["text"]}
+    if "signature" in content:
+        return {"type": "signature_delta", "signature": content["signature"]}
     return None
 
 
 def _to_sse(payload: dict[str, Any]) -> bytes:
-    return f"data: {json.dumps(payload)}\n\n".encode()
+    event_type = payload.get("type") or "message"
+    return f"event: {event_type}\n" f"data: {json.dumps(payload)}\n\n".encode()
