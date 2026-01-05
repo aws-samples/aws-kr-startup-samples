@@ -101,13 +101,29 @@ def _normalize_content_block(block: Any) -> dict[str, Any]:
                 "status": "error" if block.get("is_error") else "success",
             }
         }
+    if block_type == "thinking":
+        return {"reasoningContent": _normalize_thinking_block(block)}
+    if block_type == "redacted_thinking":
+        return {
+            "reasoningContent": {"redactedContent": block.get("data", "")}
+        }
 
+    if "reasoningContent" in block:
+        return {"reasoningContent": block["reasoningContent"]}
     if "text" in block:
         return {"text": block["text"]}
     if "toolUse" in block or "toolResult" in block:
         return block
 
     return {"text": json.dumps(block)}
+
+
+def _normalize_thinking_block(block: dict[str, Any]) -> dict[str, Any]:
+    reasoning_text = block.get("thinking") or block.get("text") or ""
+    reasoning_payload: dict[str, Any] = {"text": reasoning_text}
+    if (signature := block.get("signature")) is not None:
+        reasoning_payload["signature"] = signature
+    return {"reasoningText": reasoning_payload}
 
 
 def _normalize_tool_result_content(content: Any) -> list[dict[str, Any]]:

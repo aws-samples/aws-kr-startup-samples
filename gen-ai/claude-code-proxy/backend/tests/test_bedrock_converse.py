@@ -91,6 +91,37 @@ def test_build_converse_request_thinking_fields():
     }
 
 
+def test_build_converse_request_thinking_blocks():
+    request = AnthropicRequest(
+        model="claude-test",
+        messages=[
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "thinking",
+                        "thinking": "Let me think.",
+                        "signature": "sig-123",
+                    },
+                    {"type": "redacted_thinking", "data": "redacted"},
+                    {"type": "text", "text": "Answer"},
+                ],
+            }
+        ],
+    )
+
+    payload = build_converse_request(request)
+
+    content = payload["messages"][0]["content"]
+    assert content[0] == {
+        "reasoningContent": {
+            "reasoningText": {"text": "Let me think.", "signature": "sig-123"}
+        }
+    }
+    assert content[1] == {"reasoningContent": {"redactedContent": "redacted"}}
+    assert content[2] == {"text": "Answer"}
+
+
 def test_parse_converse_response_text_and_tools():
     data = {
         "id": "resp_1",

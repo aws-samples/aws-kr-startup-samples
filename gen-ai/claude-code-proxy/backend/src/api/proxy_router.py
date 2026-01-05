@@ -31,6 +31,7 @@ from ..proxy import (
     UsageRecorder,
     BudgetService,
 )
+from ..proxy.thinking_normalizer import ensure_thinking_prefix
 from ..proxy.budget import format_budget_exceeded_message
 from ..proxy.adapter_base import AdapterError
 from ..proxy.context import RequestContext
@@ -73,6 +74,7 @@ async def proxy_messages(
         raise HTTPException(status_code=404, detail="Not found")
 
     outgoing_headers = _extract_outgoing_headers(raw_request)
+    ensure_thinking_prefix(request)
 
     # Log header presence (do not log secrets)
     logger.info(
@@ -156,6 +158,7 @@ async def proxy_count_tokens(
         raise HTTPException(status_code=404, detail="Not found")
 
     outgoing_headers = _extract_outgoing_headers(raw_request)
+    ensure_thinking_prefix(request)
 
     settings = get_settings()
     has_auth_header = (
