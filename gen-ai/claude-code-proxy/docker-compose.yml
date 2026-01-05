@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: proxy
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      PROXY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/proxy
+      PROXY_PLAN_API_KEY: ${PLAN_API_KEY:-}
+      PROXY_KEY_HASHER_SECRET: dev-secret-key-for-local-development
+      PROXY_ADMIN_USERNAME: admin
+      PROXY_ADMIN_PASSWORD_HASH: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      API_URL: http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
