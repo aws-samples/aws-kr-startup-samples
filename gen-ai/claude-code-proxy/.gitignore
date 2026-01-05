@@ -54,8 +54,9 @@ Thumbs.db
 *.tmp
 
 # AI agent directories
-.kiro/
 .claude/
 .codex/
 .gemini/
+
+# Testing
 .hypothesis/

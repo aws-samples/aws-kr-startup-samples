@@ -52,6 +52,7 @@ class Settings(BaseSettings):
 
     # Secrets (loaded from env or Secrets Manager)
     plan_api_key: str = ""
+    plan_force_rate_limit: bool = False
     key_hasher_secret: str = ""
     key_hasher_secret_arn: str = ""  # Optional: Secrets Manager ARN
     jwt_secret: str = ""

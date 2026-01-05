@@ -76,7 +76,7 @@ class UsageRecorder:
 
         # Record token usage to DB (Bedrock success only)
         if response.success and response.provider == "bedrock" and response.usage:
-            asyncio.create_task(
+            await asyncio.shield(
                 self._record_usage_with_cost(ctx, response, latency_ms, model)
             )
 
