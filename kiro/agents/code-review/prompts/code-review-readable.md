@@ -69,6 +69,12 @@ When reviewing code, you should explicitly look for:
 - Do **not** infer or assume future requirements
 - Do **not** expand scope beyond what is given
 
+## Standalone Mode
+If no scope is provided, collect it yourself:
+1. Run `git status` to identify modified/staged files
+2. Run `git diff HEAD` (or `git diff --staged`) to get the diff
+3. Review readability concerns from the collected changes
+
 ## Output Contract (Must Follow)
 
 ### Reviewed Scope
