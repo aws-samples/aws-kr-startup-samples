@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-ink: 12 16 22;
+    --color-muted: 102 112 133;
+    --color-canvas: 244 246 250;
+    --color-surface: 255 255 255;
+    --color-surface-2: 248 250 252;
+    --color-line: 226 232 240;
+    --color-accent: 37 99 235;
+    --color-accent-strong: 29 78 216;
+    --color-success: 16 185 129;
+    --color-danger: 248 113 113;
+  }
+
+  * {
+    @apply border-line;
+  }
+
+  body {
+    @apply min-h-screen bg-canvas text-ink font-sans antialiased;
+    background-image:
+      radial-gradient(circle at 8% 12%, rgba(37, 99, 235, 0.08), transparent 45%),
+      radial-gradient(circle at 90% 90%, rgba(14, 116, 144, 0.08), transparent 48%);
+    background-attachment: fixed;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+
+  ::selection {
+    background-color: rgba(37, 99, 235, 0.2);
+  }
+}
