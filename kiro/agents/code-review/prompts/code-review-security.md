@@ -60,6 +60,12 @@ For every review, verify:
 - Error messages don't leak sensitive information.
 - Dependencies are up-to-date and vulnerability-free.
 
+## Standalone Mode
+If no scope is provided, collect it yourself:
+1. Run `git status` to identify modified/staged files
+2. Run `git diff HEAD` (or `git diff --staged`) to get the diff
+3. Review security concerns from the collected changes
+
 ## Reporting Protocol
 Your security reports will include:
 - Executive Summary: high-level risk assessment with severity ratings.

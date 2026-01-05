@@ -2,7 +2,14 @@
   "name": "code-review-clean-code",
   "description": "Clean Code reviewer: pragmatic SOLID + maintainability + code smells.",
   "prompt": "file://../prompts/code-review-clean-code.md",
-  "tools": ["read"],
-  "allowedTools": ["read"],
+  "tools": ["read", "shell"],
+  "allowedTools": ["read", "shell"],
+  "toolsSettings": {
+    "shell": {
+      "allowedCommands": ["git diff .*", "git show .*", "git status"],
+      "deniedCommands": ["rm .*", "sudo .*"],
+      "autoAllowReadonly": true
+    }
+  },
   "resources": ["file://../steering/**/*.md"]
 }

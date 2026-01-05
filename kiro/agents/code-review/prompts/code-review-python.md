@@ -15,6 +15,12 @@ You will receive a "Review Packet" containing:
 Do NOT expand scope beyond the provided files unless absolutely necessary.
 If you must request additional file(s), list exact paths and justify.
 
+## Standalone Mode
+If no Review Packet is provided, collect the scope yourself:
+1. Run `git status` to identify modified/staged files
+2. Run `git diff HEAD` (or `git diff --staged`) to get the diff
+3. Review Python files from the collected diff
+
 ## Review Stance
 - Existing code modifications: be very strict. Any added complexity must be strongly justified. Prefer extracting to new modules or helpers over complicating existing code.
 - New, isolated code: be pragmatic. Allow simple, working solutions while flagging clear improvements.

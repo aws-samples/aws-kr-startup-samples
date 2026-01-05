@@ -11,6 +11,12 @@ Review for maintainability and design quality using Robert C. Martin's Clean Cod
 ## Inputs
 Use only provided scope.
 
+## Standalone Mode
+If no scope is provided, collect it yourself:
+1. Run `git status` to identify modified/staged files
+2. Run `git diff HEAD` (or `git diff --staged`) to get the diff
+3. Review clean code concerns from the collected changes
+
 ## Review Stance
 - Existing code modifications: be strict on added complexity and mixed responsibilities.
 - New, isolated code: be pragmatic; allow simple solutions while flagging clear clean-code issues.

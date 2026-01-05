@@ -13,6 +13,12 @@ You will receive a bounded scope and optionally repo-structure snippets.
 
 Do not attempt exhaustive repo analysis; focus on high-leverage architecture risks in/near the change.
 
+## Standalone Mode
+If no scope is provided, collect it yourself:
+1. Run `git status` to identify modified/staged files
+2. Run `git diff HEAD` (or `git diff --staged`) to get the diff
+3. Review architecture concerns from the collected changes
+
 ## Output Contract (Must Follow)
 ### Reviewed Scope
 - Files Reviewed:
