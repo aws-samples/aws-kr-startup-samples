@@ -220,12 +220,21 @@ This deploys:
 
 ### Frontend Deployment (Amplify)
 
-Option A — CLI script (recommended):
+1. Configure environment:
 ```bash
 cd frontend
 npm ci
-npm run deploy:amplify:init
+cp .env.example .env
+# Edit .env and set VITE_BACKEND_API_URL to your backend URL (e.g., CloudFront distribution URL)
 ```
+
+2. Deploy:
+
+Option A — Bootstrap script (recommended):
+```bash
+./scripts/amplify-bootstrap-deploy.sh
+```
+This script automatically creates the Amplify app, configures SPA rewrite rules, and deploys.
 
 Option B — Manual upload via Amplify Console:
 1. Build: `npm run build:zip`
