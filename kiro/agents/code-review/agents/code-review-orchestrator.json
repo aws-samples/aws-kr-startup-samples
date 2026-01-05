@@ -1,7 +1,7 @@
 {
-  "name": "code-review-planner",
+  "name": "code-review-orchestrator",
   "description": "Top-level code review orchestrator: gather diff + related scope, delegate to subagents, synthesize into CODE-REVIEW.md, then invoke code-review-manager.",
-  "prompt": "file://../prompts/code-review-planner.md",
+  "prompt": "file://../prompts/code-review-orchestrator.md",
   "mcpServers": {
     "aws-mcp": {
       "command": "uvx",
