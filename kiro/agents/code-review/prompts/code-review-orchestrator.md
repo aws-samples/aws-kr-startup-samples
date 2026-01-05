@@ -45,8 +45,15 @@ For each subagent, create a packet containing:
 
 ### Step 3: Dispatch to Subagents (Max 4 Parallel)
 Run in two waves:
-- Wave-1 parallel: code-review-python, code-review-readable, code-review-clean-code
+- Wave-1 parallel: [language-specific], code-review-readable, code-review-clean-code
 - Wave-2 parallel: code-review-architecture, code-review-security
+
+#### Language-Specific Subagent Selection
+Based on the file extensions in the review scope, select the appropriate language reviewer(s):
+- `.py` files → code-review-python
+- `.ts`, `.tsx`, `.js`, `.jsx` files → code-review-typescript
+- If both Python and TypeScript/JavaScript files are present, invoke both reviewers.
+- If neither language is present (e.g., only config files, markdown, etc.), skip language-specific reviewers.
 
 ### Step 4: Aggregate Results
 - Normalize findings into a unified taxonomy:

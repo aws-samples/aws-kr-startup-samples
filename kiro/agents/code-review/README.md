@@ -19,6 +19,7 @@ git sparse-checkout set kiro/agents/code-review
 |-------|------|
 | `code-review-orchestrator` | 메인 오케스트레이터. diff 수집, subagent 호출, CODE-REVIEW.md 작성, Task Plan 생성 |
 | `code-review-python` | Python 코드 리뷰 (타입힌트, 에러처리, PEP8) |
+| `code-review-typescript` | TypeScript 코드 리뷰 (타입 안전성, any 금지, 모던 패턴) |
 | `code-review-readable` | 가독성 리뷰 (The Art of Readable Code 기반) |
 | `code-review-clean-code` | Clean Code 원칙 리뷰 (SOLID, 코드 스멜) |
 | `code-review-architecture` | 아키텍처 리뷰 (모듈 경계, 의존성, 배포) |
@@ -33,7 +34,7 @@ flowchart TB
     Review Packet 준비`"]
     
     A --> B["`**Wave 1**
-    python
+    python/typescript (언어별 선택)
     readable
     clean`"]
     

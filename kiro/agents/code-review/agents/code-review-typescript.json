@@ -1,0 +1,34 @@
+{
+  "name": "code-review-typescript",
+  "description": "TypeScript code reviewer: type safety, modern patterns, testability, lint-minded feedback. No code changes.",
+  "prompt": "file://../prompts/code-review-typescript.md",
+  "tools": ["read", "shell"],
+  "allowedTools": ["read", "shell"],
+  "toolsSettings": {
+    "shell": {
+      "allowedCommands": [
+        "npx tsc .*",
+        "npx eslint .*",
+        "npx prettier .*",
+        "npm run .*",
+        "yarn .*",
+        "pnpm .*",
+        "git diff .*",
+        "git show .*"
+      ],
+      "deniedCommands": [
+        "npm install .*",
+        "yarn add .*",
+        "pnpm add .*",
+        "rm .*",
+        "sudo .*"
+      ],
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://../../tsconfig.json",
+    "file://../../package.json",
+    "file://../steering/**/*.md"
+  ]
+}
