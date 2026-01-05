@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+.pyre/
+
+# Node/Next
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.next/
+out/
+dist/
+dist.zip
+build/
+.cache/
+.turbo/
+.vercel/
+
+# AWS CDK
+cdk.out/
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Misc
+*.log
+*.tmp
+
+# AI agent directories
+.kiro/
+.claude/
+.codex/
+.gemini/
+.hypothesis/
