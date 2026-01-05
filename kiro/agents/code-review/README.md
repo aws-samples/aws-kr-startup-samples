@@ -121,11 +121,11 @@ flowchart TB
 
 ### Steering 문서 추가
 
-프로젝트별 코딩 컨벤션이나 리뷰 기준을 추가하려면 `steering/` 디렉토리에 마크다운 파일을 생성하세요:
+프로젝트별 코딩 컨벤션이나 리뷰 기준을 추가하려면 프로젝트 루트의 `.kiro/steering/` 디렉토리에 마크다운 파일을 생성하세요:
 
 ```bash
-mkdir -p steering
-echo "# 프로젝트 코딩 컨벤션\n- 함수명은 snake_case 사용\n- ..." > steering/conventions.md
+mkdir -p .kiro/steering
+echo "# 프로젝트 코딩 컨벤션\n- 함수명은 snake_case 사용\n- ..." > .kiro/steering/conventions.md
 ```
 
 Agent들이 자동으로 참조합니다.
