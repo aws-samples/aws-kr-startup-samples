@@ -1,42 +1,47 @@
 import asyncio
 import time
 from collections.abc import AsyncIterator
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db import get_session, async_session_factory
 from ..config import get_settings
+from ..db import async_session_factory, get_session
 from ..domain import (
-    AnthropicRequest,
-    AnthropicError,
-    AnthropicCountTokensResponse,
-    AnthropicUsage,
     RETRYABLE_ERRORS,
+    AnthropicCountTokensResponse,
+    AnthropicError,
+    AnthropicRequest,
+    AnthropicUsage,
     RoutingStrategy,
 )
 from ..logging import get_logger
+from ..proxy import (
+    AuthService,
+    BedrockAdapter,
+    BudgetService,
+    PlanAdapter,
+    ProxyRouter,
+    UsageRecorder,
+    get_auth_service,
+)
+from ..proxy.adapter_base import AdapterError
+from ..proxy.budget import format_budget_exceeded_message
+from ..proxy.context import RequestContext
+from ..proxy.router import _map_error_type
+from ..proxy.streaming_usage import StreamingUsageCollector
+from ..proxy.thinking_normalizer import (
+    ensure_thinking_prefix,
+    remove_invalid_redacted_thinking,
+    should_drop_thinking_param,
+)
 from ..repositories import (
     BedrockKeyRepository,
     TokenUsageRepository,
     UsageAggregateRepository,
     UserRepository,
 )
-from ..proxy import (
-    AuthService,
-    get_auth_service,
-    ProxyRouter,
-    PlanAdapter,
-    BedrockAdapter,
-    UsageRecorder,
-    BudgetService,
-)
-from ..proxy.thinking_normalizer import ensure_thinking_prefix
-from ..proxy.budget import format_budget_exceeded_message
-from ..proxy.adapter_base import AdapterError
-from ..proxy.context import RequestContext
-from ..proxy.router import _map_error_type
-from ..proxy.streaming_usage import StreamingUsageCollector
 
 logger = get_logger(__name__)
 
@@ -74,7 +79,17 @@ async def proxy_messages(
         raise HTTPException(status_code=404, detail="Not found")
 
     outgoing_headers = _extract_outgoing_headers(raw_request)
+
+    # LiteLLM 방식: invalid redacted_thinking 제거 → thinking 블록 정리 → thinking param 드롭 체크
+    remove_invalid_redacted_thinking(request)
     ensure_thinking_prefix(request)
+    if should_drop_thinking_param(request):
+        logger.info(
+            "dropping_thinking_param",
+            reason="tool_use without thinking blocks",
+            request_id=ctx.request_id,
+        )
+        request.thinking = None
 
     # Log header presence (do not log secrets)
     logger.info(
@@ -158,7 +173,12 @@ async def proxy_count_tokens(
         raise HTTPException(status_code=404, detail="Not found")
 
     outgoing_headers = _extract_outgoing_headers(raw_request)
+
+    # LiteLLM 방식: invalid redacted_thinking 제거 → thinking 블록 정리 → thinking param 드롭 체크
+    remove_invalid_redacted_thinking(request)
     ensure_thinking_prefix(request)
+    if should_drop_thinking_param(request):
+        request.thinking = None
 
     settings = get_settings()
     has_auth_header = (

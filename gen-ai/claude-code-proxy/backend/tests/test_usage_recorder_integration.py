@@ -202,9 +202,14 @@ class TestRecordMethodFlow:
         assert len(agg_repo.calls) == 0
 
     @pytest.mark.asyncio
-    async def test_record_schedules_metrics_and_usage_tasks(
+    async def test_record_schedules_metrics_and_calls_usage_recording(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        """Verify record() emits metrics (via create_task) and records usage (via shield).
+
+        Note: _record_usage_with_cost is called via asyncio.shield() (not create_task),
+        so we verify it was called by checking the repository calls directly.
+        """
         task_names = _capture_task_names(monkeypatch)
         token_repo = FakeTokenUsageRepository()
         agg_repo = FakeUsageAggregateRepository()
@@ -230,7 +235,13 @@ class TestRecordMethodFlow:
 
         await recorder.record(ctx, response, latency_ms=100, model=ctx.bedrock_model)
 
-        assert set(task_names) == {"emit", "_record_usage_with_cost"}
+        # Metrics emit is scheduled via create_task
+        assert "emit" in task_names
+
+        # _record_usage_with_cost is called via asyncio.shield() (awaited directly)
+        # Verify it was called by checking the repository was used
+        assert len(token_repo.calls) == 1
+        assert len(agg_repo.calls) == 5  # 5 bucket types
 
 
 class TestRecordUsageWithCostFlow:
