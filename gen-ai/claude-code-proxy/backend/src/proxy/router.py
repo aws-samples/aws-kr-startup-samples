@@ -47,7 +47,7 @@ class ProxyRouter:
 
     def __init__(
         self,
-        plan_adapter: Adapter,
+        plan_adapter: Adapter | None,
         bedrock_adapter: Adapter,
         budget_checker: Callable[[RequestContext], Awaitable[BudgetCheckResult]] | None = None,
     ):

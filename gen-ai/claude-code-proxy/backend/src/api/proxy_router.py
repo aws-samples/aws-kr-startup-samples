@@ -117,7 +117,8 @@ async def proxy_messages(
     # Setup adapters
     token_usage_repo = TokenUsageRepository(session)
 
-    plan_adapter = PlanAdapter(headers=outgoing_headers)
+    # Bedrock Only 사용자는 PlanAdapter 불필요
+    plan_adapter = None if ctx.routing_strategy == RoutingStrategy.BEDROCK_ONLY else PlanAdapter(headers=outgoing_headers)
     bedrock_adapter = BedrockAdapter(BedrockKeyRepository(session))
 
     async def _budget_checker(ctx):
@@ -166,7 +167,8 @@ async def proxy_messages(
         return JSONResponse(content=error_body, status_code=response.status_code)
 
     finally:
-        await plan_adapter.close()
+        if plan_adapter:
+            await plan_adapter.close()
         await bedrock_adapter.close()
 
 

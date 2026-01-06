@@ -184,3 +184,76 @@ async def test_bedrock_only_without_key_returns_503(proxy_router, request_contex
     assert response.error_type == "api_error"
     mock_plan_adapter.invoke.assert_not_called()
     mock_bedrock_adapter.invoke.assert_not_called()
+
+
+# ============================================================================
+# Kent Beck style: Bedrock Only with None PlanAdapter
+# ============================================================================
+
+@pytest.fixture
+def proxy_router_without_plan_adapter(mock_bedrock_adapter):
+    """PlanAdapter 없이 ProxyRouter 생성 (Bedrock Only 전용)"""
+    return ProxyRouter(None, mock_bedrock_adapter)
+
+
+@pytest.mark.asyncio
+async def test_bedrock_only_works_with_none_plan_adapter(
+    proxy_router_without_plan_adapter, request_context, anthropic_request, mock_bedrock_adapter
+):
+    """Bedrock Only 라우팅은 plan_adapter=None으로도 정상 동작한다"""
+    # Arrange
+    request_context.routing_strategy = RoutingStrategy.BEDROCK_ONLY
+    request_context.has_bedrock_key = True
+    mock_bedrock_adapter.invoke.return_value = AdapterResponse(
+        response=Mock(), usage=Mock()
+    )
+
+    # Act
+    response = await proxy_router_without_plan_adapter.route(request_context, anthropic_request)
+
+    # Assert
+    assert response.success is True
+    assert response.provider == "bedrock"
+    assert response.is_fallback is False
+    mock_bedrock_adapter.invoke.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_bedrock_only_with_none_plan_adapter_returns_503_without_bedrock_key(
+    proxy_router_without_plan_adapter, request_context, anthropic_request, mock_bedrock_adapter
+):
+    """Bedrock Only + plan_adapter=None + Bedrock key 없음 → 503"""
+    # Arrange
+    request_context.routing_strategy = RoutingStrategy.BEDROCK_ONLY
+    request_context.has_bedrock_key = False
+
+    # Act
+    response = await proxy_router_without_plan_adapter.route(request_context, anthropic_request)
+
+    # Assert
+    assert response.success is False
+    assert response.status_code == 503
+    assert response.error_type == "api_error"
+    mock_bedrock_adapter.invoke.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_bedrock_only_with_none_plan_adapter_handles_bedrock_error(
+    proxy_router_without_plan_adapter, request_context, anthropic_request, mock_bedrock_adapter
+):
+    """Bedrock Only + plan_adapter=None + Bedrock 실패 → 에러 반환"""
+    # Arrange
+    request_context.routing_strategy = RoutingStrategy.BEDROCK_ONLY
+    request_context.has_bedrock_key = True
+    mock_bedrock_adapter.invoke.return_value = AdapterError(
+        error_type=ErrorType.SERVER_ERROR, status_code=500, message="Bedrock error", retryable=True
+    )
+
+    # Act
+    response = await proxy_router_without_plan_adapter.route(request_context, anthropic_request)
+
+    # Assert
+    assert response.success is False
+    assert response.provider == "bedrock"
+    assert response.status_code == 500
+    mock_bedrock_adapter.invoke.assert_called_once()
