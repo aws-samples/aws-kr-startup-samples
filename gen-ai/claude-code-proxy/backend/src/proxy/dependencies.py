@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from ..config import get_settings
 from .cache import TTLCache
 from .circuit_breaker import CircuitBreaker
+from .model_mapping import BedrockModelResolver, build_default_bedrock_model_resolver
 
 
 @dataclass
@@ -17,6 +18,9 @@ class ProxyDependencies:
     bedrock_key_cache: TTLCache = field(
         default_factory=lambda: TTLCache(get_settings().bedrock_key_cache_ttl)
     )
+    bedrock_model_resolver: BedrockModelResolver = field(
+        default_factory=build_default_bedrock_model_resolver
+    )
     budget_cache: TTLCache = field(
         default_factory=lambda: TTLCache(get_settings().budget_cache_ttl)
     )
@@ -26,6 +30,7 @@ class ProxyDependencies:
         self.circuit_breaker = CircuitBreaker()
         self.access_key_cache.clear()
         self.bedrock_key_cache.clear()
+        self.bedrock_model_resolver = build_default_bedrock_model_resolver()
         self.budget_cache.clear()
 
 

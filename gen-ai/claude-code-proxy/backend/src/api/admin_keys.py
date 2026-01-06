@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..config import get_settings
 from ..domain import AccessKeyCreate, AccessKeyResponse, BedrockKeyRegister, KeyStatus
 from ..repositories import AccessKeyRepository, BedrockKeyRepository, UserRepository
 from ..security import KeyGenerator, KeyHasher, KMSEnvelopeEncryption
 from ..proxy import invalidate_access_key_cache, invalidate_bedrock_key_cache
+from ..proxy.model_mapping import DEFAULT_BEDROCK_MODEL
 from .deps import require_admin
 
 router = APIRouter(prefix="/admin", tags=["keys"], dependencies=[Depends(require_admin)])
@@ -37,7 +37,6 @@ async def issue_access_key(
     data: AccessKeyCreate,
     session: AsyncSession = Depends(get_session),
 ):
-    settings = get_settings()
     user_repo = UserRepository(session)
     key_repo = AccessKeyRepository(session)
     hasher = KeyHasher()
@@ -55,7 +54,7 @@ async def issue_access_key(
         key_hash=key_hash,
         key_prefix=key_prefix,
         bedrock_region=data.bedrock_region,
-        bedrock_model=settings.bedrock_default_model,
+        bedrock_model=data.bedrock_model or DEFAULT_BEDROCK_MODEL,
     )
     await session.commit()
 

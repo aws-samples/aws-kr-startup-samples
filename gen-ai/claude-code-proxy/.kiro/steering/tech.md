@@ -115,7 +115,8 @@ docker-compose up db              # DB only
 |----------|---------|---------|
 | `PROXY_PLAN_API_KEY` | - | Anthropic API key |
 | `PROXY_BEDROCK_REGION` | `ap-northeast-2` | AWS Bedrock region |
-| `PROXY_BEDROCK_DEFAULT_MODEL` | `global.anthropic.claude-sonnet-4-5-20250929-v1:0` | Default Bedrock model |
+| `PROXY_BEDROCK_MODEL_MAPPING` | `{}` | JSON map of Claude Code model IDs → Bedrock model IDs |
+| `PROXY_BEDROCK_DEFAULT_MODEL` | `global.anthropic.claude-sonnet-4-5-20250929-v1:0` | Deprecated (routing no longer uses this) |
 | `PROXY_CIRCUIT_FAILURE_THRESHOLD` | `3` | Failures before circuit opens |
 | `PROXY_CIRCUIT_RESET_TIMEOUT` | `1800` | Circuit reset (seconds) |
 | `PROXY_MODEL_PRICING` | - | JSON pricing config for cost visibility |

@@ -8,11 +8,8 @@ from ..domain import (
     ErrorType,
 )
 from ..config import get_settings
-from ..logging import get_logger
 from .context import RequestContext
 from .adapter_base import AdapterResponse, AdapterError
-
-logger = get_logger(__name__)
 
 
 def _handle_request_error(e: Exception, url: str) -> AdapterError:
@@ -45,7 +42,6 @@ class PlanAdapter:
             verify = settings.plan_ca_bundle
         elif not settings.plan_verify_ssl:
             verify = False
-            logger.warning("plan_ssl_verification_disabled")
         self._client = httpx.AsyncClient(
             verify=verify,
             timeout=httpx.Timeout(

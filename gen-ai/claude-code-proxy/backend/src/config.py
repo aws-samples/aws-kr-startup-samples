@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     plan_api_url: str = "https://api.anthropic.com"
     bedrock_region: str = "ap-northeast-2"
     bedrock_default_model: str = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    bedrock_model_mapping: dict[str, str] = {}
     plan_verify_ssl: bool = True
     plan_ca_bundle: str = ""
 

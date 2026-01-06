@@ -5,14 +5,11 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from ..logging import get_logger
 from ..domain import AnthropicUsage, CostCalculator, PricingConfig
 from ..repositories import TokenUsageRepository, UsageAggregateRepository
 from .context import RequestContext
 from .router import ProxyResponse
 from .metrics import CloudWatchMetricsEmitter
-
-logger = get_logger(__name__)
 
 
 def _get_bucket_start(ts: datetime, bucket_type: str, tz: ZoneInfo) -> datetime:
@@ -157,13 +154,8 @@ class UsageRecorder:
                     cache_read_tokens=cache_read_tokens,
                     now_kst=now_kst,
                 )
-        except Exception as exc:
-            logger.error(
-                "usage_recording_failed",
-                error=str(exc),
-                request_id=ctx.request_id,
-                model=model,
-            )
+        except Exception:
+            pass
 
     def _calculate_cost_safe(
         self,
@@ -187,8 +179,8 @@ class UsageRecorder:
                     ),
                     pricing,
                 )
-        except Exception as exc:
-            logger.warning("cost_calculation_failed", error=str(exc), model=model)
+        except Exception:
+            pass
 
         return CostCalculator.zero_cost(), None
 

@@ -1,4 +1,5 @@
 import json
+import time
 from typing import AsyncIterator
 from uuid import UUID
 
@@ -6,12 +7,15 @@ import httpx
 
 from ..config import get_settings
 from ..domain import AnthropicRequest, ErrorType
+from ..logging import get_logger
 from ..repositories import BedrockKeyRepository
 from ..security import KMSEnvelopeEncryption
 from .adapter_base import AdapterError, AdapterResponse
 from .bedrock_converse import build_converse_request, iter_anthropic_sse, parse_converse_response
 from .context import RequestContext
 from .dependencies import get_proxy_deps
+
+logger = get_logger(__name__)
 
 
 class BedrockAdapter:
@@ -41,17 +45,118 @@ class BedrockAdapter:
                 message="Bedrock key not found",
                 retryable=False,
             )
+        payload = build_converse_request(request)
+        resolved_model = get_proxy_deps().bedrock_model_resolver.resolve(request.model)
+        budget_tokens = None
+        if isinstance(request.thinking, dict):
+            budget_tokens = request.thinking.get("budget_tokens")
+        if (
+            budget_tokens is not None
+            and request.max_tokens is not None
+            and budget_tokens >= request.max_tokens
+        ):
+            logger.info(
+                "bedrock_request_thinking_budget_invalid",
+                request_id=ctx.request_id,
+                requested_model=request.model,
+                bedrock_model=resolved_model,
+                max_tokens=request.max_tokens,
+                budget_tokens=budget_tokens,
+                stream=False,
+            )
+        logger.info(
+            "bedrock_request",
+            request_id=ctx.request_id,
+            region=ctx.bedrock_region,
+            bedrock_model=resolved_model,
+            requested_model=request.model,
+            stream=False,
+            messages=payload.get("messages"),
+            max_tokens=request.max_tokens,
+            thinking=request.thinking,
+        )
+        start_time = time.perf_counter()
         try:
-            payload = build_converse_request(request)
-            url = _build_converse_url(ctx.bedrock_region, ctx.bedrock_model, stream=False)
+            url = _build_converse_url(ctx.bedrock_region, resolved_model, stream=False)
             headers = _build_headers(api_key)
             response = await self._client.post(url, json=payload, headers=headers)
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
             if response.status_code != 200:
+                logger.info(
+                    "bedrock_response",
+                    request_id=ctx.request_id,
+                    status_code=response.status_code,
+                    bedrock_model=resolved_model,
+                    stream=False,
+                    response_body=response.text,
+                )
+                logger.info(
+                    "bedrock_request_timing",
+                    request_id=ctx.request_id,
+                    elapsed_ms=elapsed_ms,
+                    bedrock_model=resolved_model,
+                    stream=False,
+                )
                 return _classify_http_error(response.status_code, response.text)
-            data = response.json()
+            try:
+                data = response.json()
+            except (ValueError, json.JSONDecodeError) as exc:
+                logger.info(
+                    "bedrock_response",
+                    request_id=ctx.request_id,
+                    status_code=502,
+                    bedrock_model=resolved_model,
+                    stream=False,
+                    response_body=response.text,
+                    error=str(exc),
+                )
+                logger.info(
+                    "bedrock_request_timing",
+                    request_id=ctx.request_id,
+                    elapsed_ms=elapsed_ms,
+                    bedrock_model=resolved_model,
+                    stream=False,
+                )
+                return AdapterError(
+                    error_type=ErrorType.BEDROCK_UNAVAILABLE,
+                    status_code=502,
+                    message=f"Invalid Bedrock response: {exc}",
+                    retryable=False,
+                )
+            logger.info(
+                "bedrock_response",
+                request_id=ctx.request_id,
+                status_code=response.status_code,
+                bedrock_model=resolved_model,
+                stream=False,
+                response_message=data.get("output", {}).get("message"),
+            )
+            logger.info(
+                "bedrock_request_timing",
+                request_id=ctx.request_id,
+                elapsed_ms=elapsed_ms,
+                bedrock_model=resolved_model,
+                stream=False,
+            )
             anthropic_response, usage = parse_converse_response(data, request.model)
             return AdapterResponse(response=anthropic_response, usage=usage)
         except httpx.TimeoutException:
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.info(
+                "bedrock_response",
+                request_id=ctx.request_id,
+                status_code=504,
+                bedrock_model=resolved_model,
+                stream=False,
+                error="timeout",
+            )
+            logger.info(
+                "bedrock_request_timing",
+                request_id=ctx.request_id,
+                elapsed_ms=elapsed_ms,
+                bedrock_model=resolved_model,
+                stream=False,
+            )
             return AdapterError(
                 error_type=ErrorType.BEDROCK_UNAVAILABLE,
                 status_code=504,
@@ -59,17 +164,26 @@ class BedrockAdapter:
                 retryable=False,
             )
         except httpx.RequestError as exc:
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.info(
+                "bedrock_response",
+                request_id=ctx.request_id,
+                status_code=503,
+                bedrock_model=resolved_model,
+                stream=False,
+                error=str(exc),
+            )
+            logger.info(
+                "bedrock_request_timing",
+                request_id=ctx.request_id,
+                elapsed_ms=elapsed_ms,
+                bedrock_model=resolved_model,
+                stream=False,
+            )
             return AdapterError(
                 error_type=ErrorType.BEDROCK_UNAVAILABLE,
                 status_code=503,
                 message=str(exc),
-                retryable=False,
-            )
-        except (ValueError, json.JSONDecodeError) as exc:
-            return AdapterError(
-                error_type=ErrorType.BEDROCK_UNAVAILABLE,
-                status_code=502,
-                message=f"Invalid Bedrock response: {exc}",
                 retryable=False,
             )
 
@@ -84,30 +198,113 @@ class BedrockAdapter:
                 message="Bedrock key not found",
                 retryable=False,
             )
+        payload = build_converse_request(request)
+        resolved_model = get_proxy_deps().bedrock_model_resolver.resolve(request.model)
+        budget_tokens = None
+        if isinstance(request.thinking, dict):
+            budget_tokens = request.thinking.get("budget_tokens")
+        if (
+            budget_tokens is not None
+            and request.max_tokens is not None
+            and budget_tokens >= request.max_tokens
+        ):
+            logger.info(
+                "bedrock_request_thinking_budget_invalid",
+                request_id=ctx.request_id,
+                requested_model=request.model,
+                bedrock_model=resolved_model,
+                max_tokens=request.max_tokens,
+                budget_tokens=budget_tokens,
+                stream=True,
+            )
+        logger.info(
+            "bedrock_request",
+            request_id=ctx.request_id,
+            region=ctx.bedrock_region,
+            bedrock_model=resolved_model,
+            requested_model=request.model,
+            stream=True,
+            messages=payload.get("messages"),
+            max_tokens=request.max_tokens,
+            thinking=request.thinking,
+        )
+        start_time = time.perf_counter()
         try:
-            payload = build_converse_request(request)
-            url = _build_converse_url(ctx.bedrock_region, ctx.bedrock_model, stream=True)
+            url = _build_converse_url(ctx.bedrock_region, resolved_model, stream=True)
             headers = _build_headers(api_key)
             req = self._client.build_request("POST", url, json=payload, headers=headers)
             response = await self._client.send(req, stream=True)
             if response.status_code != 200:
                 body = await response.aread()
                 await response.aclose()
+                elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+                logger.info(
+                    "bedrock_response",
+                    request_id=ctx.request_id,
+                    status_code=response.status_code,
+                    bedrock_model=resolved_model,
+                    stream=True,
+                    response_body=body.decode(errors="ignore"),
+                )
+                logger.info(
+                    "bedrock_request_timing",
+                    request_id=ctx.request_id,
+                    elapsed_ms=elapsed_ms,
+                    bedrock_model=resolved_model,
+                    stream=True,
+                )
                 return _classify_http_error(
                     response.status_code, body.decode(errors="ignore")
                 )
+
+            response_events: list[dict[str, object]] = []
 
             async def stream_generator():
                 try:
                     async for chunk in iter_anthropic_sse(
                         response.aiter_bytes(), request.model, f"msg_{ctx.request_id}"
                     ):
+                        event = _parse_sse_event(chunk)
+                        if event is not None:
+                            response_events.append(event)
                         yield chunk
                 finally:
                     await response.aclose()
+                    elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+                    logger.info(
+                        "bedrock_response",
+                        request_id=ctx.request_id,
+                        status_code=200,
+                        bedrock_model=resolved_model,
+                        stream=True,
+                        response_events=response_events,
+                    )
+                    logger.info(
+                        "bedrock_request_timing",
+                        request_id=ctx.request_id,
+                        elapsed_ms=elapsed_ms,
+                        bedrock_model=resolved_model,
+                        stream=True,
+                    )
 
             return stream_generator()
         except httpx.TimeoutException:
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.info(
+                "bedrock_response",
+                request_id=ctx.request_id,
+                status_code=504,
+                bedrock_model=resolved_model,
+                stream=True,
+                error="timeout",
+            )
+            logger.info(
+                "bedrock_request_timing",
+                request_id=ctx.request_id,
+                elapsed_ms=elapsed_ms,
+                bedrock_model=resolved_model,
+                stream=True,
+            )
             return AdapterError(
                 error_type=ErrorType.BEDROCK_UNAVAILABLE,
                 status_code=504,
@@ -115,6 +312,22 @@ class BedrockAdapter:
                 retryable=False,
             )
         except httpx.RequestError as exc:
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.info(
+                "bedrock_response",
+                request_id=ctx.request_id,
+                status_code=503,
+                bedrock_model=resolved_model,
+                stream=True,
+                error=str(exc),
+            )
+            logger.info(
+                "bedrock_request_timing",
+                request_id=ctx.request_id,
+                elapsed_ms=elapsed_ms,
+                bedrock_model=resolved_model,
+                stream=True,
+            )
             return AdapterError(
                 error_type=ErrorType.BEDROCK_UNAVAILABLE,
                 status_code=503,
@@ -190,6 +403,27 @@ def _classify_http_error(status_code: int, body: str) -> AdapterError:
         message=body[:200],
         retryable=False,
     )
+
+
+def _parse_sse_event(chunk: bytes) -> dict[str, object] | None:
+    text = chunk.decode(errors="ignore")
+    event_type = None
+    data_payload = None
+    for line in text.splitlines():
+        if line.startswith("event:"):
+            event_type = line.split(":", 1)[1].strip()
+        elif line.startswith("data:"):
+            data_payload = line.split(":", 1)[1].strip()
+    if data_payload is None:
+        return None
+    try:
+        payload = json.loads(data_payload)
+    except json.JSONDecodeError:
+        payload = data_payload
+    event: dict[str, object] = {"data": payload}
+    if event_type:
+        event["event"] = event_type
+    return event
 
 
 def invalidate_bedrock_key_cache(access_key_id: UUID) -> None:

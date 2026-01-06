@@ -6,11 +6,8 @@ from decimal import Decimal, ROUND_HALF_UP
 from zoneinfo import ZoneInfo
 from uuid import UUID
 
-from ..logging import get_logger
 from ..repositories import UserRepository, UsageAggregateRepository
 from .dependencies import get_proxy_deps
-
-logger = get_logger(__name__)
 
 
 @dataclass
@@ -86,8 +83,7 @@ class BudgetService:
         try:
             monthly_budget = await self.get_user_budget(user_id)
             current_usage = await self.get_current_month_usage(user_id)
-        except Exception as exc:
-            logger.warning("budget_lookup_failed", user_id=str(user_id), error=str(exc))
+        except Exception:
             if fail_open:
                 return _build_budget_result(None, Decimal("0"), period_start, period_end)
             raise

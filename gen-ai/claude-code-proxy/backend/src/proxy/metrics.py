@@ -5,10 +5,7 @@ from typing import Protocol
 
 import boto3
 
-from ..logging import get_logger
 from ..config import get_settings
-
-logger = get_logger(__name__)
 
 # Shared executor for blocking boto3 calls
 _executor = ThreadPoolExecutor(max_workers=2)
@@ -35,8 +32,8 @@ class CloudWatchMetricsEmitter:
         loop = asyncio.get_running_loop()
         try:
             await loop.run_in_executor(_executor, self._emit_sync, response, latency_ms)
-        except Exception as e:
-            logger.warning("metrics_emission_failed", error=str(e))
+        except Exception:
+            pass
 
     def _emit_sync(self, response: ProxyResponseProtocol, latency_ms: int) -> None:
         metrics = [
