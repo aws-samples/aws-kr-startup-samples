@@ -41,6 +41,7 @@ class DummyMetricsEmitter:
 
 
 def test_streaming_usage_collector_captures_usage() -> None:
+    """Test usage collection from message_start + message_delta (Anthropic format)."""
     collector = StreamingUsageCollector()
 
     collector.feed(
@@ -56,6 +57,29 @@ def test_streaming_usage_collector_captures_usage() -> None:
     assert usage.output_tokens == 5
     assert usage.cache_read_input_tokens == 2
     assert usage.cache_creation_input_tokens == 1
+
+
+def test_streaming_usage_collector_prefers_message_delta_input_tokens() -> None:
+    """Test that input_tokens from message_delta is preferred over message_start.
+
+    Bedrock Converse API provides input_tokens in message_delta, not message_start.
+    """
+    collector = StreamingUsageCollector()
+
+    # message_start has input_tokens=0 (Bedrock's converted format)
+    collector.feed(
+        b'data: {"type":"message_start","message":{"usage":{"input_tokens":0,"output_tokens":0}}}\n\n'
+    )
+    # message_delta has the actual input_tokens from Bedrock metadata
+    collector.feed(
+        b'data: {"type":"message_delta","usage":{"input_tokens":100,"output_tokens":50,"cache_read_input_tokens":10}}\n\n'
+    )
+
+    usage = collector.get_usage()
+    assert usage is not None
+    assert usage.input_tokens == 100  # Should use message_delta's value, not message_start's 0
+    assert usage.output_tokens == 50
+    assert usage.cache_read_input_tokens == 10
 
 
 @pytest.mark.asyncio

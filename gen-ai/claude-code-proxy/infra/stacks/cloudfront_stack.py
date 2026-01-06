@@ -1,4 +1,5 @@
 from aws_cdk import (
+    Duration,
     Stack,
     CfnOutput,
     aws_cloudfront as cloudfront,
@@ -33,6 +34,7 @@ class CloudFrontStack(Stack):
                 origin=origins.HttpOrigin(
                     alb.load_balancer_dns_name,
                     protocol_policy=cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+                    read_timeout=Duration.seconds(300),
                     custom_headers={
                         "X-Origin-Verify": self.origin_verify_secret.secret_value.unsafe_unwrap(),
                     },

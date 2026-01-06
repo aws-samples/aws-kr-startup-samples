@@ -1,6 +1,4 @@
 import httpx
-import os
-import ssl
 
 from ..domain import (
     AnthropicRequest,
@@ -20,9 +18,7 @@ logger = get_logger(__name__)
 def _handle_request_error(e: Exception, url: str) -> AdapterError:
     """Convert httpx exceptions to AdapterError."""
     if isinstance(e, httpx.TimeoutException):
-        logger.info("plan_request", url=url, status_code=504, error="timeout")
         return AdapterError(ErrorType.TIMEOUT, 504, "Request timeout", True)
-    logger.info("plan_request", url=url, status_code=503, error=str(e))
     return AdapterError(ErrorType.NETWORK_ERROR, 503, str(e), True)
 
 
@@ -44,30 +40,12 @@ class PlanAdapter:
             self._headers["anthropic-version"] = "2023-06-01"
         if "content-type" not in {k.lower() for k in self._headers}:
             self._headers["content-type"] = "application/json"
-        header_keys = {k.lower() for k in self._headers}
-        logger.info(
-            "plan_outgoing_auth_headers",
-            has_authorization="authorization" in header_keys,
-            has_x_api_key="x-api-key" in header_keys,
-            has_anthropic_beta="anthropic-beta" in header_keys,
-            has_anthropic_version="anthropic-version" in header_keys,
-        )
         verify: bool | str = True
         if settings.plan_ca_bundle:
             verify = settings.plan_ca_bundle
-            logger.info("plan_ssl_custom_ca_bundle", path=settings.plan_ca_bundle)
         elif not settings.plan_verify_ssl:
             verify = False
             logger.warning("plan_ssl_verification_disabled")
-        else:
-            default_paths = ssl.get_default_verify_paths()
-            logger.info(
-                "plan_ssl_verify_paths",
-                cafile=default_paths.cafile,
-                capath=default_paths.capath,
-                env_ssl_cert_file=os.environ.get(default_paths.openssl_cafile_env),
-                env_ssl_cert_dir=os.environ.get(default_paths.openssl_capath_env),
-            )
         self._client = httpx.AsyncClient(
             verify=verify,
             timeout=httpx.Timeout(
@@ -88,17 +66,11 @@ class PlanAdapter:
                 json=request.model_dump(exclude_none=True, exclude={"original_model"}),
                 headers=self._headers,
             )
-            logger.info("plan_request", url=url, status_code=response.status_code)
 
             if response.status_code == 200:
                 try:
                     data = response.json()
                 except ValueError:
-                    logger.info(
-                        "plan_response_invalid_json",
-                        status_code=response.status_code,
-                        body_length=len(response.content),
-                    )
                     return AdapterError(
                         error_type=ErrorType.SERVER_ERROR,
                         status_code=502,
@@ -125,7 +97,6 @@ class PlanAdapter:
                 headers=self._headers,
             )
             response = await self._client.send(http_request, stream=True)
-            logger.info("plan_request", url=url, status_code=response.status_code)
 
             if response.status_code == 200:
                 return response
@@ -147,7 +118,6 @@ class PlanAdapter:
                 json=request.model_dump(exclude_none=True, exclude={"original_model"}),
                 headers=self._headers,
             )
-            logger.info("plan_request", url=url, status_code=response.status_code)
 
             if response.status_code == 200:
                 return AnthropicCountTokensResponse(**response.json())

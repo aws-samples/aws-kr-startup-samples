@@ -2,13 +2,11 @@ from dataclasses import dataclass
 from collections.abc import Awaitable, Callable
 
 from ..domain import AnthropicRequest, AnthropicResponse, AnthropicUsage, RETRYABLE_ERRORS, ErrorType, RoutingStrategy
-from ..logging import get_logger
 from .context import RequestContext
 from .budget import BudgetCheckResult, format_budget_exceeded_message
 from .adapter_base import AdapterResponse, AdapterError, Adapter
 from .dependencies import get_proxy_deps
 
-logger = get_logger(__name__)
 
 # Map internal error types to Anthropic API error types
 ANTHROPIC_ERROR_TYPE_MAP = {
@@ -88,8 +86,6 @@ class ProxyRouter:
             should_fallback = result.retryable and result.error_type in RETRYABLE_ERRORS
             if not should_fallback:
                 return self._error_response("plan", result, is_fallback=False)
-        else:
-            logger.info("plan_skipped_circuit_open", access_key_id=key_id)
 
         if ctx.has_bedrock_key:
             if self._budget_checker:
@@ -127,12 +123,6 @@ class ProxyRouter:
         self, ctx: RequestContext, request: AnthropicRequest
     ) -> ProxyResponse:
         """Bedrock only, skip Plan API entirely."""
-        logger.info(
-            "routing_bedrock_only",
-            user_id=str(ctx.user_id),
-            access_key_id=str(ctx.access_key_id),
-        )
-
         if not ctx.has_bedrock_key:
             return ProxyResponse(
                 success=False,

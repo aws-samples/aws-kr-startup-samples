@@ -58,19 +58,6 @@ class UsageRecorder:
         latency_ms: int,
         model: str,
     ) -> None:
-        # Log to CloudWatch Logs (structured)
-        logger.info(
-            "request_completed",
-            request_id=ctx.request_id,
-            access_key_prefix=ctx.access_key_prefix,
-            provider_used=response.provider,
-            is_fallback=response.is_fallback,
-            status_code=response.status_code,
-            error_type=response.error_type,
-            latency_ms=latency_ms,
-            model=model,
-        )
-
         # Emit metrics (fire and forget)
         asyncio.create_task(self._metrics.emit(response, latency_ms))
 

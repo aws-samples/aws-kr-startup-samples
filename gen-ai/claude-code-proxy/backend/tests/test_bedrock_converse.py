@@ -232,7 +232,7 @@ async def test_stream_event_translation_end_turn_with_usage():
         },
         {"contentBlockStop": {"contentBlockIndex": 0}},
         {"messageStop": {"stopReason": "end_turn"}},
-        {"metadata": {"usage": {"outputTokens": 5}}},
+        {"metadata": {"usage": {"inputTokens": 100, "outputTokens": 5}}},
     ]:
         async for payload in _convert_converse_event(event, state, model):
             events.append(payload)
@@ -244,6 +244,7 @@ async def test_stream_event_translation_end_turn_with_usage():
     assert events[3]["type"] == "content_block_stop"
     assert events[4]["type"] == "message_delta"
     assert events[4]["delta"]["stop_reason"] == "end_turn"
+    assert events[4]["usage"]["input_tokens"] == 100
     assert events[4]["usage"]["output_tokens"] == 5
     assert events[5]["type"] == "message_stop"
 

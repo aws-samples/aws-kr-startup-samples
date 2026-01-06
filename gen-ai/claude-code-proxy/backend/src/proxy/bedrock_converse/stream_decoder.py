@@ -169,6 +169,7 @@ async def _flush_message_delta(state: StreamState) -> AsyncIterator[dict[str, An
         "type": "message_delta",
         "delta": {"stop_reason": state.stop_reason, "stop_sequence": None},
         "usage": {
+            "input_tokens": usage.get("inputTokens", 0),
             "output_tokens": usage.get("outputTokens", 0),
             "cache_read_input_tokens": usage.get("cacheReadInputTokens"),
             "cache_creation_input_tokens": usage.get("cacheCreationInputTokens"),

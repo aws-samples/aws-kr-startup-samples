@@ -2,6 +2,7 @@ import asyncio
 import time
 from collections.abc import AsyncIterator
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -84,19 +85,18 @@ async def proxy_messages(
     remove_invalid_redacted_thinking(request)
     ensure_thinking_prefix(request)
     if should_drop_thinking_param(request):
-        logger.info(
-            "dropping_thinking_param",
-            reason="tool_use without thinking blocks",
-            request_id=ctx.request_id,
-        )
         request.thinking = None
 
-    # Log header presence (do not log secrets)
     logger.info(
-        "proxy_auth_headers",
-        has_x_api_key="x-api-key" in outgoing_headers,
-        has_authorization="Authorization" in outgoing_headers,
-        authorization_is_bearer=outgoing_headers.get("Authorization", "").startswith("Bearer "),
+        "proxy_request_received",
+        request_id=ctx.request_id,
+        user_id=str(ctx.user_id),
+        access_key_id=str(ctx.access_key_id),
+        routing_strategy=ctx.routing_strategy.value,
+        has_bedrock_key=ctx.has_bedrock_key,
+        model=request.model,
+        stream=request.stream,
+        max_tokens=request.max_tokens,
     )
 
     usage_aggregate_repo = UsageAggregateRepository(session)
@@ -137,6 +137,16 @@ async def proxy_messages(
     try:
         # Route request
         response = await proxy_router.route(ctx, request)
+        logger.info(
+            "proxy_route_result",
+            request_id=ctx.request_id,
+            provider=response.provider,
+            is_fallback=response.is_fallback,
+            status_code=response.status_code,
+            error_type=response.error_type,
+            routing_strategy=ctx.routing_strategy.value,
+            stream=False,
+        )
 
         # Calculate latency
         latency_ms = int((time.time() - start_time) * 1000)
@@ -250,12 +260,45 @@ def _build_bedrock_streaming_response(
         session_factory=async_session_factory,
     )
     usage_collector = StreamingUsageCollector()
+    chunk_count = 0
+    byte_count = 0
 
     async def bedrock_stream_generator():
+        nonlocal chunk_count, byte_count
         try:
             async for chunk in bedrock_result:
+                chunk_count += 1
+                byte_count += len(chunk)
                 usage_collector.feed(chunk)
                 yield chunk
+        except asyncio.CancelledError:
+            elapsed_ms = int((time.time() - streaming_start) * 1000)
+            logger.info(
+                "streaming_client_disconnected",
+                request_id=ctx.request_id,
+                provider="bedrock",
+                is_fallback=is_fallback,
+                elapsed_ms=elapsed_ms,
+                chunks_sent=chunk_count,
+                bytes_sent=byte_count,
+            )
+            raise
+        except Exception as exc:
+            elapsed_ms = int((time.time() - streaming_start) * 1000)
+            logger.warning(
+                "streaming_upstream_error",
+                request_id=ctx.request_id,
+                provider="bedrock",
+                is_fallback=is_fallback,
+                elapsed_ms=elapsed_ms,
+                error_type=exc.__class__.__name__,
+                error=str(exc),
+                is_timeout=isinstance(exc, httpx.TimeoutException),
+                is_request_error=isinstance(exc, httpx.RequestError),
+                chunks_sent=chunk_count,
+                bytes_sent=byte_count,
+            )
+            raise
         finally:
             try:
                 await asyncio.shield(bedrock_adapter.close())
@@ -276,6 +319,10 @@ def _build_bedrock_streaming_response(
                         "streaming_usage_missing",
                         request_id=ctx.request_id,
                         provider="bedrock",
+                        is_fallback=is_fallback,
+                        elapsed_ms=int((time.time() - streaming_start) * 1000),
+                        chunks_sent=chunk_count,
+                        bytes_sent=byte_count,
                     )
 
     return StreamingResponse(
@@ -317,11 +364,29 @@ async def _stream_plan_first(
                         },
                         request_id=ctx.request_id,
                     ).model_dump()
+                    logger.info(
+                        "proxy_stream_route_result",
+                        request_id=ctx.request_id,
+                        provider="bedrock",
+                        is_fallback=True,
+                        status_code=429,
+                        error_type="rate_limit_error",
+                        routing_strategy=ctx.routing_strategy.value,
+                    )
                     return JSONResponse(content=error_body, status_code=429)
 
                 bedrock_adapter = BedrockAdapter(BedrockKeyRepository(session))
                 bedrock_result = await bedrock_adapter.stream(ctx, request)
                 if isinstance(bedrock_result, AdapterError):
+                    logger.info(
+                        "proxy_stream_route_result",
+                        request_id=ctx.request_id,
+                        provider="bedrock",
+                        is_fallback=True,
+                        status_code=bedrock_result.status_code,
+                        error_type=_map_error_type(bedrock_result.error_type),
+                        routing_strategy=ctx.routing_strategy.value,
+                    )
                     error_body = AnthropicError(
                         error={
                             "type": _map_error_type(bedrock_result.error_type),
@@ -334,6 +399,15 @@ async def _stream_plan_first(
                     )
 
                 streaming_started = True
+                logger.info(
+                    "proxy_stream_route_result",
+                    request_id=ctx.request_id,
+                    provider="bedrock",
+                    is_fallback=True,
+                    status_code=200,
+                    error_type=None,
+                    routing_strategy=ctx.routing_strategy.value,
+                )
                 return _build_bedrock_streaming_response(
                     ctx=ctx,
                     request=request,
@@ -351,14 +425,66 @@ async def _stream_plan_first(
                 },
                 request_id=ctx.request_id,
             ).model_dump()
+            logger.info(
+                "proxy_stream_route_result",
+                request_id=ctx.request_id,
+                provider="plan",
+                is_fallback=False,
+                status_code=result.status_code,
+                error_type=_map_error_type(result.error_type),
+                routing_strategy=ctx.routing_strategy.value,
+            )
             return JSONResponse(content=error_body, status_code=result.status_code)
 
         streaming_started = True
+        logger.info(
+            "proxy_stream_route_result",
+            request_id=ctx.request_id,
+            provider="plan",
+            is_fallback=False,
+            status_code=200,
+            error_type=None,
+            routing_strategy=ctx.routing_strategy.value,
+        )
+        streaming_start = time.time()
+        chunk_count = 0
+        byte_count = 0
 
         async def stream_generator():
+            nonlocal chunk_count, byte_count
             try:
                 async for chunk in result.aiter_bytes():
+                    chunk_count += 1
+                    byte_count += len(chunk)
                     yield chunk
+            except asyncio.CancelledError:
+                elapsed_ms = int((time.time() - streaming_start) * 1000)
+                logger.info(
+                    "streaming_client_disconnected",
+                    request_id=ctx.request_id,
+                    provider="plan",
+                    is_fallback=False,
+                    elapsed_ms=elapsed_ms,
+                    chunks_sent=chunk_count,
+                    bytes_sent=byte_count,
+                )
+                raise
+            except Exception as exc:
+                elapsed_ms = int((time.time() - streaming_start) * 1000)
+                logger.warning(
+                    "streaming_upstream_error",
+                    request_id=ctx.request_id,
+                    provider="plan",
+                    is_fallback=False,
+                    elapsed_ms=elapsed_ms,
+                    error_type=exc.__class__.__name__,
+                    error=str(exc),
+                    is_timeout=isinstance(exc, httpx.TimeoutException),
+                    is_request_error=isinstance(exc, httpx.RequestError),
+                    chunks_sent=chunk_count,
+                    bytes_sent=byte_count,
+                )
+                raise
             finally:
                 await result.aclose()
                 await plan_adapter.close()
@@ -384,12 +510,6 @@ async def _stream_bedrock_only(
     usage_aggregate_repo: UsageAggregateRepository,
 ):
     """Stream directly to Bedrock, skip Plan API entirely."""
-    logger.info(
-        "streaming_bedrock_only",
-        user_id=str(ctx.user_id),
-        access_key_id=str(ctx.access_key_id),
-    )
-
     if not ctx.has_bedrock_key:
         error_body = AnthropicError(
             error={
@@ -398,6 +518,15 @@ async def _stream_bedrock_only(
             },
             request_id=ctx.request_id,
         ).model_dump()
+        logger.info(
+            "proxy_stream_route_result",
+            request_id=ctx.request_id,
+            provider="bedrock",
+            is_fallback=False,
+            status_code=503,
+            error_type="api_error",
+            routing_strategy=ctx.routing_strategy.value,
+        )
         return JSONResponse(content=error_body, status_code=503)
 
     budget_result = await budget_service.check_budget(ctx.user_id, fail_open=False)
@@ -409,6 +538,15 @@ async def _stream_bedrock_only(
             },
             request_id=ctx.request_id,
         ).model_dump()
+        logger.info(
+            "proxy_stream_route_result",
+            request_id=ctx.request_id,
+            provider="bedrock",
+            is_fallback=False,
+            status_code=429,
+            error_type="rate_limit_error",
+            routing_strategy=ctx.routing_strategy.value,
+        )
         return JSONResponse(content=error_body, status_code=429)
 
     bedrock_adapter = BedrockAdapter(BedrockKeyRepository(session))
@@ -416,6 +554,15 @@ async def _stream_bedrock_only(
     try:
         bedrock_result = await bedrock_adapter.stream(ctx, request)
         if isinstance(bedrock_result, AdapterError):
+            logger.info(
+                "proxy_stream_route_result",
+                request_id=ctx.request_id,
+                provider="bedrock",
+                is_fallback=False,
+                status_code=bedrock_result.status_code,
+                error_type=_map_error_type(bedrock_result.error_type),
+                routing_strategy=ctx.routing_strategy.value,
+            )
             error_body = AnthropicError(
                 error={
                     "type": _map_error_type(bedrock_result.error_type),
@@ -428,6 +575,15 @@ async def _stream_bedrock_only(
             )
 
         streaming_started = True
+        logger.info(
+            "proxy_stream_route_result",
+            request_id=ctx.request_id,
+            provider="bedrock",
+            is_fallback=False,
+            status_code=200,
+            error_type=None,
+            routing_strategy=ctx.routing_strategy.value,
+        )
         return _build_bedrock_streaming_response(
             ctx=ctx,
             request=request,

@@ -43,8 +43,11 @@ class StreamingUsageCollector:
             usage = data.get("usage") or {}
             if "output_tokens" not in usage:
                 return
+            # Prefer input_tokens from message_delta if available (Bedrock provides it here)
+            # Fall back to input_tokens from message_start
+            input_tokens = usage.get("input_tokens") or self._input_tokens
             self._usage = AnthropicUsage(
-                input_tokens=self._input_tokens,
+                input_tokens=input_tokens,
                 output_tokens=usage.get("output_tokens") or 0,
                 cache_read_input_tokens=usage.get("cache_read_input_tokens"),
                 cache_creation_input_tokens=usage.get("cache_creation_input_tokens"),

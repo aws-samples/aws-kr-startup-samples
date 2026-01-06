@@ -51,13 +51,19 @@ async def _ensure_bedrock_keys_for_routing(
     if not valid_keys:
         raise HTTPException(
             status_code=400,
-            detail="Bedrock key required before enabling bedrock_only routing",
+            detail={
+                "code": "NO_ACCESS_KEYS",
+                "message": "At least one active access key is required before enabling bedrock_only routing",
+            },
         )
     bedrock_ids = await bedrock_repo.list_access_key_ids([key.id for key in valid_keys])
     if any(key.id not in bedrock_ids for key in valid_keys):
         raise HTTPException(
             status_code=400,
-            detail="Bedrock key required for all active access keys before enabling bedrock_only routing",
+            detail={
+                "code": "MISSING_BEDROCK_KEYS",
+                "message": "Bedrock credentials must be registered for all active access keys before enabling bedrock_only routing",
+            },
         )
 
 

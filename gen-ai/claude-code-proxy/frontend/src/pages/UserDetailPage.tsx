@@ -282,8 +282,15 @@ export default function UserDetailPage() {
       setRoutingStrategy(updated.routing_strategy);
       setUser((prev) => (prev ? { ...prev, routing_strategy: updated.routing_strategy } : prev));
       showRoutingNotice('Routing strategy updated.');
-    } catch {
-      showRoutingNotice('Failed to update routing strategy.');
+    } catch (err: unknown) {
+      const detail = (err as { detail?: { code?: string; message?: string } | string })?.detail;
+      if (typeof detail === 'object' && detail?.message) {
+        showRoutingNotice(detail.message);
+      } else if (typeof detail === 'string') {
+        showRoutingNotice(detail);
+      } else {
+        showRoutingNotice('Failed to update routing strategy.');
+      }
     } finally {
       setRoutingSaving(false);
     }

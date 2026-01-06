@@ -1,4 +1,5 @@
 from aws_cdk import (
+    Duration,
     Stack,
     CfnOutput,
     aws_ec2 as ec2,
@@ -92,6 +93,7 @@ class ComputeStack(Stack):
             internet_facing=True,
             security_group=alb_sg,
             vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            idle_timeout=Duration.seconds(300),
         )
 
         fargate_service = ecs_patterns.ApplicationLoadBalancedFargateService(
