@@ -5,18 +5,21 @@ LiteLLM 방식을 따름:
 2. invalid redacted_thinking 블록 제거 (빈 data 또는 비문자열 data)
 3. 기존 thinking/redacted_thinking 블록은 앞으로만 이동
 4. assistant 메시지에 tool_use가 있는데 thinking_blocks가 없으면 thinking param 드롭
+5. thinking 비활성 시 thinking/redacted_thinking 블록 제거
+6. 마지막 assistant 메시지에 thinking 블록이 있으면 thinking 강제 활성화
 """
 from __future__ import annotations
 
 from typing import Any
 
 try:
-    from ..domain import AnthropicRequest
+    from ..domain import AnthropicMessage, AnthropicRequest
 except ImportError:  # pragma: no cover
-    from domain import AnthropicRequest
+    from domain import AnthropicMessage, AnthropicRequest
 
 
 _THINKING_BLOCK_TYPES = {"thinking", "redacted_thinking"}
+DEFAULT_THINKING_BUDGET_TOKENS = 1024
 
 
 def ensure_thinking_prefix(request: AnthropicRequest) -> AnthropicRequest:
@@ -42,6 +45,33 @@ def ensure_thinking_prefix(request: AnthropicRequest) -> AnthropicRequest:
         # 기존 thinking 블록이 있으면 앞으로만 이동
         message.content = _move_thinking_to_first(message.content)
 
+    return request
+
+
+def normalize_thinking_request(request: AnthropicRequest) -> AnthropicRequest:
+    """Normalize thinking fields to satisfy Bedrock extended thinking rules."""
+    remove_invalid_redacted_thinking(request)
+
+    last_assistant = _get_last_assistant_message(request)
+    last_has_thinking = (
+        _has_thinking_block(last_assistant.content) if last_assistant else False
+    )
+
+    if should_drop_thinking_param(request):
+        request.thinking = None
+        if _has_any_thinking_block(request):
+            _remove_thinking_blocks(request)
+        return request
+
+    if last_has_thinking and not _thinking_enabled(request.thinking):
+        request.thinking = _default_thinking_param()
+
+    if not _thinking_enabled(request.thinking):
+        if _has_any_thinking_block(request):
+            _remove_thinking_blocks(request)
+        return request
+
+    ensure_thinking_prefix(request)
     return request
 
 
@@ -165,6 +195,8 @@ def _has_tool_use(content: Any) -> bool:
 
 def _has_thinking_block(content: Any) -> bool:
     """Check if content has thinking or redacted_thinking block."""
+    if isinstance(content, dict):
+        return _is_thinking_block(content)
     if not isinstance(content, list):
         return False
 
@@ -173,3 +205,37 @@ def _has_thinking_block(content: Any) -> bool:
             return True
 
     return False
+
+
+def _get_last_assistant_message(
+    request: AnthropicRequest,
+) -> AnthropicMessage | None:
+    for message in reversed(request.messages):
+        if getattr(message, "role", None) == "assistant":
+            return message
+    return None
+
+
+def _has_any_thinking_block(request: AnthropicRequest) -> bool:
+    for message in request.messages:
+        if getattr(message, "role", None) != "assistant":
+            continue
+        if _has_thinking_block(message.content):
+            return True
+    return False
+
+
+def _remove_thinking_blocks(request: AnthropicRequest) -> None:
+    for message in request.messages:
+        if getattr(message, "role", None) != "assistant":
+            continue
+        if isinstance(message.content, list):
+            message.content = [
+                block for block in message.content if not _is_thinking_block(block)
+            ]
+        elif isinstance(message.content, dict) and _is_thinking_block(message.content):
+            message.content = []
+
+
+def _default_thinking_param() -> dict[str, Any]:
+    return {"type": "enabled", "budget_tokens": DEFAULT_THINKING_BUDGET_TOKENS}

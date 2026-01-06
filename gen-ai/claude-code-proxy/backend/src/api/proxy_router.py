@@ -32,11 +32,7 @@ from ..proxy.budget import format_budget_exceeded_message
 from ..proxy.context import RequestContext
 from ..proxy.router import _map_error_type
 from ..proxy.streaming_usage import StreamingUsageCollector
-from ..proxy.thinking_normalizer import (
-    ensure_thinking_prefix,
-    remove_invalid_redacted_thinking,
-    should_drop_thinking_param,
-)
+from ..proxy.thinking_normalizer import normalize_thinking_request
 from ..repositories import (
     BedrockKeyRepository,
     TokenUsageRepository,
@@ -81,11 +77,7 @@ async def proxy_messages(
 
     outgoing_headers = _extract_outgoing_headers(raw_request)
 
-    # LiteLLM 방식: invalid redacted_thinking 제거 → thinking 블록 정리 → thinking param 드롭 체크
-    remove_invalid_redacted_thinking(request)
-    ensure_thinking_prefix(request)
-    if should_drop_thinking_param(request):
-        request.thinking = None
+    normalize_thinking_request(request)
 
     logger.info(
         "proxy_request_received",
@@ -186,11 +178,7 @@ async def proxy_count_tokens(
 
     outgoing_headers = _extract_outgoing_headers(raw_request)
 
-    # LiteLLM 방식: invalid redacted_thinking 제거 → thinking 블록 정리 → thinking param 드롭 체크
-    remove_invalid_redacted_thinking(request)
-    ensure_thinking_prefix(request)
-    if should_drop_thinking_param(request):
-        request.thinking = None
+    normalize_thinking_request(request)
 
     settings = get_settings()
     has_auth_header = (

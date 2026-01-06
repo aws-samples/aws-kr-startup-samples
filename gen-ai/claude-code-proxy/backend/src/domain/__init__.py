@@ -3,6 +3,7 @@ from .entities import User, AccessKey, BedrockKey, TokenUsage, UsageAggregate
 from .pricing import ModelPricing, PricingConfig
 from .cost_calculator import CostBreakdown, CostCalculator
 from .schemas import (
+    AnthropicMessage,
     AnthropicRequest,
     AnthropicResponse,
     AnthropicError,
@@ -41,6 +42,7 @@ __all__ = [
     "PricingConfig",
     "CostBreakdown",
     "CostCalculator",
+    "AnthropicMessage",
     "AnthropicRequest",
     "AnthropicResponse",
     "AnthropicError",
