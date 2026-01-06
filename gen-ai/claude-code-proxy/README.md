@@ -68,6 +68,8 @@ Add the following to your `~/.bashrc` or `~/.zshrc`:
 ```bash
 export ANTHROPIC_AUTH_TOKEN="claude-code-proxy-fake-key"
 export ANTHROPIC_BASE_URL="https://proxy.example.com/ak/ak_your_access_key"
+export CLAUDE_CODE_MAX_OUTPUT_TOKENS="4096"
+export MAX_THINKING_TOKENS="1024"
 ```
 
 Then reload your shell:
@@ -84,7 +86,9 @@ Alternatively, you can configure Claude Code by editing `~/.claude/settings.json
 {
   "env": {
     "ANTHROPIC_AUTH_TOKEN": "claude-code-proxy-fake-key",
-    "ANTHROPIC_BASE_URL": "https://proxy.example.com/ak/ak_your_access_key"
+    "ANTHROPIC_BASE_URL": "https://proxy.example.com/ak/ak_your_access_key",
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "4096",
+    "MAX_THINKING_TOKENS": "1024"
   }
 }
 ```
