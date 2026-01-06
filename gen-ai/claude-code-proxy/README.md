@@ -61,20 +61,35 @@ Claude Code offers two pricing models: a fixed monthly subscription (Plan) or pa
 1. Get an access key from your admin
 2. Configure Claude Code:
 
-### Option 1: Environment Variables
+### Option 1: Shell Environment Variables (Recommended)
+
+Add the following to your `~/.bashrc` or `~/.zshrc`:
+
 ```bash
-export ANTHROPIC_BASE_URL=https://proxy.example.com/ak/ak_your_access_key
+export ANTHROPIC_AUTH_TOKEN="claude-code-proxy-fake-key"
+export ANTHROPIC_BASE_URL="https://proxy.example.com/ak/ak_your_access_key"
 ```
 
+Then reload your shell:
+```bash
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+> **Why this is recommended**: Claude Code checks authentication before loading `settings.json`. Setting environment variables in your shell profile ensures the proxy is used from the very first authentication check.
+
 ### Option 2: Settings File (`~/.claude/settings.json`)
-You can also configure Claude Code globally by editing `~/.claude/settings.json`:
+
+Alternatively, you can configure Claude Code by editing `~/.claude/settings.json`:
 ```json
 {
   "env": {
+    "ANTHROPIC_AUTH_TOKEN": "claude-code-proxy-fake-key",
     "ANTHROPIC_BASE_URL": "https://proxy.example.com/ak/ak_your_access_key"
   }
 }
 ```
+
+> **Note**: This method only applies after Claude Code's initial authentication. If you experience login prompts on startup, use Option 1 instead.
 
 3. Use Claude Code as normal — the proxy handles routing transparently
 
