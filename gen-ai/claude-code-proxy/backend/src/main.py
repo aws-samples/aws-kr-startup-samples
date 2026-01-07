@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exception_handlers import (
     http_exception_handler,
@@ -6,24 +8,53 @@ from fastapi.exception_handlers import (
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from .logging import get_logger, setup_logging
 from .api import (
-    proxy_router,
     admin_auth_router,
-    admin_users_router,
     admin_keys_router,
-    admin_usage_router,
+    admin_models_router,
     admin_pricing_router,
+    admin_usage_router,
+    admin_users_router,
+    proxy_router,
 )
+from .db.session import async_session_factory
+from .logging import get_logger, setup_logging
+from .proxy import get_proxy_deps
+from .proxy.model_mapping import build_default_bedrock_model_resolver, set_cached_db_mappings
+from .repositories import ModelMappingRepository
 
 setup_logging()
 logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Load DB model mappings on startup."""
+    try:
+        async with async_session_factory() as session:
+            repo = ModelMappingRepository(session)
+            db_mappings = await repo.get_active_mappings_dict()
+            set_cached_db_mappings(db_mappings)
+
+            # Update the global resolver with DB mappings
+            deps = get_proxy_deps()
+            deps.bedrock_model_resolver = build_default_bedrock_model_resolver(db_mappings)
+
+            logger.info(f"Loaded {len(db_mappings)} model mappings from database")
+    except Exception as e:
+        logger.warning(f"Failed to load model mappings from database: {e}")
+        # Continue startup even if DB load fails (will use defaults)
+
+    yield
+
 
 app = FastAPI(
     title="Claude Code Proxy",
     description="Proxy between Claude Code and Amazon Bedrock with automatic failover",
     version="0.1.0",
+    lifespan=lifespan,
 )
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +70,7 @@ app.include_router(admin_users_router)
 app.include_router(admin_keys_router)
 app.include_router(admin_usage_router)
 app.include_router(admin_pricing_router)
+app.include_router(admin_models_router)
 
 
 @app.exception_handler(RequestValidationError)

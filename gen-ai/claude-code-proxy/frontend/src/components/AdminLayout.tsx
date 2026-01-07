@@ -1,6 +1,9 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 
-const navItems = [{ to: '/users', label: 'Users' }];
+const navItems = [
+  { to: '/users', label: 'Users' },
+  { to: '/models', label: 'Models' },
+];
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   [

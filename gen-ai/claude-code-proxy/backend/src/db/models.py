@@ -137,6 +137,20 @@ class TokenUsageModel(Base):
     )
 
 
+class ModelMappingModel(Base):
+    __tablename__ = "model_mappings"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    claude_model: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    bedrock_model: Mapped[str] = mapped_column(String(128), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+
+    __table_args__ = (Index("idx_model_mappings_claude_model", "claude_model"),)
+
+
 class UsageAggregateModel(Base):
     __tablename__ = "usage_aggregates"
 

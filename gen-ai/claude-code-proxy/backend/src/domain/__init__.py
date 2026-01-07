@@ -24,6 +24,9 @@ from .schemas import (
     ModelPricingResponse,
     PricingListResponse,
     CostBreakdownByModel,
+    ModelMappingCreate,
+    ModelMappingUpdate,
+    ModelMappingResponse,
 )
 
 __all__ = [
@@ -63,4 +66,7 @@ __all__ = [
     "ModelPricingResponse",
     "PricingListResponse",
     "CostBreakdownByModel",
+    "ModelMappingCreate",
+    "ModelMappingUpdate",
+    "ModelMappingResponse",
 ]

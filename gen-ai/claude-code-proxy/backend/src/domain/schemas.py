@@ -194,3 +194,27 @@ class UsageTopUser(BaseModel):
     name: str
     total_tokens: int
     total_requests: int
+
+
+# Model Mapping schemas
+class ModelMappingCreate(BaseModel):
+    claude_model: str = Field(min_length=1, max_length=128)
+    bedrock_model: str = Field(min_length=1, max_length=128)
+    description: str | None = None
+    is_active: bool = True
+
+
+class ModelMappingUpdate(BaseModel):
+    bedrock_model: str | None = Field(default=None, min_length=1, max_length=128)
+    description: str | None = None
+    is_active: bool | None = None
+
+
+class ModelMappingResponse(BaseModel):
+    id: UUID
+    claude_model: str
+    bedrock_model: str
+    description: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
