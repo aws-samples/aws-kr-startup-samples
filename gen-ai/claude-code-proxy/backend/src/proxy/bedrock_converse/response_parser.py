@@ -20,7 +20,9 @@ def parse_converse_response(
         input_tokens=usage_data.get("inputTokens", 0),
         output_tokens=usage_data.get("outputTokens", 0),
         cache_read_input_tokens=usage_data.get("cacheReadInputTokens"),
-        cache_creation_input_tokens=usage_data.get("cacheCreationInputTokens"),
+        cache_creation_input_tokens=usage_data.get("cacheWriteInputTokens")
+        if "cacheWriteInputTokens" in usage_data
+        else usage_data.get("cacheCreationInputTokens"),
     )
 
     response = AnthropicResponse(
