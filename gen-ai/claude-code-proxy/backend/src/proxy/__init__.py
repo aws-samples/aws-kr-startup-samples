@@ -9,6 +9,7 @@ from .dependencies import ProxyDependencies, get_proxy_deps, set_proxy_deps, res
 from .usage import UsageRecorder
 from .metrics import CloudWatchMetricsEmitter
 from .cache import TTLCache
+from .model_mapping import invalidate_model_mapping_cache
 
 __all__ = [
     "RequestContext",
@@ -31,4 +32,5 @@ __all__ = [
     "UsageRecorder",
     "CloudWatchMetricsEmitter",
     "TTLCache",
+    "invalidate_model_mapping_cache",
 ]
