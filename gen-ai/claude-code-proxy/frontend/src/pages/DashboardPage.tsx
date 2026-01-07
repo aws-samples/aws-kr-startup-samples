@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PageHeader from '@/components/PageHeader';
-import { api, UsageResponse, UsageTopUser, User } from '@/lib/api';
+import { api, UsageBucket, UsageResponse, UsageTopUser, User } from '@/lib/api';
 import {
+  fillMissingBuckets,
   formatKstDate,
   formatKstDateTime,
   resolveCustomRange,
@@ -130,27 +131,54 @@ export default function DashboardPage() {
     };
   }, [bucketType, range, rangePreset, selectedUserId]);
 
-  const chartData =
-    usage?.buckets.map((bucket) => ({
-      time: formatKstDateTime(new Date(bucket.bucket_start)),
-      totalTokens: bucket.total_tokens,
-      inputTokens: bucket.input_tokens,
-      outputTokens: bucket.output_tokens,
-      requests: bucket.requests,
-      estimatedCost: parseCost(bucket.estimated_cost_usd),
-    })) || [];
+  const filledBuckets = useMemo(() => {
+    if (!usage || !range) return [];
+    return fillMissingBuckets(
+      usage.buckets,
+      range.startTime,
+      range.endTime,
+      bucketType,
+      (bucketStart) => ({
+        bucket_start: bucketStart.toISOString(),
+        requests: 0,
+        input_tokens: 0,
+        output_tokens: 0,
+        total_tokens: 0,
+        cache_write_tokens: 0,
+        cache_read_tokens: 0,
+        input_cost_usd: '0',
+        output_cost_usd: '0',
+        cache_write_cost_usd: '0',
+        cache_read_cost_usd: '0',
+        estimated_cost_usd: '0',
+      })
+    );
+  }, [usage, range, bucketType]);
+
+  const chartData = useMemo(
+    () =>
+      filledBuckets.map((bucket) => ({
+        time: formatKstDateTime(new Date(bucket.bucket_start)),
+        totalTokens: bucket.total_tokens,
+        inputTokens: bucket.input_tokens,
+        outputTokens: bucket.output_tokens,
+        requests: bucket.requests,
+        estimatedCost: parseCost(bucket.estimated_cost_usd),
+      })),
+    [filledBuckets]
+  );
 
   const cumulativeData = useMemo(() => {
-    if (!usage) return [];
+    if (filledBuckets.length === 0) return [];
     let runningTotal = 0;
-    return usage.buckets.map((bucket) => {
+    return filledBuckets.map((bucket) => {
       runningTotal += bucket.total_tokens;
       return {
         time: formatKstDateTime(new Date(bucket.bucket_start)),
         cumulativeTokens: runningTotal,
       };
     });
-  }, [usage]);
+  }, [filledBuckets]);
 
   const totalTokens = usage?.total_tokens ?? 0;
   const tokensPerRequest =
