@@ -17,8 +17,8 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen">
       <div className="flex min-h-screen">
-        <aside className="hidden w-64 flex-col border-r border-line bg-surface/85 backdrop-blur lg:flex">
-          <div className="px-6 py-6">
+        <aside className="hidden w-56 flex-col border-r border-line bg-surface/85 backdrop-blur lg:flex">
+          <div className="px-5 py-6">
             <Link to="/dashboard" className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-sm font-semibold text-white shadow-soft">
                 CP
@@ -29,8 +29,8 @@ export default function AdminLayout() {
               </div>
             </Link>
           </div>
-          <nav className="flex-1 px-4">
-            <div className="px-3 pb-3 text-xs uppercase tracking-[0.3em] text-muted">Manage</div>
+          <nav className="flex-1 px-3">
+            <div className="px-2 pb-3 text-xs uppercase tracking-[0.3em] text-muted">Manage</div>
             <div className="space-y-1">
               {navItems.map((item) => (
                 <NavLink key={item.to} to={item.to} className={navLinkClass}>
@@ -39,7 +39,7 @@ export default function AdminLayout() {
               ))}
             </div>
           </nav>
-          <div className="px-6 py-6 text-xs text-muted">
+          <div className="px-5 py-6 text-xs text-muted">
             Token operations dashboard
           </div>
         </aside>

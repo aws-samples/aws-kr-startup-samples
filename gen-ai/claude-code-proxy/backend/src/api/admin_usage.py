@@ -5,7 +5,14 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..domain import UsageResponse, UsageBucket, UsageTopUser, CostBreakdownByModel
+from ..domain import (
+    UsageResponse,
+    UsageBucket,
+    UsageTopUser,
+    UsageTopUserSeries,
+    UsageTopUserSeriesBucket,
+    CostBreakdownByModel,
+)
 from ..repositories import UsageAggregateRepository, TokenUsageRepository
 from .deps import require_admin
 
@@ -174,3 +181,52 @@ async def get_top_users(
         )
         for row in results
     ]
+
+
+@router.get("/top-users/series", response_model=list[UsageTopUserSeries])
+async def get_top_user_series(
+    bucket_type: str = Query(default="hour", pattern="^(minute|hour|day|week|month)$"),
+    start_time: datetime | None = None,
+    end_time: datetime | None = None,
+    limit: int = 5,
+    session: AsyncSession = Depends(get_session),
+):
+    repo = UsageAggregateRepository(session)
+
+    if not end_time:
+        end_time = datetime.utcnow()
+    if not start_time:
+        start_time = end_time - timedelta(hours=24)
+
+    top_users = await repo.get_top_users(
+        bucket_type=bucket_type,
+        start_time=start_time,
+        end_time=end_time,
+        limit=limit,
+    )
+    user_ids = [row["user_id"] for row in top_users]
+    series_rows = await repo.get_user_series(
+        bucket_type=bucket_type,
+        start_time=start_time,
+        end_time=end_time,
+        user_ids=user_ids,
+    )
+
+    user_map = {
+        row["user_id"]: UsageTopUserSeries(
+            user_id=row["user_id"], name=row["name"], buckets=[]
+        )
+        for row in top_users
+    }
+    for row in series_rows:
+        user = user_map.get(row["user_id"])
+        if not user:
+            continue
+        user.buckets.append(
+            UsageTopUserSeriesBucket(
+                bucket_start=row["bucket_start"],
+                total_tokens=row["total_tokens"],
+            )
+        )
+
+    return list(user_map.values())

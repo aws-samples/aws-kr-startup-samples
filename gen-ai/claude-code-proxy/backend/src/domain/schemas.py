@@ -196,6 +196,17 @@ class UsageTopUser(BaseModel):
     total_requests: int
 
 
+class UsageTopUserSeriesBucket(BaseModel):
+    bucket_start: datetime
+    total_tokens: int
+
+
+class UsageTopUserSeries(BaseModel):
+    user_id: UUID
+    name: str
+    buckets: list[UsageTopUserSeriesBucket]
+
+
 # Model Mapping schemas
 class ModelMappingCreate(BaseModel):
     claude_model: str = Field(min_length=1, max_length=128)

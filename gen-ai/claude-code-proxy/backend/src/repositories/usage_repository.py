@@ -388,6 +388,51 @@ class UsageAggregateRepository:
             for row in result
         ]
 
+    async def get_user_series(
+        self,
+        bucket_type: str,
+        start_time: datetime,
+        end_time: datetime,
+        user_ids: list[UUID],
+    ) -> list[dict]:
+        if not user_ids:
+            return []
+
+        query = (
+            select(
+                UsageAggregateModel.user_id.label("user_id"),
+                UserModel.name.label("name"),
+                UsageAggregateModel.bucket_start.label("bucket_start"),
+                func.sum(UsageAggregateModel.total_tokens).label("total_tokens"),
+            )
+            .join(UserModel, UsageAggregateModel.user_id == UserModel.id)
+            .where(
+                UsageAggregateModel.bucket_type == bucket_type,
+                UsageAggregateModel.bucket_start >= start_time,
+                UsageAggregateModel.bucket_start < end_time,
+                UsageAggregateModel.user_id.in_(user_ids),
+                UserModel.deleted_at.is_(None),
+                UserModel.status != UserStatus.DELETED.value,
+            )
+            .group_by(
+                UsageAggregateModel.user_id,
+                UserModel.name,
+                UsageAggregateModel.bucket_start,
+            )
+            .order_by(UsageAggregateModel.bucket_start)
+        )
+
+        result = await self.session.execute(query)
+        return [
+            {
+                "user_id": row.user_id,
+                "name": row.name,
+                "bucket_start": row.bucket_start,
+                "total_tokens": row.total_tokens or 0,
+            }
+            for row in result
+        ]
+
     def _to_entity(self, model: UsageAggregateModel) -> UsageAggregate:
         return UsageAggregate(
             id=model.id,
