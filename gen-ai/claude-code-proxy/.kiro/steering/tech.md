@@ -18,9 +18,9 @@ inclusion: always
 
 | Rule | Requirement |
 |------|-------------|
-| Async operations | ALL database and HTTP operations MUST use `async/await` |
-| Type hints | REQUIRED on all function signatures |
-| Environment variables | MUST use `PROXY_` prefix |
+| Async operations | **ALWAYS** use `async/await` for ALL database and HTTP operations |
+| Type hints | **REQUIRED** on all function signatures |
+| Environment variables | **MUST** use `PROXY_` prefix |
 | HTTP client | Use `httpx` for async HTTP requests |
 | AWS SDK | Use `boto3` for AWS operations |
 | Logging | Use `structlog` (structured JSON format) |
@@ -49,10 +49,10 @@ def get_user(session, user_id):
 
 | Pattern | Implementation |
 |---------|----------------|
-| Soft delete | Set `deleted_at` timestamp, ALWAYS filter with `.where(Model.deleted_at.is_(None))` |
-| Access keys | Store as HMAC-SHA256 hash (NEVER plaintext) |
+| Soft delete | Set `deleted_at` timestamp, **ALWAYS** filter with `.where(Model.deleted_at.is_(None))` |
+| Access keys | Store as HMAC-SHA256 hash (**NEVER** plaintext) |
 | Bedrock credentials | KMS envelope encryption required |
-| All queries | MUST be async (`await session.execute(...)`) |
+| All queries | **MUST** be async (`await session.execute(...)`) |
 
 ```python
 # CORRECT: Soft delete query pattern
@@ -137,7 +137,7 @@ docker-compose up db              # DB only
 
 ## Database Schema
 
-6 tables: `users`, `access_keys`, `bedrock_keys`, `token_usage`, `usage_aggregates`
+6 tables: `users`, `access_keys`, `bedrock_keys`, `token_usage`, `usage_aggregates`, `model_mappings`
 
 | Relationship | Cascade Behavior |
 |--------------|------------------|

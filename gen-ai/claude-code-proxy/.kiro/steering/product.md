@@ -32,8 +32,6 @@ POST /ak/{access_key}/v1/messages
 
 ### Implementation Rules
 
-When implementing or modifying proxy behavior, follow these constraints:
-
 | Rule | Requirement |
 |------|-------------|
 | Access Key Location | MUST be embedded in URL path (`/ak/{access_key}/...`) |
@@ -41,14 +39,21 @@ When implementing or modifying proxy behavior, follow these constraints:
 | Streaming | MUST support both streaming (`stream: true`) and non-streaming responses |
 | Headers | Passthrough: `x-api-key`, `authorization`, `anthropic-version`, `anthropic-beta`, `content-type` |
 
+### Routing Strategies
+
+| Strategy | Behavior |
+|----------|----------|
+| `plan_first` (default) | Try Anthropic Plan API first, fallback to Bedrock on rate limit/failure |
+| `bedrock_only` | Skip Plan API entirely, use only Bedrock |
+
 ### Circuit Breaker Behavior
 
 | Aspect | Specification |
 |--------|---------------|
 | Scope | Per-access-key (independent state per key) |
 | Triggers | 429, 500-504, connection failures |
-| Threshold | 3 failures within 60s (configurable via `PROXY_CIRCUIT_FAILURE_THRESHOLD`) |
-| Recovery | Auto-closes after 30 min (configurable via `PROXY_CIRCUIT_RESET_TIMEOUT`) |
+| Threshold | 3 failures within 60s (`PROXY_CIRCUIT_FAILURE_THRESHOLD`) |
+| Recovery | Auto-closes after 30 min (`PROXY_CIRCUIT_RESET_TIMEOUT`) |
 | State | In-memory only; resets on backend restart |
 
 ### Fallback Decision Matrix
@@ -58,9 +63,7 @@ When implementing or modifying proxy behavior, follow these constraints:
 | 429 | YES | Rate limit exceeded |
 | 500-504 | YES | Server errors |
 | Connection timeout | YES | Network failure |
-| 400 | NO | Invalid request (user error) |
-| 401/403 | NO | Auth failure (user error) |
-| Other 4xx | NO | Client errors |
+| 400, 401, 403, other 4xx | NO | Client/auth errors (do not retry) |
 
 ## Data Model
 
@@ -80,16 +83,17 @@ User (admin accounts)
 |-----------|---------|----------------|
 | Access Keys | Hashed storage | HMAC-SHA256 with `PROXY_KEY_HASHER_SECRET` |
 | Bedrock Credentials | Encrypted storage | KMS envelope encryption |
-| Deleted Records | Soft delete | Set `deleted_at` timestamp; always filter with `deleted_at IS NULL` |
-| Admin Passwords | Hashed storage | SHA256 (legacy) |
+| Deleted Records | Soft delete | Set `deleted_at` timestamp |
+| Admin Passwords | Hashed storage | SHA256 |
 
-### Soft Delete Convention
+### Soft Delete Convention (CRITICAL)
 
-When querying any soft-deletable entity:
+All queries on soft-deletable entities MUST include:
 ```python
-# Always include this filter
 .where(Model.deleted_at.is_(None))
 ```
+
+Affected tables: `access_keys`, `users`
 
 ## Usage Tracking
 
@@ -109,10 +113,8 @@ When querying any soft-deletable entity:
 
 ### Aggregation
 
-- `UsageAggregate` stores hourly/daily rollups for analytics
 - Bucket types: `minute`, `hour`, `day`, `week`, `month`
-- Includes cache token tracking (`total_cache_write_tokens`, `total_cache_read_tokens`)
-- Cost breakdown by token type (input, output, cache_write, cache_read)
+- Includes cache token tracking and cost breakdown by token type
 
 ## Budget Management
 
@@ -122,11 +124,11 @@ When querying any soft-deletable entity:
 |--------|---------------|
 | Scope | Per-user monthly limit in USD |
 | Timezone | KST (UTC+9) - resets on 1st of each month |
-| Enforcement | Bedrock fallback requests blocked when exceeded |
+| Enforcement | Bedrock requests blocked when exceeded |
 | Fail-open | Budget check failures allow requests by default |
-| Cache TTL | 60 seconds (configurable via `PROXY_BUDGET_CACHE_TTL`) |
+| Cache TTL | 60 seconds (`PROXY_BUDGET_CACHE_TTL`) |
 
-### Budget Check Response (429)
+### Budget Exceeded Response (HTTP 429)
 
 ```json
 {
@@ -142,12 +144,12 @@ When querying any soft-deletable entity:
 
 ### Pricing Configuration
 
-- Pricing loaded from `PROXY_MODEL_PRICING` environment variable (JSON)
+- Source: `PROXY_MODEL_PRICING` environment variable (JSON)
 - Supports per-region, per-model pricing
-- Runtime reload via `POST /api/pricing/reload`
-- Cost calculated with 6 decimal precision
+- Runtime reload: `POST /api/pricing/reload`
+- Precision: 6 decimal places
 
-### Cost Calculation Formula
+### Cost Calculation
 
 ```
 cost = (tokens / 1,000,000) * price_per_million
@@ -155,10 +157,31 @@ cost = (tokens / 1,000,000) * price_per_million
 
 Token types: `input`, `output`, `cache_write`, `cache_read`
 
-## Cost Model Context
+## Implementation Guidelines
 
-The proxy optimizes costs by:
-1. Using Anthropic Plan API as primary (typically lower cost)
-2. Auto-fallback to Bedrock PAYG only when rate-limited
-3. Tracking all usage for cost visibility and capacity planning
-4. Per-user budget limits to prevent unexpected costs
+### When Adding New Features
+
+1. Proxy behavior changes → Update `backend/src/proxy/router.py`
+2. New usage fields → Add migration, update `TokenUsage` model, update repositories
+3. Budget logic changes → Modify `backend/src/proxy/budget.py`
+4. Cost calculation changes → Update `backend/src/domain/cost_calculator.py`
+
+### Error Response Format
+
+All error responses MUST follow Anthropic's error schema:
+```json
+{
+  "type": "error",
+  "error": {
+    "type": "<error_type>",
+    "message": "<human_readable_message>"
+  }
+}
+```
+
+### Testing Requirements
+
+- Circuit breaker: Test state transitions (closed → open → half-open → closed)
+- Budget: Test enforcement, cache invalidation, timezone handling
+- Fallback: Test all trigger conditions in decision matrix
+- Streaming: Test both SSE streaming and non-streaming responses

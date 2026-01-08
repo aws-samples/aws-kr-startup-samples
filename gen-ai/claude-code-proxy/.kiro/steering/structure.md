@@ -23,71 +23,76 @@ backend/                        # FastAPI backend (Python 3.11+)
 
 frontend/                       # React admin dashboard (TypeScript)
 ├── src/
-│   ├── pages/                 # Page components (Dashboard, Users, UserDetail, Login)
-│   ├── components/            # Shared components (AdminLayout, PageHeader)
-│   ├── lib/
-│   │   ├── api.ts             # API client
-│   │   └── usageRange.ts      # Date range utilities
+│   ├── pages/                 # Page components
+│   ├── components/            # Shared components
+│   ├── lib/                   # API client, utilities
 │   ├── App.tsx                # Router setup
 │   └── main.tsx               # Entry point
-├── scripts/                   # Deployment scripts
-│   └── amplify-bootstrap-deploy.sh  # Amplify deployment
 
 infra/                          # AWS CDK (Python)
-├── stacks/
-│   ├── network_stack.py       # VPC, Security Groups
-│   ├── secrets_stack.py       # KMS, Secrets Manager
-│   ├── database_stack.py      # Aurora Serverless v2
-│   ├── compute_stack.py       # ECS Fargate, ALB
-│   └── cloudfront_stack.py    # CloudFront distribution
+├── stacks/                    # CDK stack definitions
 └── app.py                     # CDK entry point
 ```
 
-## Layered Architecture Rules
+## Architecture Rules
+
+### Layer Hierarchy (MUST follow)
 
 ```
 API Layer → Domain Layer → Repository Layer → Database
 ```
 
-| Rule | Constraint |
-|------|------------|
-| Layer isolation | NEVER bypass layers (no direct DB access from API handlers) |
-| DB operations | ALL queries MUST go through repositories |
-| Business logic | MUST reside in `domain/` or `proxy/`, not in API handlers |
-| Dependencies | Inject via FastAPI `Depends()` for testability |
+- NEVER bypass layers (no direct DB access from API handlers)
+- ALL DB queries MUST go through repositories
+- Business logic MUST reside in `domain/` or `proxy/`, NOT in API handlers
+- Inject dependencies via FastAPI `Depends()` for testability
 
-## Design Patterns
+### Design Patterns
 
-### Adapter Pattern (Proxy)
+**Adapter Pattern (Proxy)**
 - `AdapterBase` in `proxy/adapter_base.py` defines the interface
 - New AI providers MUST implement `AdapterBase`
-- Existing: `PlanAdapter` (Anthropic), `BedrockAdapter` (AWS Bedrock)
+- Existing adapters: `PlanAdapter` (Anthropic), `BedrockAdapter` (AWS Bedrock)
 
-### Repository Pattern
-All DB access MUST use repositories in `backend/src/repositories/`:
+**Repository Pattern**
 - `UserRepository` - User CRUD
 - `AccessKeyRepository` - Key management + caching
 - `BedrockKeyRepository` - Encrypted credentials
 - `UsageRepository` - Usage events and aggregates
+- `ModelMappingRepository` - Model ID mappings
 
 ## Code Conventions
 
-### Backend (Python)
-- `async/await` REQUIRED for all DB and HTTP operations
-- Type hints REQUIRED on all function signatures
-- Environment variables MUST use `PROXY_` prefix
-- Soft delete: set `deleted_at` timestamp, ALWAYS filter with `.where(Model.deleted_at.is_(None))`
+### Backend (Python) - CRITICAL
+
+```python
+# REQUIRED: async/await for ALL DB and HTTP operations
+async def get_user(session: AsyncSession, user_id: int) -> User | None:
+    result = await session.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()
+
+# REQUIRED: Type hints on ALL function signatures
+# REQUIRED: Environment variables use PROXY_ prefix
+# REQUIRED: Soft delete filter on ALL queries for soft-deletable entities
+query = select(AccessKey).where(
+    AccessKey.user_id == user_id,
+    AccessKey.deleted_at.is_(None)  # ALWAYS include this
+)
+```
 
 ### Frontend (TypeScript)
+
 - Import paths: use `@/` alias (maps to `src/`)
 - API calls: centralize in `lib/api.ts`
 - Routing: react-router-dom v6, page components in `pages/`
+- Styling: Tailwind utility classes only
 
 ### Database
+
 - PostgreSQL 15 + asyncpg (async driver)
 - SQLAlchemy 2.0 async mode
 - Alembic for migrations
-- Tables: `users`, `access_keys`, `bedrock_keys`, `token_usage`, `usage_aggregates`
+- Tables: `users`, `access_keys`, `bedrock_keys`, `token_usage`, `usage_aggregates`, `model_mappings`
 
 ## Frontend Routes
 
@@ -97,44 +102,6 @@ All DB access MUST use repositories in `backend/src/repositories/`:
 | `/dashboard` | DashboardPage | Usage overview, charts |
 | `/users` | UsersPage | User list, create user |
 | `/users/:id` | UserDetailPage | User detail, access keys, budget |
-
-## Infrastructure Architecture
-
-### CDK Stacks
-
-| Stack | Resources | Purpose |
-|-------|-----------|---------|
-| NetworkStack | VPC, Security Groups | Network isolation |
-| SecretsStack | KMS Key, Secrets Manager | Encryption, credentials |
-| DatabaseStack | Aurora Serverless v2 | PostgreSQL 17.4 database |
-| ComputeStack | ECS Fargate, ALB | Backend service |
-| CloudFrontStack | CloudFront Distribution | Secure admin access |
-
-### Security Pattern: X-Origin-Verify
-
-ALB is protected by a custom header validation pattern:
-1. CloudFront adds `X-Origin-Verify` header with secret value
-2. ALB listener rule validates header before forwarding
-3. Direct ALB access returns 403 Forbidden
-
-Note: CloudFront prefix list (`pl-22a6434b`) exceeds default SG rule limit (~130 rules). To use prefix list instead, increase "Inbound rules per security group" quota to 200+.
-
-### CDK Context Variables
-
-Deploy with optional configuration:
-```bash
-cdk deploy --context environment=prod --context log_level=DEBUG
-```
-
-| Context Variable | Default | Description |
-|------------------|---------|-------------|
-| `account` | - | AWS account ID |
-| `region` | `ap-northeast-2` | AWS region |
-| `environment` | `dev` | Deployment environment |
-| `log_level` | `INFO` | Log level |
-| `plan_api_key` | - | Anthropic API key |
-| `bedrock_region` | - | Bedrock region override |
-| `bedrock_default_model` | - | Default Bedrock model |
 
 ## Request Flow
 
@@ -149,15 +116,15 @@ POST /ak/{access_key}/v1/messages
 
 ## File Location Guide
 
-| Task | Location |
-|------|----------|
-| Add API endpoint | `backend/src/api/` → register in `main.py` |
-| Modify proxy logic | `backend/src/proxy/router.py` |
-| Add/modify DB model | `backend/src/db/models.py` → create Alembic migration |
-| Add repository | `backend/src/repositories/` → inject via `Depends()` |
-| Modify config | `backend/src/config.py` |
-| Add frontend page | `frontend/src/pages/` → update `App.tsx` routes |
-| Add CDK stack | `infra/stacks/` → register in `app.py` |
+| Task | Location | Notes |
+|------|----------|-------|
+| Add API endpoint | `backend/src/api/` | Register router in `main.py` |
+| Modify proxy logic | `backend/src/proxy/router.py` | |
+| Add/modify DB model | `backend/src/db/models.py` | Create Alembic migration after |
+| Add repository | `backend/src/repositories/` | Inject via `Depends()` |
+| Modify config | `backend/src/config.py` | Use `PROXY_` prefix for env vars |
+| Add frontend page | `frontend/src/pages/` | Update `App.tsx` routes |
+| Add CDK stack | `infra/stacks/` | Register in `app.py` |
 
 ## Adding New Features
 
@@ -166,3 +133,31 @@ POST /ak/{access_key}/v1/messages
 3. **New repository**: Implement in `repositories/`, inject via `Depends()`
 4. **New AI provider**: Implement `AdapterBase` in `proxy/`
 5. **New frontend page**: Add component in `pages/`, update `App.tsx` routes
+
+## Infrastructure
+
+### CDK Stacks
+
+| Stack | Purpose |
+|-------|---------|
+| NetworkStack | VPC, Security Groups |
+| SecretsStack | KMS Key, Secrets Manager |
+| DatabaseStack | Aurora Serverless v2 (PostgreSQL 17.4) |
+| ComputeStack | ECS Fargate, ALB |
+| CloudFrontStack | CloudFront distribution |
+
+### Security: X-Origin-Verify Pattern
+
+ALB protected by custom header validation:
+1. CloudFront adds `X-Origin-Verify` header with secret
+2. ALB validates header before forwarding
+3. Direct ALB access returns 403
+
+### CDK Context Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `account` | - | AWS account ID |
+| `region` | `ap-northeast-2` | AWS region |
+| `environment` | `dev` | Deployment environment |
+| `log_level` | `INFO` | Log level |

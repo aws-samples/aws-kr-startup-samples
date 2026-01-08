@@ -56,7 +56,7 @@ Claude Code offers two pricing models: a fixed monthly subscription (Plan) or pa
 3. If Anthropic returns a rate limit error, the proxy automatically retries via Amazon Bedrock
 4. All usage is tracked and stored for analytics
 
-## For End Users
+## For End Users to use Claude Code
 
 1. Get an access key from your admin
 2. Configure Claude Code:
@@ -98,6 +98,15 @@ Alternatively, you can configure Claude Code by editing `~/.claude/settings.json
 3. Use Claude Code as normal — the proxy handles routing transparently
 
 ## For Administrators
+
+### Prerequisites
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Python | 3.11+ | Backend runtime |
+| Node.js | 18+ | Frontend build |
+| Docker | 20.10+ | Local development (PostgreSQL) |
+| Docker Compose | 2.0+ | Container orchestration |
 
 ### Quick Start (Local Development)
 
@@ -149,11 +158,27 @@ npm run dev
 
 ### Admin Dashboard Features
 
+<p align="center" float="left">
+  <img src="./assets/admin-dashboard.gif" alt="admin-dashboard" width="400">
+  <img src="./assets/user-detail.gif" alt="admin-dashboard" width="400">
+</p>
+
 - Token overview dashboard with throughput, cumulative usage, and top users
 - Cost visibility dashboard with total cost, cache cost, model breakdown, and cost trend (KST-based ranges)
 - Create users and issue access keys (keys are shown once on creation)
 - Register Bedrock credentials per access key and see linked status in the list
 - User budget management with real-time usage tracking
+
+### Routing Strategy
+
+Configure how requests are routed per user:
+
+| Strategy | Behavior |
+|----------|----------|
+| `plan_first` (default) | Use Anthropic Plan API as primary. Falls back to Bedrock when rate-limited. Requires an existing Claude Code Plan subscription. |
+| `bedrock_only` | Always use Amazon Bedrock. No Plan API calls. |
+
+Configure via Admin Dashboard in the user detail page.
 
 ### User Budget Management
 
@@ -176,6 +201,29 @@ Example budget response when exceeded:
   }
 }
 ```
+
+### Model Mapping
+
+When Anthropic releases new Claude models, you need to configure the mapping between Claude Code model IDs and Amazon Bedrock model IDs.
+
+**Option 1: Environment Variable**
+
+Configure via `PROXY_BEDROCK_MODEL_MAPPING` environment variable:
+
+```json
+{
+  "claude-sonnet-4-20250514": "apac.anthropic.claude-sonnet-4-20250514-v1:0",
+  "claude-opus-4-20250514": "apac.anthropic.claude-opus-4-20250514-v1:0"
+}
+```
+
+**Option 2: Admin Dashboard**
+
+Navigate to the Model section in the admin dashboard to add or update mappings through the UI.
+
+To find the corresponding Bedrock model ID for new Anthropic models, refer to the [Amazon Bedrock Supported Models](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html) documentation.
+
+> **Note**: Bedrock model availability varies by region. Ensure the model is enabled in your AWS account and available in your configured `PROXY_BEDROCK_REGION`.
 
 ### Cost Visibility & Pricing
 
@@ -214,6 +262,18 @@ Example `PROXY_MODEL_PRICING`:
 
 ## Deployment
 
+### Prerequisites
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| AWS CLI | 2.0+ | Configured with appropriate credentials |
+| AWS CDK | 2.0+ | `npm install -g aws-cdk` |
+| Python | 3.11+ | For CDK stacks |
+| Node.js | 18+ | For CDK CLI and frontend |
+| Docker | 20.10+ | For building container images |
+
+Ensure your AWS credentials have permissions for: VPC, ECS, RDS, Secrets Manager, KMS, CloudFront, Amplify.
+
 ### Using Docker Compose
 
 ```bash
@@ -227,6 +287,7 @@ The `infra/` directory contains AWS CDK stacks for production deployment:
 ```bash
 cd infra
 pip install -r requirements.txt
+cdk bootstrap  # First time only
 cdk deploy --all
 ```
 
