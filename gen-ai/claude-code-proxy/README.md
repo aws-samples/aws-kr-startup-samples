@@ -2,6 +2,10 @@
 
 A proxy service that enables organizations to centrally manage and monitor Claude Code usage with automatic failover to Amazon Bedrock.
 
+<p align="center">
+  <img src="./assets/admin-dashboard.gif" alt="admin-dashboard" width="600">
+</p>
+
 ## Why Claude Code Proxy?
 
 Claude Code offers two pricing models: a fixed monthly subscription (Plan) or pay-as-you-go via Amazon Bedrock. This proxy helps organizations leverage the best of both worlds.
@@ -158,9 +162,8 @@ npm run dev
 
 ### Admin Dashboard Features
 
-<p align="center" float="left">
-  <img src="./assets/admin-dashboard.gif" alt="admin-dashboard" width="400">
-  <img src="./assets/user-detail.gif" alt="admin-dashboard" width="400">
+<p align="center">
+  <img src="./assets/user-detail.gif" alt="admin-dashboard" width="600">
 </p>
 
 - Token overview dashboard with throughput, cumulative usage, and top users
