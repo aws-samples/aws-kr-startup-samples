@@ -110,13 +110,12 @@ Alternatively, you can configure Claude Code by editing `~/.claude/settings.json
 | Python | 3.11+ | Backend runtime |
 | Node.js | 18+ | Frontend build |
 | Docker | 20.10+ | Local development (PostgreSQL) |
-| Docker Compose | 2.0+ | Container orchestration |
 
 ### Quick Start (Local Development)
 
 1. Start the database:
 ```bash
-docker-compose up -d db
+docker compose up -d db
 ```
 
 2. Configure backend environment (`backend/.env`):
@@ -276,12 +275,6 @@ Example `PROXY_MODEL_PRICING`:
 | Docker | 20.10+ | For building container images |
 
 Ensure your AWS credentials have permissions for: VPC, ECS, RDS, Secrets Manager, KMS, CloudFront, Amplify.
-
-### Using Docker Compose
-
-```bash
-docker-compose up -d
-```
 
 ### AWS Deployment (CDK)
 
