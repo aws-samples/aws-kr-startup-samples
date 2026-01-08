@@ -2,9 +2,8 @@
 
 A proxy service that enables organizations to centrally manage and monitor Claude Code usage with automatic failover to Amazon Bedrock.
 
-<p align="center">
-  <img src="./assets/admin-dashboard.gif" alt="admin-dashboard" width="600">
-</p>
+
+<img src="./assets/admin-dashboard.gif" alt="admin-dashboard">
 
 ## Why Claude Code Proxy?
 
