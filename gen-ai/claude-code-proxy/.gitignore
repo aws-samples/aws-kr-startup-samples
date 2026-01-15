@@ -1,3 +1,6 @@
+# Override parent gitignore
+!frontend/src/lib/
+
 # Python
 __pycache__/
 *.py[cod]
