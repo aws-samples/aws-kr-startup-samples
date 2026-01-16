@@ -121,15 +121,8 @@ docker compose up -d db
 ```bash
 cp backend/.env.example backend/.env
 ```
-Update values as needed:
-```env
-PROXY_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/proxy
-PROXY_KEY_HASHER_SECRET=your-secret-key
-PROXY_JWT_SECRET=your-jwt-secret
-PROXY_ADMIN_USERNAME=admin
-PROXY_ADMIN_PASSWORD_HASH=<sha256-hash-of-password>
-```
-To set a custom admin password, generate a SHA256 hash:
+
+To set a admin password, generate a SHA256 hash:
 ```bash
 python - <<'PY'
 import hashlib
@@ -138,6 +131,15 @@ import getpass
 password = getpass.getpass("Admin password: ")
 print(hashlib.sha256(password.encode()).hexdigest())
 PY
+```
+
+Update values as needed:
+```env
+PROXY_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/proxy
+PROXY_KEY_HASHER_SECRET=your-secret-key
+PROXY_JWT_SECRET=your-jwt-secret
+PROXY_ADMIN_USERNAME=admin
+PROXY_ADMIN_PASSWORD_HASH=<sha256-hash-of-password>
 ```
 
 3. Run migrations and start the backend:

@@ -63,3 +63,5 @@ Thumbs.db
 
 # Testing
 .hypothesis/
+app/anthropic_raw_response.json
+app/response.json
