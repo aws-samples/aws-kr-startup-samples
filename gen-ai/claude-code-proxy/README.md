@@ -68,6 +68,8 @@ Claude Code offers two pricing models: a fixed monthly subscription (Plan) or pa
 
 Add the following to your `~/.bashrc` or `~/.zshrc`:
 
+> **Note**: Claude Code will prompt you to log in on startup. Subscribers can simply log in and skip `ANTHROPIC_AUTH_TOKEN`.
+
 ```bash
 export ANTHROPIC_AUTH_TOKEN="claude-code-proxy-fake-key"
 export ANTHROPIC_BASE_URL="https://proxy.example.com/ak/ak_your_access_key"
@@ -301,9 +303,10 @@ This deploys:
 ```bash
 cd frontend
 npm ci
-cp .env.example .env
-# Edit .env and set VITE_BACKEND_API_URL to your backend URL (e.g., CloudFront distribution URL)
+# Set backend URL to your CloudFront distribution
+echo "VITE_BACKEND_API_URL=https://<your-cloudfront-domain>" > .env.local
 ```
+> **Note:** Vite prioritizes `.env.local` over `.env`. If `.env.local` exists with `localhost`, it will override `.env`.
 
 2. Deploy:
 
