@@ -33,6 +33,7 @@ class AuthService:
         self._bedrock_key_repo = BedrockKeyRepository(session)
 
     async def authenticate(self, raw_key: str) -> RequestContext | None:
+        request_id = f"req_{uuid.uuid4().hex[:16]}"
         key_hash = self._hasher.hash(raw_key)
         cache = get_proxy_deps().access_key_cache
 
@@ -40,7 +41,7 @@ class AuthService:
         cached: _CachedAccessKey | None = cache.get(key_hash)
         if cached:
             return RequestContext(
-                request_id=f"req_{uuid.uuid4().hex[:16]}",
+                request_id=request_id,
                 user_id=cached.user_id,
                 access_key_id=cached.access_key_id,
                 access_key_prefix=cached.access_key_prefix,
@@ -74,7 +75,7 @@ class AuthService:
         # Cache result
         cache.set(key_hash, cached_entry)
         return RequestContext(
-            request_id=f"req_{uuid.uuid4().hex[:16]}",
+            request_id=request_id,
             user_id=user_id,
             access_key_id=access_key.id,
             access_key_prefix=access_key.key_prefix,

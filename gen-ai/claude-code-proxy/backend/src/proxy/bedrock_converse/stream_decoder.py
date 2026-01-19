@@ -51,7 +51,17 @@ class ConverseStreamDecoder:
                 payload = response_dict["body"]
             if not payload:
                 continue
-            events.append(json.loads(payload.decode()))
+            if isinstance(payload, (bytes, bytearray)):
+                body_data = json.loads(payload.decode())
+            elif isinstance(payload, str):
+                body_data = json.loads(payload)
+            else:
+                body_data = payload
+            event_type = _extract_event_type(response_dict.get("headers", {}))
+            if event_type and isinstance(body_data, dict) and event_type not in body_data:
+                events.append({event_type: body_data})
+            else:
+                events.append(body_data)
         return events
 
 
@@ -325,3 +335,14 @@ def _normalize_patch_event(event: dict[str, Any]) -> tuple[dict[str, Any], bool]
 
 def _is_message_start(event: dict[str, Any]) -> bool:
     return "messageStart" in event
+
+
+def _extract_event_type(headers: dict[str, Any]) -> str | None:
+    for key, value in headers.items():
+        key_str = key.decode(errors="ignore") if isinstance(key, bytes) else str(key)
+        if key_str.lower() not in (":event-type", "event-type"):
+            continue
+        if isinstance(value, (bytes, bytearray)):
+            return value.decode(errors="ignore")
+        return str(value)
+    return None

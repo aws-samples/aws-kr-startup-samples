@@ -77,6 +77,10 @@ export CLAUDE_CODE_MAX_OUTPUT_TOKENS="4096"
 export MAX_THINKING_TOKENS="1024"
 ```
 
+> **Token Configuration**:
+> - `CLAUDE_CODE_MAX_OUTPUT_TOKENS`: Limits the maximum tokens for model responses (default: 4096). Overrides the value sent by the client.
+> - `MAX_THINKING_TOKENS`: Limits the budget_tokens for Extended Thinking (default: 1024). Only applies when thinking is enabled.
+
 Then reload your shell:
 ```bash
 source ~/.bashrc  # or source ~/.zshrc
@@ -97,6 +101,10 @@ Alternatively, you can configure Claude Code by editing `~/.claude/settings.json
   }
 }
 ```
+
+> **Token Configuration**:
+> - `CLAUDE_CODE_MAX_OUTPUT_TOKENS`: Limits the maximum tokens for model responses (default: 4096). Overrides the value sent by the client.
+> - `MAX_THINKING_TOKENS`: Limits the budget_tokens for Extended Thinking (default: 1024). Only applies when thinking is enabled.
 
 > **Note**: This method only applies after Claude Code's initial authentication. If you experience login prompts on startup, use Option 1 instead.
 

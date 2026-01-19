@@ -6,12 +6,16 @@ LiteLLM 방식을 따름:
 3. 기존 thinking/redacted_thinking 블록은 앞으로만 이동
 4. assistant 메시지에 tool_calls가 있는데 thinking_blocks가 없으면 thinking param 드롭
 """
+import pytest
+
 from domain import AnthropicRequest
 from thinking_normalizer import (
     ensure_thinking_prefix,
+    normalize_thinking_request,
     remove_invalid_redacted_thinking,
     should_drop_thinking_param,
 )
+from config import get_settings
 
 
 # =============================================================================
@@ -538,3 +542,116 @@ class TestIntegration:
 
         # should_drop_thinking_param이 True면 호출자가 thinking을 드롭해야 함
         assert should_drop_thinking_param(request) is True
+
+
+# =============================================================================
+# normalize_thinking_request 테스트
+# =============================================================================
+
+
+class TestNormalizeThinkingRequest:
+    """normalize_thinking_request 함수 테스트."""
+
+    def test_applies_env_overrides(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CLAUDE_CODE_MAX_OUTPUT_TOKENS", "10000")
+        monkeypatch.setenv("MAX_THINKING_TOKENS", "5000")
+        get_settings.cache_clear()
+
+        request = AnthropicRequest(
+            model="claude-test",
+            messages=[{"role": "user", "content": "Hello"}],
+            max_tokens=500,
+            thinking={"type": "enabled", "budget_tokens": 6000},
+        )
+
+        normalize_thinking_request(request)
+
+        assert request.max_tokens == 10000
+        assert request.thinking == {"type": "enabled", "budget_tokens": 5000}
+
+    def test_sets_max_tokens_when_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("CLAUDE_CODE_MAX_OUTPUT_TOKENS", raising=False)
+        monkeypatch.delenv("MAX_THINKING_TOKENS", raising=False)
+        get_settings.cache_clear()
+
+        request = AnthropicRequest(
+            model="claude-test",
+            messages=[{"role": "user", "content": "Hello"}],
+            max_tokens=None,
+            thinking={"type": "enabled", "budget_tokens": 2000},
+        )
+
+        normalize_thinking_request(request)
+
+        assert request.max_tokens == 4096
+        assert request.thinking == {"type": "enabled", "budget_tokens": 1024}
+
+    def test_sets_default_budget_when_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("CLAUDE_CODE_MAX_OUTPUT_TOKENS", raising=False)
+        monkeypatch.delenv("MAX_THINKING_TOKENS", raising=False)
+        get_settings.cache_clear()
+
+        request = AnthropicRequest(
+            model="claude-test",
+            messages=[{"role": "user", "content": "Hello"}],
+            max_tokens=None,
+            thinking={"type": "enabled"},
+        )
+
+        normalize_thinking_request(request)
+
+        assert request.thinking == {
+            "type": "enabled",
+            "budget_tokens": 1024,
+        }
+        assert request.max_tokens == 4096
+
+    def test_clamps_budget_when_exceeds_max_tokens(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CLAUDE_CODE_MAX_OUTPUT_TOKENS", "500")
+        monkeypatch.setenv("MAX_THINKING_TOKENS", "5000")
+        get_settings.cache_clear()
+
+        request = AnthropicRequest(
+            model="claude-test",
+            messages=[{"role": "user", "content": "Hello"}],
+            max_tokens=500,
+            thinking={"type": "enabled", "budget_tokens": 5000},
+        )
+
+        normalize_thinking_request(request)
+
+        assert request.thinking == {"type": "enabled", "budget_tokens": 499}
+
+    def test_disables_thinking_when_max_tokens_too_small(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CLAUDE_CODE_MAX_OUTPUT_TOKENS", "1")
+        monkeypatch.delenv("MAX_THINKING_TOKENS", raising=False)
+        get_settings.cache_clear()
+
+        request = AnthropicRequest(
+            model="claude-test",
+            messages=[{"role": "user", "content": "Hello"}],
+            max_tokens=1,
+            thinking={"type": "enabled", "budget_tokens": 10},
+        )
+
+        normalize_thinking_request(request)
+
+        assert request.thinking is None
+
+    def test_keeps_budget_when_below_max_tokens(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("CLAUDE_CODE_MAX_OUTPUT_TOKENS", "500")
+        monkeypatch.setenv("MAX_THINKING_TOKENS", "100")
+        get_settings.cache_clear()
+
+        request = AnthropicRequest(
+            model="claude-test",
+            messages=[{"role": "user", "content": "Hello"}],
+            max_tokens=500,
+            thinking={"type": "enabled", "budget_tokens": 100},
+        )
+
+        normalize_thinking_request(request)
+
+        assert request.thinking == {"type": "enabled", "budget_tokens": 100}

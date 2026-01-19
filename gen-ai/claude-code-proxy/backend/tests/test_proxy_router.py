@@ -34,16 +34,23 @@ def proxy_router(mock_plan_adapter, mock_bedrock_adapter):
 
 @pytest.fixture
 def request_context():
-    ctx = Mock(spec=RequestContext)
-    ctx.user_id = uuid4()
-    ctx.access_key_id = uuid4()
-    ctx.has_bedrock_key = True # Default to having a key
-    ctx.routing_strategy = RoutingStrategy.PLAN_FIRST
-    return ctx
+    return RequestContext(
+        request_id="req-test",
+        user_id=uuid4(),
+        access_key_id=uuid4(),
+        access_key_prefix="ak",
+        bedrock_region="ap-northeast-2",
+        bedrock_model="anthropic.claude-sonnet-4-5-20250514",
+        has_bedrock_key=True,
+        routing_strategy=RoutingStrategy.PLAN_FIRST,
+    )
 
 @pytest.fixture
 def anthropic_request():
-    return Mock(spec=AnthropicRequest)
+    return AnthropicRequest(
+        model="claude-test",
+        messages=[{"role": "user", "content": "hello"}],
+    )
 
 @pytest.fixture(autouse=True)
 def setup_dependencies(mock_circuit_breaker):

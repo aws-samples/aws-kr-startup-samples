@@ -14,12 +14,15 @@ from typing import Any
 
 try:
     from ..domain import AnthropicMessage, AnthropicRequest
+    from ..config import get_settings
 except ImportError:  # pragma: no cover
     from domain import AnthropicMessage, AnthropicRequest
+    from config import get_settings
 
 
 _THINKING_BLOCK_TYPES = {"thinking", "redacted_thinking"}
 DEFAULT_THINKING_BUDGET_TOKENS = 1024
+DEFAULT_MAX_TOKENS = 4096
 
 
 def ensure_thinking_prefix(request: AnthropicRequest) -> AnthropicRequest:
@@ -50,6 +53,7 @@ def ensure_thinking_prefix(request: AnthropicRequest) -> AnthropicRequest:
 
 def normalize_thinking_request(request: AnthropicRequest) -> AnthropicRequest:
     """Normalize thinking fields to satisfy Bedrock extended thinking rules."""
+    _apply_max_output_tokens_override(request)
     remove_invalid_redacted_thinking(request)
 
     last_assistant = _get_last_assistant_message(request)
@@ -72,6 +76,9 @@ def normalize_thinking_request(request: AnthropicRequest) -> AnthropicRequest:
         return request
 
     ensure_thinking_prefix(request)
+    _apply_thinking_budget_override(request)
+    _ensure_max_tokens_for_thinking(request)
+    _enforce_thinking_budget_limit(request)
     return request
 
 
@@ -239,3 +246,66 @@ def _remove_thinking_blocks(request: AnthropicRequest) -> None:
 
 def _default_thinking_param() -> dict[str, Any]:
     return {"type": "enabled", "budget_tokens": DEFAULT_THINKING_BUDGET_TOKENS}
+
+
+def _apply_max_output_tokens_override(request: AnthropicRequest) -> None:
+    settings = get_settings()
+    if settings.claude_code_max_output_tokens is None:
+        return
+    request.max_tokens = settings.claude_code_max_output_tokens
+
+
+def _apply_thinking_budget_override(request: AnthropicRequest) -> None:
+    settings = get_settings()
+    if settings.max_thinking_tokens is None:
+        return
+    if not _thinking_enabled(request.thinking):
+        return
+    if isinstance(request.thinking, dict):
+        request.thinking["budget_tokens"] = settings.max_thinking_tokens
+        return
+    request.thinking = {
+        "type": "enabled",
+        "budget_tokens": settings.max_thinking_tokens,
+    }
+
+
+def _ensure_max_tokens_for_thinking(request: AnthropicRequest) -> None:
+    if not _thinking_enabled(request.thinking):
+        return
+    if request.max_tokens is not None:
+        return
+    if isinstance(request.thinking, dict):
+        budget_tokens = request.thinking.get("budget_tokens")
+        if budget_tokens is None:
+            budget_tokens = DEFAULT_THINKING_BUDGET_TOKENS
+            request.thinking["budget_tokens"] = budget_tokens
+        if isinstance(budget_tokens, int):
+            request.max_tokens = budget_tokens + DEFAULT_MAX_TOKENS
+    else:
+        request.thinking = {
+            "type": "enabled",
+            "budget_tokens": DEFAULT_THINKING_BUDGET_TOKENS,
+        }
+        request.max_tokens = DEFAULT_THINKING_BUDGET_TOKENS + DEFAULT_MAX_TOKENS
+
+
+def _enforce_thinking_budget_limit(request: AnthropicRequest) -> None:
+    if request.max_tokens is None:
+        return
+    if not _thinking_enabled(request.thinking):
+        return
+    if request.max_tokens <= 1:
+        request.thinking = None
+        return
+    if not isinstance(request.thinking, dict):
+        request.thinking = {"type": "enabled", "budget_tokens": request.max_tokens - 1}
+        return
+    budget_tokens = request.thinking.get("budget_tokens")
+    if isinstance(budget_tokens, int) and budget_tokens >= request.max_tokens:
+        request.thinking["budget_tokens"] = request.max_tokens - 1
+        return
+    if budget_tokens is None:
+        request.thinking["budget_tokens"] = min(
+            DEFAULT_THINKING_BUDGET_TOKENS, request.max_tokens - 1
+        )

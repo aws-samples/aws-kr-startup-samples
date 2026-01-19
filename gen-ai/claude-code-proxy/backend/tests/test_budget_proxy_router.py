@@ -76,7 +76,10 @@ async def test_budget_exceeded_rejects_before_bedrock_call(budget, usage):
         bedrock_model="anthropic.claude-sonnet-4-5-20250514",
         has_bedrock_key=True,
     )
-    request = Mock(spec=AnthropicRequest)
+    request = AnthropicRequest(
+        model="claude-test",
+        messages=[{"role": "user", "content": "hello"}],
+    )
     period = datetime.now(timezone.utc)
     budget_result = _build_budget_result(budget, usage, period, period)
 
@@ -121,7 +124,10 @@ async def test_budget_check_blocks_bedrock_invocation(budget, usage):
         bedrock_model="anthropic.claude-sonnet-4-5-20250514",
         has_bedrock_key=True,
     )
-    request = Mock(spec=AnthropicRequest)
+    request = AnthropicRequest(
+        model="claude-test",
+        messages=[{"role": "user", "content": "hello"}],
+    )
     period = datetime.now(timezone.utc)
     budget_result = _build_budget_result(budget, usage, period, period)
 

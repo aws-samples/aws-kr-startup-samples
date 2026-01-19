@@ -21,7 +21,7 @@ class DummyRequest:
 
 @pytest.mark.asyncio
 async def test_count_tokens_bypass_budget(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def _fake_count_tokens(self, _request):
+    async def _fake_count_tokens(self, _request, request_id=None):
         return AnthropicCountTokensResponse(input_tokens=123)
 
     async def _fake_authenticate(_raw_key):

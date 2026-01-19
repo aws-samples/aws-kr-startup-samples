@@ -25,7 +25,6 @@ from ..proxy import (
     ProxyRouter,
     UsageRecorder,
     get_auth_service,
-    get_proxy_deps,
 )
 from ..proxy.adapter_base import AdapterError
 from ..proxy.budget import format_budget_exceeded_message
@@ -92,11 +91,6 @@ async def proxy_messages(
         request_id=ctx.request_id,
         method=method,
         path=path,
-        user_id=str(ctx.user_id),
-        access_key_id=str(ctx.access_key_id),
-        model=request.model,
-        stream=request.stream,
-        max_tokens=request.max_tokens,
     )
 
     usage_aggregate_repo = UsageAggregateRepository(session)
@@ -118,7 +112,11 @@ async def proxy_messages(
     token_usage_repo = TokenUsageRepository(session)
 
     # Bedrock Only 사용자는 PlanAdapter 불필요
-    plan_adapter = None if ctx.routing_strategy == RoutingStrategy.BEDROCK_ONLY else PlanAdapter(headers=outgoing_headers)
+    plan_adapter = (
+        None
+        if ctx.routing_strategy == RoutingStrategy.BEDROCK_ONLY
+        else PlanAdapter(headers=outgoing_headers)
+    )
     bedrock_adapter = BedrockAdapter(BedrockKeyRepository(session))
 
     async def _budget_checker(ctx):
@@ -140,25 +138,6 @@ async def proxy_messages(
         response = await proxy_router.route(ctx, request)
         # Calculate latency
         latency_ms = int((time.time() - start_time) * 1000)
-
-        if not response.success:
-            resolved_bedrock_model = None
-            if response.provider == "bedrock":
-                resolved_bedrock_model = (
-                    get_proxy_deps().bedrock_model_resolver.resolve(request.model)
-                )
-            logger.info(
-                "proxy_response_error",
-                request_id=ctx.request_id,
-                provider=response.provider,
-                status_code=response.status_code,
-                error_type=response.error_type,
-                error_message=response.error_message,
-                is_fallback=response.is_fallback,
-                stream=request.stream,
-                requested_model=request.model,
-                bedrock_model=resolved_bedrock_model,
-            )
 
         # Record usage
         await usage_recorder.record(ctx, response, latency_ms, request.model)
@@ -202,9 +181,6 @@ async def proxy_count_tokens(
         request_id=ctx.request_id,
         method=method,
         path=path,
-        user_id=str(ctx.user_id),
-        access_key_id=str(ctx.access_key_id),
-        model=request.model,
     )
 
     settings = get_settings()
@@ -224,7 +200,7 @@ async def proxy_count_tokens(
 
     plan_adapter = PlanAdapter(headers=outgoing_headers)
     try:
-        result = await plan_adapter.count_tokens(request)
+        result = await plan_adapter.count_tokens(request, request_id=ctx.request_id)
         if isinstance(result, AnthropicCountTokensResponse):
             return result.model_dump()
 
@@ -319,7 +295,7 @@ async def _stream_plan_first(
     bedrock_adapter = None
     streaming_started = False
     try:
-        result = await plan_adapter.stream(request)
+        result = await plan_adapter.stream(request, request_id=ctx.request_id)
         if isinstance(result, AdapterError):
             should_fallback = (
                 ctx.has_bedrock_key

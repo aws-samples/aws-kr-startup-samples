@@ -83,7 +83,9 @@ class PlanAdapter:
         except (httpx.TimeoutException, httpx.RequestError) as e:
             return _handle_request_error(e, url)
 
-    async def stream(self, request: AnthropicRequest) -> httpx.Response | AdapterError:
+    async def stream(
+        self, request: AnthropicRequest, request_id: str | None = None
+    ) -> httpx.Response | AdapterError:
         try:
             url = f"{self._base_url}/v1/messages"
             http_request = self._client.build_request(
@@ -105,7 +107,7 @@ class PlanAdapter:
             return _handle_request_error(e, url)
 
     async def count_tokens(
-        self, request: AnthropicRequest
+        self, request: AnthropicRequest, request_id: str | None = None
     ) -> AnthropicCountTokensResponse | AdapterError:
         try:
             url = f"{self._base_url}/v1/messages/count_tokens"
@@ -116,7 +118,8 @@ class PlanAdapter:
             )
 
             if response.status_code == 200:
-                return AnthropicCountTokensResponse(**response.json())
+                result = AnthropicCountTokensResponse(**response.json())
+                return result
 
             return self._classify_error(response.status_code, response.text)
 

@@ -18,13 +18,12 @@ from .api import (
     proxy_router,
 )
 from .db.session import async_session_factory
-from .logging import get_logger, setup_logging
+from .logging import setup_logging
 from .proxy import get_proxy_deps
 from .proxy.model_mapping import build_default_bedrock_model_resolver, set_cached_db_mappings
 from .repositories import ModelMappingRepository
 
 setup_logging()
-logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -39,11 +38,9 @@ async def lifespan(app: FastAPI):
             # Update the global resolver with DB mappings
             deps = get_proxy_deps()
             deps.bedrock_model_resolver = build_default_bedrock_model_resolver(db_mappings)
-
-            logger.info(f"Loaded {len(db_mappings)} model mappings from database")
-    except Exception as e:
-        logger.warning(f"Failed to load model mappings from database: {e}")
+    except Exception:
         # Continue startup even if DB load fails (will use defaults)
+        pass
 
     yield
 
@@ -75,23 +72,9 @@ app.include_router(admin_models_router)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.info(
-        "request_validation_error",
-        method=request.method,
-        path=request.url.path,
-        errors=exc.errors(),
-    )
     return await request_validation_exception_handler(request, exc)
 
 
 @app.exception_handler(HTTPException)
 async def http_exception_logger(request: Request, exc: HTTPException):
-    if exc.status_code == 400:
-        logger.info(
-            "http_exception",
-            method=request.method,
-            path=request.url.path,
-            status_code=exc.status_code,
-            detail=str(exc.detail),
-        )
     return await http_exception_handler(request, exc)

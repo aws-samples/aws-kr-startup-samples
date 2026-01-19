@@ -1,3 +1,4 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 import json
@@ -78,6 +79,18 @@ class Settings(BaseSettings):
     # Timeouts
     http_connect_timeout: float = 5.0
     http_read_timeout: float = 300.0
+
+    # Claude Code client overrides
+    claude_code_max_output_tokens: int = Field(
+        default=4096,
+        validation_alias=AliasChoices(
+            "CLAUDE_CODE_MAX_OUTPUT_TOKENS", "PROXY_CLAUDE_CODE_MAX_OUTPUT_TOKENS"
+        ),
+    )
+    max_thinking_tokens: int = Field(
+        default=1024,
+        validation_alias=AliasChoices("MAX_THINKING_TOKENS", "PROXY_MAX_THINKING_TOKENS"),
+    )
 
     # URLs
     plan_api_url: str = "https://api.anthropic.com"
