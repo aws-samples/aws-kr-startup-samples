@@ -262,7 +262,9 @@ class BedrockAdapter:
             async def stream_generator():
                 try:
                     async for chunk in iter_anthropic_sse(
-                        response.aiter_bytes(), request.model, f"msg_{ctx.request_id}"
+                        response.aiter_bytes(),
+                        request.model,
+                        f"msg_{ctx.request_id}",
                     ):
                         event = _parse_sse_event(chunk)
                         if event is not None:

@@ -63,10 +63,39 @@ async def iter_anthropic_sse(
     decoder = ConverseStreamDecoder()
     state = StreamState(message_id=message_id)
 
-    async for chunk in response_stream:
-        for event in decoder.feed(chunk):
-            async for payload in _convert_converse_event(event, state, model):
-                yield _to_sse(payload)
+    try:
+        async for chunk in response_stream:
+            try:
+                events = decoder.feed(chunk)
+            except Exception as exc:
+                yield _to_sse(_build_error_event(str(exc)))
+                return
+            for event in events:
+                normalized, was_patch = _normalize_patch_event(event)
+                if was_patch and not state.message_started and not _is_message_start(normalized):
+                    state.message_started = True
+                    yield _to_sse(
+                        {
+                            "type": "message_start",
+                            "message": {
+                                "id": state.message_id,
+                                "type": "message",
+                                "role": "assistant",
+                                "content": [],
+                                "model": model,
+                                "stop_reason": None,
+                                "stop_sequence": None,
+                                "usage": {"input_tokens": 0, "output_tokens": 0},
+                            },
+                        }
+                    )
+                yielded = False
+                async for payload in _convert_converse_event(normalized, state, model):
+                    yielded = True
+                    yield _to_sse(payload)
+    except Exception as exc:
+        yield _to_sse(_build_error_event(str(exc)))
+        return
 
     async for payload in _flush_message_delta(state):
         yield _to_sse(payload)
@@ -114,8 +143,8 @@ async def _convert_converse_event(
         delta_event = event["contentBlockDelta"]
         index = delta_event.get("contentBlockIndex", 0)
         delta = delta_event.get("delta", {})
-        if "reasoningContent" in delta and index not in state.started_blocks:
-            content_block = _map_reasoning_content_start(delta["reasoningContent"])
+        if index not in state.started_blocks:
+            content_block = _map_content_block_start_from_delta(delta)
             if content_block:
                 state.started_blocks.add(index)
                 yield {
@@ -207,6 +236,22 @@ def _map_content_block_delta(delta: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def _map_content_block_start_from_delta(delta: dict[str, Any]) -> dict[str, Any] | None:
+    if "reasoningContent" in delta:
+        return _map_reasoning_content_start(delta["reasoningContent"])
+    if "text" in delta:
+        return {"type": "text", "text": ""}
+    if "toolUse" in delta:
+        tool = delta["toolUse"]
+        return {
+            "type": "tool_use",
+            "id": tool.get("toolUseId"),
+            "name": tool.get("name"),
+            "input": {},
+        }
+    return None
+
+
 def _map_reasoning_content_start(content: Any) -> dict[str, Any] | None:
     if not isinstance(content, dict):
         return None
@@ -232,3 +277,51 @@ def _map_reasoning_content_delta(content: Any) -> dict[str, Any] | None:
 def _to_sse(payload: dict[str, Any]) -> bytes:
     event_type = payload.get("type") or "message"
     return f"event: {event_type}\n" f"data: {json.dumps(payload)}\n\n".encode()
+
+
+def _build_error_event(message: str) -> dict[str, Any]:
+    return {"type": "error", "error": {"type": "api_error", "message": message}}
+
+
+def _normalize_patch_event(event: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    if "p" not in event or _is_message_start(event):
+        return event, False
+    if "messageStart" in event or "contentBlockStart" in event or "contentBlockDelta" in event:
+        return event, False
+    if "contentBlockStop" in event or "messageStop" in event or "metadata" in event:
+        return event, False
+
+    if "role" in event and "contentBlockIndex" not in event and "delta" not in event:
+        return {"messageStart": {"role": event.get("role")}}, True
+    if "contentBlockIndex" in event and "start" in event:
+        return {
+            "contentBlockStart": {
+                "contentBlockIndex": event.get("contentBlockIndex", 0),
+                "start": event.get("start", {}),
+            }
+        }, True
+    if "contentBlockIndex" in event and "delta" in event:
+        return {
+            "contentBlockDelta": {
+                "contentBlockIndex": event.get("contentBlockIndex", 0),
+                "delta": event.get("delta", {}),
+            }
+        }, True
+    if "contentBlockIndex" in event:
+        return {
+            "contentBlockStop": {
+                "contentBlockIndex": event.get("contentBlockIndex", 0),
+            }
+        }, True
+    if "stopReason" in event:
+        return {"messageStop": {"stopReason": event.get("stopReason")}}, True
+    if "usage" in event or "metrics" in event:
+        metadata: dict[str, Any] = {"usage": event.get("usage", {})}
+        if "metrics" in event:
+            metadata["metrics"] = event.get("metrics")
+        return {"metadata": metadata}, True
+    return event, True
+
+
+def _is_message_start(event: dict[str, Any]) -> bool:
+    return "messageStart" in event

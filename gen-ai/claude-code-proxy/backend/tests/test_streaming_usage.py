@@ -82,6 +82,26 @@ def test_streaming_usage_collector_prefers_message_delta_input_tokens() -> None:
     assert usage.cache_read_input_tokens == 10
 
 
+def test_streaming_usage_collector_handles_event_lines_after_data() -> None:
+    collector = StreamingUsageCollector()
+
+    collector.feed(
+        b"event: message_start\n"
+        b'data: {"type":"message_start","message":{"usage":{"input_tokens":12}}}\n\n'
+    )
+    collector.feed(
+        b"event: message_delta\n"
+        b'data: {"type":"message_delta","usage":{"output_tokens":5,"cache_read_input_tokens":2,"cache_creation_input_tokens":1}}\n\n'
+    )
+
+    usage = collector.get_usage()
+    assert usage is not None
+    assert usage.input_tokens == 12
+    assert usage.output_tokens == 5
+    assert usage.cache_read_input_tokens == 2
+    assert usage.cache_creation_input_tokens == 1
+
+
 @pytest.mark.asyncio
 async def test_record_streaming_usage_records_cost(monkeypatch: pytest.MonkeyPatch) -> None:
     pricing = ModelPricing(

@@ -1,3 +1,4 @@
+import json
 import pytest
 from bedrock_converse import (
     StreamState,
@@ -5,6 +6,8 @@ from bedrock_converse import (
     build_converse_request,
     parse_converse_response,
 )
+import bedrock_converse.stream_decoder as stream_decoder
+from bedrock_converse.stream_decoder import _to_sse
 
 from domain import AnthropicRequest
 
@@ -308,6 +311,80 @@ async def test_stream_event_translation_redacted_thinking():
         "type": "redacted_thinking",
         "data": {"redacted": True},
     }
+
+
+def test_sse_format_event_line_first():
+    payload = {"type": "message_start", "message": {"id": "msg_test"}}
+
+    chunk = _to_sse(payload).decode("utf-8")
+    lines = chunk.split("\n")
+
+    assert lines[0] == "event: message_start"
+    assert lines[1].startswith("data: ")
+    assert lines[2] == ""
+    data_payload = json.loads(lines[1].split("data: ", 1)[1])
+    assert data_payload == payload
+
+
+def test_sse_format_defaults_event_name():
+    payload = {"message": {"id": "msg_test"}}
+
+    chunk = _to_sse(payload).decode("utf-8")
+    lines = chunk.split("\n")
+
+    assert lines[0] == "event: message"
+    assert lines[1].startswith("data: ")
+
+
+@pytest.mark.asyncio
+async def test_iter_anthropic_sse_emits_error_event_on_decoder_failure(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    async def fake_stream():
+        yield b"bad-event"
+
+    class FakeDecoder:
+        def feed(self, _chunk):
+            raise ValueError("boom")
+
+    monkeypatch.setattr(stream_decoder, "ConverseStreamDecoder", FakeDecoder)
+
+    chunks = []
+    async for chunk in stream_decoder.iter_anthropic_sse(
+        fake_stream(), "claude-test", "msg_test"
+    ):
+        chunks.append(chunk.decode("utf-8"))
+
+    assert chunks
+    assert "event: error" in chunks[0]
+    assert '"type": "error"' in chunks[0]
+
+
+@pytest.mark.asyncio
+async def test_stream_event_translation_patch_format_text_delta():
+    state = StreamState(message_id="msg_test")
+    model = "claude-test"
+
+    events = []
+    for event in [
+        {"p": "/message", "role": "assistant"},
+        {"p": "/message/content/0", "contentBlockIndex": 0, "delta": {"text": "Hi"}},
+        {"p": "/message/content/0/stop", "contentBlockIndex": 0},
+        {"p": "/message/stop", "stopReason": "end_turn"},
+        {"p": "/message/metadata", "usage": {"inputTokens": 3, "outputTokens": 1}},
+    ]:
+        normalized, _was_patch = stream_decoder._normalize_patch_event(event)
+        async for payload in _convert_converse_event(normalized, state, model):
+            events.append(payload)
+
+    assert events[0]["type"] == "message_start"
+    assert events[1]["type"] == "content_block_start"
+    assert events[2]["type"] == "content_block_delta"
+    assert events[3]["type"] == "content_block_stop"
+    assert events[4]["type"] == "message_delta"
+    assert events[4]["usage"]["input_tokens"] == 3
+    assert events[4]["usage"]["output_tokens"] == 1
+    assert events[5]["type"] == "message_stop"
 
 
 # =============================================================================
