@@ -7,7 +7,7 @@ A proxy service that enables organizations to centrally manage and monitor Claud
 
 ## Why Claude Code Proxy?
 
-Claude Code offers two pricing models: a fixed monthly subscription (Plan) or pay-as-you-go via Amazon Bedrock. This proxy helps organizations leverage the best of both worlds.
+Claude Code Proxy is an enterprise LLM gateway service that acts as a centralized proxy between Claude Code clients and AI model providers (Anthropic Plan API and Amazon Bedrock). This proxy helps organizations leverage the best of both worlds while maintaining control over usage and costs.
 
 ### Cost Optimization
 - **Pay-per-use pricing**: No upfront commitment or bulk subscription required — pay only for what you use via Amazon Bedrock

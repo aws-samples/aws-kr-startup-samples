@@ -4,7 +4,9 @@ inclusion: always
 
 # Product Overview
 
-Claude Code Proxy routes requests from Claude Code to AI providers with automatic failover, usage tracking, and multi-tenant access management.
+Claude Code Proxy is an enterprise LLM gateway service that routes requests from Claude Code clients to AI providers (Anthropic Plan API and Amazon Bedrock) with automatic failover, usage tracking, budget enforcement, and multi-tenant access management.
+
+**Key Value Proposition**: Organizations can optimize costs by combining fixed-cost Anthropic Plan API with pay-per-use Bedrock, while maintaining centralized control over access, budgets, and usage visibility.
 
 ## Core Capabilities
 

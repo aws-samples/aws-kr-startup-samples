@@ -47,7 +47,26 @@ API Layer → Domain Layer → Repository Layer → Database
 - Business logic MUST reside in `domain/` or `proxy/`, NOT in API handlers
 - Inject dependencies via FastAPI `Depends()` for testability
 
-### Design Patterns
+### Proxy-Specific Architecture
+
+**Request Processing Pipeline**:
+1. `proxy_router.py` - Main entry point, validates access key, checks budget
+2. `router.py:ProxyRouter` - Circuit breaker check, route selection
+3. `plan_adapter.py` or `bedrock_adapter.py` - Provider-specific handling
+4. `usage.py:UsageRecorder` - Token counting and cost calculation
+5. Response returned to client
+
+**Error Handling & Fallback**:
+- 429 (rate limit) → trigger fallback to Bedrock
+- 500-504 (server error) → trigger fallback to Bedrock
+- Connection timeout → trigger fallback to Bedrock
+- 400, 401, 403, other 4xx → do NOT fallback (client errors)
+- Failed requests increment circuit breaker counter
+
+**Circuit Breaker State Machine**:
+- CLOSED (normal) → count failures
+- OPEN (failure threshold exceeded) → reject all requests
+- HALF-OPEN (after timeout) → attempt recovery
 
 **Adapter Pattern (Proxy)**
 - `AdapterBase` in `proxy/adapter_base.py` defines the interface

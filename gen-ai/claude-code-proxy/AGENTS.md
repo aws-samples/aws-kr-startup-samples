@@ -2,6 +2,17 @@
 
 Project context document for AI coding agents.
 
+## Project Overview
+
+**Claude Code Proxy** is an enterprise LLM gateway service that manages Claude Code access with automatic failover, usage tracking, and multi-tenant access control. It acts as a centralized proxy between Claude Code clients and AI model providers (Anthropic Plan API and Amazon Bedrock).
+
+### Core Features
+- **Dual-provider routing**: Primary Anthropic Plan API with automatic Bedrock fallback on rate limits
+- **Multi-tenant access**: Unique access keys per user with per-key budget limits
+- **Cost visibility**: Real-time token usage tracking with pricing snapshots and detailed breakdowns
+- **Admin dashboard**: Web UI for user management, key provisioning, Bedrock credential registration, and analytics
+- **Enterprise security**: Access keys stored as hashed values, Bedrock credentials encrypted with KMS
+
 ## Detailed Documentation
 
 For detailed project information, refer to the documents in `.kiro/steering/`:
@@ -142,18 +153,96 @@ alembic upgrade head
 
 Users can configure one of two routing strategies:
 
-| Strategy | Behavior |
-|----------|----------|
-| `plan_first` (default) | Try Anthropic Plan API first, fallback to Bedrock on rate limit |
-| `bedrock_only` | Skip Plan API entirely, use only Bedrock |
+| Strategy | Behavior | Use Case |
+|----------|----------|----------|
+| `plan_first` (default) | Try Anthropic Plan API first, fallback to Bedrock on rate limit/failure | Organizations with existing Plan subscription |
+| `bedrock_only` | Skip Plan API entirely, use only Bedrock | Pure pay-per-use model |
 
-Configure via: `PUT /admin/users/{user_id}/routing-strategy`
+Configure via: Admin dashboard or `PUT /admin/users/{user_id}/routing-strategy`
+
+### Request Flow Architecture
+
+```
+POST /ak/{access_key}/v1/messages
+    ├─ AuthService (validate & cache access key)
+    ├─ BudgetService (KST-based monthly budget check)
+    ├─ ProxyRouter (circuit breaker + routing strategy)
+    │   ├─ PlanAdapter (primary: Anthropic Plan API)
+    │   │   ├─ stream response to client
+    │   │   └─ UsageRecorder (track tokens & calculate cost)
+    │   │
+    │   └─ [ON RATE LIMIT/FAILURE]
+    │       └─ BedrockAdapter (fallback: AWS Bedrock Converse)
+    │           ├─ request format conversion
+    │           ├─ stream response to client
+    │           └─ UsageRecorder (track tokens & calculate cost)
+    │
+    └─ Return response to Claude Code client
+```
+
+### Core Components
+
+**Proxy Layer** (`backend/src/proxy/`)
+- `router.py` - ProxyRouter: Routes requests based on strategy, manages fallback & circuit breaker
+- `plan_adapter.py` - PlanAdapter: Wraps Anthropic Plan API with error handling
+- `bedrock_adapter.py` - BedrockAdapter: Wraps Bedrock Converse API with format conversion
+- `budget.py` - BudgetService: Enforces monthly budget limits (KST timezone)
+- `auth.py` - AuthService: Access key authentication with caching (60s TTL)
+- `circuit_breaker.py` - CircuitBreaker: Per-key failure tracking and recovery
+- `usage.py` - UsageRecorder: Tracks tokens and calculates costs with pricing snapshots
+- `bedrock_converse/` - Format conversion utilities for Bedrock API
+
+**Admin API** (`backend/src/api/`)
+- `admin_auth.py` - JWT-based admin authentication
+- `admin_users.py` - User management endpoints
+- `admin_keys.py` - Access key provisioning and rotation
+- `admin_bedrock_keys.py` - Bedrock credential registration (encrypted with KMS)
+- `admin_usage.py` - Usage aggregation and cost breakdown
+- `admin_models.py` - Model mapping management
+
+**Data Layer** (`backend/src/db/` & `backend/src/repositories/`)
+- SQLAlchemy ORM models with async support
+- Repository pattern for data access separation
+- Soft delete pattern for audit trails
+- HMAC-SHA256 key hashing (keys never stored plaintext)
+- KMS-encrypted Bedrock credentials
+
+**Frontend** (`frontend/src/`)
+- Dashboard with token throughput and cost visibility
+- User management interface
+- Access key provisioning with copy-to-clipboard
+- Bedrock credential linking
+- Budget monitoring and usage tracking
+- Model mapping configuration
+
+### Key Architectural Patterns
+
+| Pattern | Usage |
+|---------|-------|
+| Adapter Pattern | Provider abstraction (Plan vs Bedrock) |
+| Repository Pattern | Data access separation via repositories |
+| Circuit Breaker | Rate limit resilience with per-key state |
+| Multi-level Caching | Auth keys (60s), Bedrock keys (300s), budgets (60s) |
+| Streaming | SSE support with token counting during streaming |
+| Soft Deletes | `deleted_at` columns for audit compliance |
 
 ### Adapters
 
-- `PlanAdapter` (`backend/src/proxy/plan_adapter.py`): Anthropic Plan API client
-- `BedrockAdapter` (`backend/src/proxy/bedrock_adapter.py`): Bedrock Converse API client
-- `ProxyRouter` (`backend/src/proxy/router.py`): Routes requests based on strategy
+- **PlanAdapter** - Anthropic Plan API client
+  - Streaming and non-streaming request support
+  - Error mapping to Anthropic error types
+  - Failure triggers circuit breaker
+
+- **BedrockAdapter** - AWS Bedrock Converse API client
+  - Converts Claude Code request format to Bedrock format
+  - Handles Extended Thinking (budget_tokens normalization)
+  - Streaming usage collection during response
+  - Error mapping and rate limit detection
+
+- **ModelMapping** - Dynamic model ID resolution
+  - Configured via environment or admin UI
+  - Supports per-region Bedrock model IDs
+  - Fallback to default if no mapping exists
 
 ### Budget Management
 
