@@ -19,7 +19,9 @@ def _load_secret_from_arn(arn: str) -> dict | str | None:
             return json.loads(secret_string)
         except json.JSONDecodeError:
             return secret_string
-    except Exception:
+    except Exception as e:
+        import sys
+        print(f"ERROR: Failed to load secret from ARN {arn}: {e}", file=sys.stderr)
         return None
 
 
@@ -27,6 +29,8 @@ def _load_database_url_from_arn(arn: str) -> str | None:
     """Load database URL from RDS secret ARN and construct connection string."""
     secret = _load_secret_from_arn(arn)
     if not secret or not isinstance(secret, dict):
+        import sys
+        print(f"ERROR: Failed to load DB secret from ARN {arn}, got: {type(secret)}", file=sys.stderr)
         return None
     try:
         from urllib.parse import quote_plus
@@ -35,9 +39,15 @@ def _load_database_url_from_arn(arn: str) -> str | None:
         password = quote_plus(secret.get("password", ""))  # URL encode password
         host = secret.get("host", "localhost")
         port = secret.get("port", 5432)
-        dbname = secret.get("dbname", "postgres")
-        return f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{dbname}"
-    except Exception:
+        # RDS secrets don't include dbname, default to 'proxy'
+        dbname = secret.get("dbname", "proxy")
+        db_url = f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{dbname}"
+        import sys
+        print(f"INFO: Loaded DB URL from ARN: {username}@{host}:{port}/{dbname}", file=sys.stderr)
+        return db_url
+    except Exception as e:
+        import sys
+        print(f"ERROR: Failed to construct DB URL from secret: {e}", file=sys.stderr)
         return None
 
 
