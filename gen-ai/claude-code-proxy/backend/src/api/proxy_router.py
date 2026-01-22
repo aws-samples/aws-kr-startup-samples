@@ -60,11 +60,19 @@ def _extract_outgoing_headers(raw_request: Request) -> dict[str, str]:
     return headers
 
 
+import re
+
+
+def _mask_access_key(path: str) -> str:
+    """Mask access key in path: /ak/ak_abc123xyz -> /ak/***"""
+    return re.sub(r"/ak/[^/]+", "/ak/***", path)
+
+
 def _extract_request_info(raw_request: Request) -> tuple[str, str]:
     method = getattr(raw_request, "method", "unknown")
     url = getattr(raw_request, "url", None)
     path = getattr(url, "path", "unknown") if url else "unknown"
-    return method, path
+    return method, _mask_access_key(path)
 
 
 @router.post("/ak/{access_key}/v1/messages")

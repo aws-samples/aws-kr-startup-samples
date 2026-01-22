@@ -17,9 +17,9 @@ services:
     environment:
       PROXY_DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/proxy
       PROXY_PLAN_API_KEY: ${PLAN_API_KEY:-}
-      PROXY_KEY_HASHER_SECRET: dev-secret-key-for-local-development
+      PROXY_KEY_HASHER_SECRET: ${PROXY_KEY_HASHER_SECRET:-}
       PROXY_ADMIN_USERNAME: admin
-      PROXY_ADMIN_PASSWORD_HASH: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
+      PROXY_ADMIN_PASSWORD_HASH: ${PROXY_ADMIN_PASSWORD_HASH:-}
     depends_on:
       - db
 

@@ -8,10 +8,15 @@ settings = get_settings()
 # Determine if SSL is needed (AWS RDS/Aurora requires SSL)
 connect_args = {}
 if settings.database_url_arn or "amazonaws.com" in settings.database_url:
-    # Create SSL context for Aurora/RDS connections
     ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE  # Aurora uses self-signed certs
+    if settings.db_ssl_verify:
+        if settings.db_ca_bundle:
+            ssl_context.load_verify_locations(settings.db_ca_bundle)
+        ssl_context.check_hostname = True
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+    else:
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
     connect_args["ssl"] = ssl_context
 
 engine = create_async_engine(

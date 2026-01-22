@@ -2,7 +2,6 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 import json
-import hashlib
 
 
 def _load_secret_from_arn(arn: str) -> dict | str | None:
@@ -47,9 +46,29 @@ class Settings(BaseSettings):
     environment: str = "dev"
     log_level: str = "INFO"
 
+    # CORS
+    cors_allowed_origins: list[str] = ["http://localhost:5173"]
+    cors_allowed_methods: list[str] = [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "OPTIONS",
+    ]
+    cors_allowed_headers: list[str] = [
+        "Authorization",
+        "Content-Type",
+        "X-API-Key",
+        "Anthropic-Version",
+        "Anthropic-Beta",
+    ]
+    cors_allow_credentials: bool = False
+
     # Database
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/proxy"
     database_url_arn: str = ""  # Optional: RDS secret ARN
+    db_ca_bundle: str = "/etc/ssl/certs/rds-ca-bundle.pem"
+    db_ssl_verify: bool = True
 
     # Secrets (loaded from env or Secrets Manager)
     plan_api_key: str = ""
@@ -100,9 +119,6 @@ class Settings(BaseSettings):
     plan_verify_ssl: bool = True
     plan_ca_bundle: str = ""
 
-    # Internal: loaded admin password (plain text from Secrets Manager)
-    _admin_password_plain: str = ""
-
     model_config = {"env_prefix": "PROXY_", "env_file": ".env"}
 
     def model_post_init(self, __context) -> None:
@@ -133,11 +149,14 @@ class Settings(BaseSettings):
             if creds and isinstance(creds, dict):
                 if "username" in creds:
                     object.__setattr__(self, "admin_username", creds["username"])
-                if "password" in creds:
-                    # Store plain password for comparison, also compute hash for backward compat
-                    object.__setattr__(self, "_admin_password_plain", creds["password"])
-                    password_hash = hashlib.sha256(creds["password"].encode()).hexdigest()
-                    object.__setattr__(self, "admin_password_hash", password_hash)
+                if "password_hash" in creds:
+                    # Use pre-hashed bcrypt password from Secrets Manager
+                    object.__setattr__(self, "admin_password_hash", creds["password_hash"])
+                elif "password" in creds:
+                    # Hash plain password with bcrypt (for backward compatibility)
+                    import bcrypt
+                    hashed = bcrypt.hashpw(creds["password"].encode(), bcrypt.gensalt()).decode()
+                    object.__setattr__(self, "admin_password_hash", hashed)
 
 
 @lru_cache

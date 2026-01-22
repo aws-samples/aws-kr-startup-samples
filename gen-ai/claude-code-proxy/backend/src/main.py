@@ -53,12 +53,15 @@ app = FastAPI(
 )
 
 
+from .config import get_settings
+
+_settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_settings.cors_allowed_origins,
+    allow_credentials=_settings.cors_allow_credentials,
+    allow_methods=_settings.cors_allowed_methods,
+    allow_headers=_settings.cors_allowed_headers,
 )
 
 app.include_router(proxy_router)

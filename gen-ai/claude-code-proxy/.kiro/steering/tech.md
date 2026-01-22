@@ -166,7 +166,7 @@ docker-compose up db              # DB only
 | Circuit breaker stuck | In-memory state; restart backend or wait for timeout |
 | Bedrock fallback fails | Check `bedrock_keys` entry exists, verify AWS creds, check KMS perms |
 | Migration conflict | `alembic downgrade -1`, regenerate, review diff, `alembic upgrade head` |
-| Budget not updating | Cache TTL is 60s; call `invalidate_budget_cache(user_id)` or wait |
+| Budget not updating | Cache TTL is 60s; wait for expiry or restart backend |
 | Pricing not applied | Call `POST /api/pricing/reload` after updating `PROXY_MODEL_PRICING` |
 | "Rate limit exceeded" response from Plan | Circuit breaker triggered; check `PROXY_CIRCUIT_FAILURE_THRESHOLD` and `PROXY_CIRCUIT_RESET_TIMEOUT` |
 | Extended Thinking not working | Verify `MAX_THINKING_TOKENS` is set, check if model supports thinking, verify budget_tokens in request |

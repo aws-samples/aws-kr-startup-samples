@@ -4,7 +4,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from jose import jwt
 import secrets
-import hashlib
+import bcrypt
 
 from ..config import get_settings
 
@@ -29,9 +29,14 @@ def verify_admin(credentials: HTTPBasicCredentials) -> bool:
     settings = get_settings()
     username_correct = secrets.compare_digest(credentials.username, settings.admin_username)
 
-    # Hash provided password and compare
-    provided_hash = hashlib.sha256(credentials.password.encode()).hexdigest()
-    password_correct = secrets.compare_digest(provided_hash, settings.admin_password_hash)
+    # Use bcrypt for secure password verification
+    try:
+        password_correct = bcrypt.checkpw(
+            credentials.password.encode(), settings.admin_password_hash.encode()
+        )
+    except ValueError:
+        # Invalid bcrypt hash format
+        password_correct = False
 
     return username_correct and password_correct
 

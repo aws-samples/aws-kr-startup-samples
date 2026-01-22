@@ -132,25 +132,35 @@ docker compose up -d db
 cp backend/.env.example backend/.env
 ```
 
-To set a admin password, generate a SHA256 hash:
+To set a admin password, generate a bcrypt hash:
 ```bash
 python - <<'PY'
-import hashlib
 import getpass
+import bcrypt
 
-password = getpass.getpass("Admin password: ")
-print(hashlib.sha256(password.encode()).hexdigest())
+password = getpass.getpass("Admin password: ").encode()
+print(bcrypt.hashpw(password, bcrypt.gensalt()).decode())
 PY
 ```
 
 Update values as needed:
 ```env
 PROXY_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/proxy
+PROXY_DB_CA_BUNDLE=/etc/ssl/certs/rds-ca-bundle.pem
+PROXY_DB_SSL_VERIFY=true
 PROXY_KEY_HASHER_SECRET=your-secret-key
 PROXY_JWT_SECRET=your-jwt-secret
 PROXY_ADMIN_USERNAME=admin
-PROXY_ADMIN_PASSWORD_HASH=<sha256-hash-of-password>
+PROXY_ADMIN_PASSWORD_HASH=<bcrypt-hash-of-password>
+PROXY_CORS_ALLOWED_ORIGINS=["http://localhost:5173"]
+PROXY_CORS_ALLOWED_METHODS=["GET","POST","PUT","DELETE","OPTIONS"]
+PROXY_CORS_ALLOWED_HEADERS=["Authorization","Content-Type","X-API-Key","Anthropic-Version","Anthropic-Beta"]
+PROXY_CORS_ALLOW_CREDENTIALS=false
 ```
+
+Notes:
+- The Docker image downloads the RDS CA bundle to `/etc/ssl/certs/rds-ca-bundle.pem`. If you build a custom image, ensure the CA file exists at the configured path.
+- If you serve frontend and API on the same domain (e.g., CloudFront path-based routing), you can keep `PROXY_CORS_ALLOWED_ORIGINS` minimal for local development only.
 
 3. Run migrations and start the backend:
 ```bash
