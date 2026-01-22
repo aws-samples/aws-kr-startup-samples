@@ -2,30 +2,18 @@
 
 A proxy service that enables organizations to centrally manage and monitor Claude Code usage with automatic failover to Amazon Bedrock.
 
-
 <img src="./assets/admin-dashboard.gif" alt="admin-dashboard">
 
 ## Why Claude Code Proxy?
 
-Claude Code Proxy is an enterprise LLM gateway service that acts as a centralized proxy between Claude Code clients and AI model providers (Anthropic Plan API and Amazon Bedrock). This proxy helps organizations leverage the best of both worlds while maintaining control over usage and costs.
+Claude Code Proxy is an enterprise LLM gateway that sits between Claude Code clients and AI providers (Anthropic Plan API / Amazon Bedrock).
 
-### Cost Optimization
-- **Pay-per-use pricing**: No upfront commitment or bulk subscription required — pay only for what you use via Amazon Bedrock
-- **Flexible fallback**: Use Anthropic Plan as primary, automatically switch to Bedrock when rate-limited
-- **Usage visibility**: Track token consumption per user with detailed analytics
-- **Budget control**: Set monthly spending limits per user to prevent unexpected costs
-
-### Enterprise Security & Compliance
-- **Data privacy**: When using Amazon Bedrock, your data is never used for model training
-- **Centralized access control**: Manage authentication and permissions through Bedrock API keys
-- **Access key handling**: Access keys are stored as HMAC-SHA256 hashes and shown once on issuance
-- **Audit logging**: CloudTrail integration enables API call history logging and analysis
-- **LLM Gateway**: Centralized governance and policy management for AI usage across the organization
-
-### Operational Benefits
-- **Rate limit resilience**: Automatic failover prevents developer workflow interruptions
-- **Multi-tenant support**: Issue unique access keys per user or team
-- **Admin dashboard**: Web UI for user management, key provisioning, and usage monitoring
+| Benefit | Description |
+|---------|-------------|
+| **Cost Optimization** | Pay-per-use via Bedrock, no upfront commitment. Set monthly budgets per user. |
+| **Rate Limit Resilience** | Automatic failover to Bedrock when Plan API is rate-limited. |
+| **Enterprise Security** | Bedrock data never used for training. Access keys hashed with HMAC-SHA256. |
+| **Centralized Control** | Admin dashboard for user management, key provisioning, and usage analytics. |
 
 ## How It Works
 
@@ -55,122 +43,67 @@ Claude Code Proxy is an enterprise LLM gateway service that acts as a centralize
 ```
 
 1. Claude Code sends requests to the proxy instead of directly to Anthropic
-2. The proxy forwards requests to Anthropic Plan API
-3. If Anthropic returns a rate limit error, the proxy automatically retries via Amazon Bedrock
+2. The proxy forwards requests to Anthropic Plan API (primary)
+3. If rate-limited, the proxy automatically retries via Amazon Bedrock
 4. All usage is tracked and stored for analytics
 
-## For End Users to use Claude Code
+---
 
-1. Get an access key from your admin
-2. Configure Claude Code:
+## Quick Start
 
-### Option 1: Shell Environment Variables (Recommended)
-
-Add the following to your `~/.bashrc` or `~/.zshrc`:
-
-> **Note**: Claude Code will prompt you to log in on startup. Subscribers can simply log in and skip `ANTHROPIC_AUTH_TOKEN`.
-
-```bash
-export ANTHROPIC_AUTH_TOKEN="claude-code-proxy-fake-key"
-export ANTHROPIC_BASE_URL="https://proxy.example.com/ak/ak_your_access_key"
-export CLAUDE_CODE_MAX_OUTPUT_TOKENS="4096"
-export MAX_THINKING_TOKENS="1024"
-```
-
-> **Token Configuration**:
-> - `CLAUDE_CODE_MAX_OUTPUT_TOKENS`: Limits the maximum tokens for model responses (default: 4096). Overrides the value sent by the client.
-> - `MAX_THINKING_TOKENS`: Limits the budget_tokens for Extended Thinking (default: 1024). Only applies when thinking is enabled.
-
-Then reload your shell:
-```bash
-source ~/.bashrc  # or source ~/.zshrc
-```
-
-> **Why this is recommended**: Claude Code checks authentication before loading `settings.json`. Setting environment variables in your shell profile ensures the proxy is used from the very first authentication check.
-
-### Option 2: Settings File (`~/.claude/settings.json`)
-
-Alternatively, you can configure Claude Code by editing `~/.claude/settings.json`:
-```json
-{
-  "env": {
-    "ANTHROPIC_AUTH_TOKEN": "claude-code-proxy-fake-key",
-    "ANTHROPIC_BASE_URL": "https://proxy.example.com/ak/ak_your_access_key",
-    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "4096",
-    "MAX_THINKING_TOKENS": "1024"
-  }
-}
-```
-
-> **Token Configuration**:
-> - `CLAUDE_CODE_MAX_OUTPUT_TOKENS`: Limits the maximum tokens for model responses (default: 4096). Overrides the value sent by the client.
-> - `MAX_THINKING_TOKENS`: Limits the budget_tokens for Extended Thinking (default: 1024). Only applies when thinking is enabled.
-
-> **Note**: This method only applies after Claude Code's initial authentication. If you experience login prompts on startup, use Option 1 instead.
-
-3. Use Claude Code as normal — the proxy handles routing transparently
-
-## For Administrators
+Get the proxy running locally in 5 minutes.
 
 ### Prerequisites
 
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| Python | 3.11+ | Backend runtime |
-| Node.js | 18+ | Frontend build |
-| Docker | 20.10+ | Local development (PostgreSQL) |
+| Requirement | Version |
+|-------------|---------|
+| Python | 3.11+ |
+| Node.js | 18+ |
+| Docker | 20.10+ |
 
-### Quick Start (Local Development)
+### 1. Start Database
 
-1. Start the database:
 ```bash
 docker compose up -d db
 ```
 
-2. Configure backend environment (`backend/.env`):
-```bash
-cp backend/.env.example backend/.env
-```
+### 2. Setup Backend
 
-To set a admin password, generate a bcrypt hash:
-```bash
-python - <<'PY'
-import getpass
-import bcrypt
-
-password = getpass.getpass("Admin password: ").encode()
-print(bcrypt.hashpw(password, bcrypt.gensalt()).decode())
-PY
-```
-
-Update values as needed:
-```env
-PROXY_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/proxy
-PROXY_DB_CA_BUNDLE=/etc/ssl/certs/rds-ca-bundle.pem
-PROXY_DB_SSL_VERIFY=true
-PROXY_KEY_HASHER_SECRET=your-secret-key
-PROXY_JWT_SECRET=your-jwt-secret
-PROXY_ADMIN_USERNAME=admin
-PROXY_ADMIN_PASSWORD_HASH=<bcrypt-hash-of-password>
-PROXY_CORS_ALLOWED_ORIGINS=["http://localhost:5173"]
-PROXY_CORS_ALLOWED_METHODS=["GET","POST","PUT","DELETE","OPTIONS"]
-PROXY_CORS_ALLOWED_HEADERS=["Authorization","Content-Type","X-API-Key","Anthropic-Version","Anthropic-Beta"]
-PROXY_CORS_ALLOW_CREDENTIALS=false
-```
-
-Notes:
-- The Docker image downloads the RDS CA bundle to `/etc/ssl/certs/rds-ca-bundle.pem`. If you build a custom image, ensure the CA file exists at the configured path.
-- If you serve frontend and API on the same domain (e.g., CloudFront path-based routing), you can keep `PROXY_CORS_ALLOWED_ORIGINS` minimal for local development only.
-
-3. Run migrations and start the backend:
 ```bash
 cd backend
 pip install -e ".[dev]"
+cp .env.example .env
+```
+
+Edit `backend/.env` with minimal settings for local development:
+
+```env
+PROXY_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/proxy
+PROXY_KEY_HASHER_SECRET=local-dev-secret-change-in-prod
+PROXY_JWT_SECRET=local-jwt-secret-change-in-prod
+PROXY_ADMIN_USERNAME=admin
+PROXY_ADMIN_PASSWORD_HASH=<your-bcrypt-hash>
+```
+
+Generate admin password hash:
+
+```bash
+# Using Python
+python -c "import bcrypt; print(bcrypt.hashpw(b'your-password', bcrypt.gensalt()).decode())"
+
+# Or using htpasswd (if available)
+htpasswd -nbBC 10 "" your-password | tr -d ':\n'
+```
+
+Run migrations and start:
+
+```bash
 alembic upgrade head
 uvicorn src.main:app --reload --port 8000
 ```
 
-4. Start the frontend:
+### 3. Setup Frontend
+
 ```bash
 cd frontend
 npm ci
@@ -178,128 +111,166 @@ cp .env.example .env.local
 npm run dev
 ```
 
-5. Open http://localhost:5173 and login with admin credentials
+### 4. Access Dashboard
 
-### Admin Dashboard Features
+Open http://localhost:5173 and login with your admin credentials.
+
+---
+
+## For End Users
+
+Get an access key from your administrator, then configure Claude Code:
+
+### Option 1: Shell Environment (Recommended)
+
+Add to `~/.bashrc` or `~/.zshrc`:
+
+```bash
+export ANTHROPIC_AUTH_TOKEN="any-non-empty-value"
+export ANTHROPIC_BASE_URL="https://proxy.example.com/ak/ak_your_access_key"
+```
+
+Then reload: `source ~/.bashrc`
+
+> **Why recommended?** Claude Code checks authentication before loading config files. Shell variables ensure the proxy is used from startup.
+
+### Option 2: Settings File
+
+Edit `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "any-non-empty-value",
+    "ANTHROPIC_BASE_URL": "https://proxy.example.com/ak/ak_your_access_key"
+  }
+}
+```
+
+### Token Limits (Optional)
+
+Control token usage with these environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | 16000 | Max tokens for model responses |
+| `MAX_THINKING_TOKENS` | 10000 | Budget for Extended Thinking |
+
+---
+
+## For Administrators
+
+### Admin Dashboard
 
 <p align="center">
-  <img src="./assets/user-detail.gif" alt="admin-dashboard" width="600">
+  <img src="./assets/user-detail.gif" alt="user-detail" width="600">
 </p>
 
-- Token overview dashboard with throughput, cumulative usage, and top users
-- Cost visibility dashboard with total cost, cache cost, model breakdown, and cost trend (KST-based ranges)
-- Create users and issue access keys (keys are shown once on creation)
-- Register Bedrock credentials per access key and see linked status in the list
-- User budget management with real-time usage tracking
+| Feature | Description |
+|---------|-------------|
+| **User Management** | Create users, issue access keys (shown once on creation) |
+| **Bedrock Credentials** | Register AWS credentials per access key |
+| **Budget Control** | Set monthly USD limits per user |
+| **Usage Analytics** | Token throughput, cost breakdown, top users |
 
 ### Routing Strategy
 
-Configure how requests are routed per user:
+Configure per user in the dashboard:
 
 | Strategy | Behavior |
 |----------|----------|
-| `plan_first` (default) | Use Anthropic Plan API as primary. Falls back to Bedrock when rate-limited. Requires an existing Claude Code Plan subscription. |
-| `bedrock_only` | Always use Amazon Bedrock. No Plan API calls. |
+| `plan_first` (default) | Anthropic Plan API first, Bedrock on rate limit |
+| `bedrock_only` | Always use Bedrock (no Plan API) |
 
-Configure via Admin Dashboard in the user detail page.
+### Budget Management
 
-### User Budget Management
-
-Set monthly spending limits per user to control Bedrock costs:
-
-- **Monthly Budget**: Set a USD limit per user (e.g., $50/month). Leave empty for unlimited.
-- **Automatic Enforcement**: When budget is exceeded, Bedrock fallback requests are blocked with a 429 response
-- **Real-time Tracking**: View current usage, remaining budget, and usage percentage in the dashboard
-- **KST-based Cycle**: Monthly budget resets on the 1st of each month (Korea Standard Time, UTC+9)
-
-Budget enforcement only applies to Bedrock fallback requests. Anthropic Plan API requests are not affected by user budgets.
-
-Example budget response when exceeded:
-```json
-{
-  "type": "error",
-  "error": {
-    "type": "rate_limit_error",
-    "message": "Monthly budget exceeded: $50.00 used of $50.00 budget"
-  }
-}
-```
+- Set monthly USD limit per user (e.g., $50/month)
+- Budget exceeded → 429 response, Bedrock requests blocked
+- Resets on 1st of each month (KST, UTC+9)
+- **Note**: Budget applies only to Bedrock requests
 
 ### Model Mapping
 
-When Anthropic releases new Claude models, you need to configure the mapping between Claude Code model IDs and Amazon Bedrock model IDs.
+When new Claude models are released, map them to Bedrock model IDs:
 
-**Option 1: Environment Variable**
+**Via Environment Variable:**
 
-Configure via `PROXY_BEDROCK_MODEL_MAPPING` environment variable:
-
-```json
-{
-  "claude-sonnet-4-20250514": "apac.anthropic.claude-sonnet-4-20250514-v1:0",
-  "claude-opus-4-20250514": "apac.anthropic.claude-opus-4-20250514-v1:0"
-}
+```bash
+PROXY_BEDROCK_MODEL_MAPPING='{"claude-sonnet-4-20250514":"apac.anthropic.claude-sonnet-4-20250514-v1:0"}'
 ```
 
-**Option 2: Admin Dashboard**
+**Via Admin Dashboard:** Navigate to Model section to add mappings.
 
-Navigate to the Model section in the admin dashboard to add or update mappings through the UI.
+> See [Amazon Bedrock Supported Models](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html) for Bedrock model IDs.
 
-To find the corresponding Bedrock model ID for new Anthropic models, refer to the [Amazon Bedrock Supported Models](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html) documentation.
+---
 
-> **Note**: Bedrock model availability varies by region. Ensure the model is enabled in your AWS account and available in your configured `PROXY_BEDROCK_REGION`.
+## For Developers
 
-### Cost Visibility & Pricing
+### Project Structure
 
-- Costs are calculated on request completion and stored with a pricing snapshot (non-retroactive).
-- Usage filters accept `period=day|week|month` or `start_date/end_date` (YYYY-MM-DD) in KST (UTC+9). Week starts on Sunday.
-- Pricing can be updated via `PROXY_MODEL_PRICING` and reloaded with `POST /api/pricing/reload`.
-
-Example `PROXY_MODEL_PRICING`:
-```json
-{
-  "ap-northeast-2": {
-    "claude-opus-4-5": {
-      "input_price_per_million": "5.00",
-      "output_price_per_million": "25.00",
-      "cache_write_price_per_million": "6.25",
-      "cache_read_price_per_million": "0.50",
-      "effective_date": "2025-01-01"
-    },
-    "claude-sonnet-4-5": {
-      "input_price_per_million": "3.00",
-      "output_price_per_million": "15.00",
-      "cache_write_price_per_million": "3.75",
-      "cache_read_price_per_million": "0.30",
-      "effective_date": "2025-01-01"
-    },
-    "claude-haiku-4-5": {
-      "input_price_per_million": "1.00",
-      "output_price_per_million": "5.00",
-      "cache_write_price_per_million": "1.25",
-      "cache_read_price_per_million": "0.10",
-      "effective_date": "2025-01-01"
-    }
-  }
-}
 ```
+├── backend/          # FastAPI + SQLAlchemy
+├── frontend/         # React + Vite + Tailwind
+└── infra/            # AWS CDK stacks
+```
+
+### Running Tests
+
+```bash
+# Backend
+cd backend
+pytest
+
+# Frontend type check
+cd frontend
+npx tsc --noEmit
+```
+
+### Linting
+
+```bash
+# Backend
+cd backend
+ruff check . && ruff format . && mypy src
+
+# Frontend
+cd frontend
+npm run lint
+```
+
+### Database Migrations
+
+```bash
+cd backend
+
+# Create migration
+alembic revision --autogenerate -m "description"
+
+# Apply migration
+alembic upgrade head
+```
+
+### API Documentation
+
+Start the backend and visit:
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+---
 
 ## Deployment
 
-### Prerequisites
-
-| Requirement | Version | Notes |
-|-------------|---------|-------|
-| AWS CLI | 2.0+ | Configured with appropriate credentials |
-| AWS CDK | 2.0+ | `npm install -g aws-cdk` |
-| Python | 3.11+ | For CDK stacks |
-| Node.js | 18+ | For CDK CLI and frontend |
-| Docker | 20.10+ | For building container images |
-
-Ensure your AWS credentials have permissions for: VPC, ECS, RDS, Secrets Manager, KMS, CloudFront, Amplify.
-
 ### AWS Deployment (CDK)
 
-The `infra/` directory contains AWS CDK stacks for production deployment:
+Additional requirements for deployment:
+
+| Requirement | Notes |
+|-------------|-------|
+| AWS CLI 2.0+ | Configured with appropriate credentials |
+| AWS CDK 2.0+ | `npm install -g aws-cdk` |
+
+Required AWS permissions: VPC, ECS, RDS, Secrets Manager, KMS, CloudFront, Amplify.
 
 ```bash
 cd infra
@@ -310,58 +281,105 @@ cdk deploy --all
 
 This deploys:
 - VPC with public/private subnets
-- RDS PostgreSQL database
-- ECS Fargate service for the backend
-- CloudFront distribution for secure access
-- Secrets Manager for sensitive configuration
+- RDS PostgreSQL with SSL
+- ECS Fargate service
+- CloudFront distribution
+- Secrets Manager for configuration
 
 ### Frontend Deployment (Amplify)
 
-1. Configure environment:
+**Option A: Bootstrap Script (Recommended)**
+
 ```bash
 cd frontend
 npm ci
-# Set backend URL to your CloudFront distribution
 echo "VITE_BACKEND_API_URL=https://<your-cloudfront-domain>" > .env.local
-```
-> **Note:** Vite prioritizes `.env.local` over `.env`. If `.env.local` exists with `localhost`, it will override `.env`.
-
-2. Deploy:
-
-Option A — Bootstrap script (recommended):
-```bash
 ./scripts/amplify-bootstrap-deploy.sh
 ```
-This script automatically creates the Amplify app, configures SPA rewrite rules, and deploys.
 
-Option B — Manual upload via Amplify Console:
+**Option B: Manual Upload**
+
 1. Build: `npm run build:zip`
 2. Upload `dist.zip` in Amplify Console
-3. Configure rewrite rule: `</^[^.]+$|\.(?!(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|json|map)$)([^.]+$)/>` → `/index.html` (200 Rewrite)
+3. Add SPA rewrite rule: `</^[^.]+$|\.(?!(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|json|map)$)([^.]+$)/>` → `/index.html` (200)
+
+---
 
 ## Configuration Reference
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `PROXY_DATABASE_URL` | Yes | PostgreSQL connection string |
-| `PROXY_KEY_HASHER_SECRET` | Yes | Secret for hashing access keys |
-| `PROXY_JWT_SECRET` | Yes | Secret for JWT token signing |
-| `PROXY_ADMIN_USERNAME` | Yes | Admin login username |
-| `PROXY_ADMIN_PASSWORD_HASH` | Yes | SHA256 hash of admin password |
-| `PROXY_PLAN_API_KEY` | No | Default Anthropic API key |
-| `PROXY_BEDROCK_DEFAULT_MODEL` | No | Default Bedrock model ID |
-| `PROXY_BEDROCK_REGION` | No | AWS region for Bedrock (default: ap-northeast-2) |
-| `PROXY_MODEL_PRICING` | No | JSON pricing config for cost visibility (per region/model) |
-| `PROXY_LOCAL_ENCRYPTION_KEY` | No | 32-byte key for local dev encryption (KMS fallback) |
-| `PROXY_CIRCUIT_FAILURE_THRESHOLD` | No | Failures before circuit opens (default: 3) |
-| `PROXY_CIRCUIT_RESET_TIMEOUT` | No | Circuit reset timeout in seconds (default: 1800) |
+### Required Variables
+
+| Variable | Description |
+|----------|-------------|
+| `PROXY_DATABASE_URL` | PostgreSQL connection string |
+| `PROXY_KEY_HASHER_SECRET` | Secret for hashing access keys |
+| `PROXY_JWT_SECRET` | Secret for JWT token signing |
+| `PROXY_ADMIN_USERNAME` | Admin login username |
+| `PROXY_ADMIN_PASSWORD_HASH` | Bcrypt hash of admin password |
+
+### Optional Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PROXY_PLAN_API_KEY` | - | Default Anthropic API key |
+| `PROXY_BEDROCK_REGION` | ap-northeast-2 | AWS region for Bedrock |
+| `PROXY_BEDROCK_DEFAULT_MODEL` | - | Default Bedrock model ID |
+| `PROXY_BEDROCK_MODEL_MAPPING` | - | JSON mapping of model IDs |
+| `PROXY_MODEL_PRICING` | - | JSON pricing config (per region/model) |
+| `PROXY_CIRCUIT_FAILURE_THRESHOLD` | 3 | Failures before circuit opens |
+| `PROXY_CIRCUIT_RESET_TIMEOUT` | 1800 | Circuit reset timeout (seconds) |
+| `PROXY_LOCAL_ENCRYPTION_KEY` | - | 32-byte key for local dev (KMS fallback) |
+
+### Production Variables
+
+| Variable | Description |
+|----------|-------------|
+| `PROXY_DB_SSL_VERIFY` | Enable SSL verification for RDS |
+| `PROXY_DB_CA_BUNDLE` | Path to RDS CA bundle (e.g., `/etc/ssl/certs/rds-ca-bundle.pem`) |
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| `Connection refused` on startup | Ensure PostgreSQL is running: `docker compose up -d db` |
+| `Invalid access key` | Verify the key format: `ak_` prefix required |
+| `Budget exceeded` (429) | Check user budget in admin dashboard |
+| `Model not found` | Add model mapping via env var or dashboard |
+
+### Logs
+
+```bash
+# Backend logs (local)
+uvicorn src.main:app --reload --log-level debug
+
+# ECS logs (production)
+aws logs tail /ecs/claude-code-proxy --follow
+```
+
+---
+
+## Contributing
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+We welcome contributions! Here's how you can help:
+
+- **Bug Reports**: Open an issue with reproduction steps
+- **Feature Requests**: Open an issue describing the use case
+- **Pull Requests**: Fork the repo and submit a PR
+
+Please ensure your code passes linting and tests before submitting.
+
+---
 
 ## Tech Stack
 
-- **Backend**: Python 3.11+, FastAPI, SQLAlchemy 2.0, PostgreSQL
-- **Frontend**: React 18, Vite, Tailwind CSS
-- **Infrastructure**: AWS CDK, ECS Fargate, RDS, CloudFront
-
-## License
-
-MIT
+| Layer | Technologies |
+|-------|--------------|
+| Backend | Python 3.11+, FastAPI, SQLAlchemy 2.0, PostgreSQL |
+| Frontend | React 18, Vite, Tailwind CSS |
+| Infrastructure | AWS CDK, ECS Fargate, RDS, CloudFront |

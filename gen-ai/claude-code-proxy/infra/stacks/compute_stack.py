@@ -199,6 +199,10 @@ class ComputeStack(Stack):
             - plan_api_key: Anthropic API key (optional)
             - bedrock_region: Bedrock region (optional)
             - bedrock_default_model: Default Bedrock model (optional)
+            - cors_allowed_origins: JSON list string for CORS allowlist
+            - cors_allowed_methods: JSON list string for CORS methods
+            - cors_allowed_headers: JSON list string for CORS headers
+            - cors_allow_credentials: "true" or "false"
 
         Usage:
             cdk deploy --context environment=prod --context log_level=DEBUG
@@ -222,5 +226,17 @@ class ComputeStack(Stack):
 
         if bedrock_default_model := self.node.try_get_context("bedrock_default_model"):
             env["PROXY_BEDROCK_DEFAULT_MODEL"] = bedrock_default_model
+
+        if cors_allowed_origins := self.node.try_get_context("cors_allowed_origins"):
+            env["PROXY_CORS_ALLOWED_ORIGINS"] = cors_allowed_origins
+
+        if cors_allowed_methods := self.node.try_get_context("cors_allowed_methods"):
+            env["PROXY_CORS_ALLOWED_METHODS"] = cors_allowed_methods
+
+        if cors_allowed_headers := self.node.try_get_context("cors_allowed_headers"):
+            env["PROXY_CORS_ALLOWED_HEADERS"] = cors_allowed_headers
+
+        if cors_allow_credentials := self.node.try_get_context("cors_allow_credentials"):
+            env["PROXY_CORS_ALLOW_CREDENTIALS"] = cors_allow_credentials
 
         return env

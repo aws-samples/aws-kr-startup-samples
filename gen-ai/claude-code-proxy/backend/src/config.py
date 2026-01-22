@@ -47,21 +47,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # CORS
-    cors_allowed_origins: list[str] = ["http://localhost:5173"]
-    cors_allowed_methods: list[str] = [
-        "GET",
-        "POST",
-        "PUT",
-        "DELETE",
-        "OPTIONS",
-    ]
-    cors_allowed_headers: list[str] = [
-        "Authorization",
-        "Content-Type",
-        "X-API-Key",
-        "Anthropic-Version",
-        "Anthropic-Beta",
-    ]
+    cors_allowed_origins: list[str] = ["*"]
+    cors_allowed_methods: list[str] = ["*"]
+    cors_allowed_headers: list[str] = ["*"]
     cors_allow_credentials: bool = False
 
     # Database
