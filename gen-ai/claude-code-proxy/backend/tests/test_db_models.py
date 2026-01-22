@@ -46,6 +46,7 @@ def test_token_usage_model_has_cost_snapshot_columns() -> None:
 def test_usage_aggregates_model_has_cost_totals() -> None:
     columns = UsageAggregateModel.__table__.columns
     expected = {
+        "provider",
         "total_cache_write_tokens",
         "total_cache_read_tokens",
         "total_input_cost_usd",
@@ -56,6 +57,10 @@ def test_usage_aggregates_model_has_cost_totals() -> None:
     }
 
     assert expected.issubset(set(columns.keys()))
+
+    provider_type = columns["provider"].type
+    assert isinstance(provider_type, String)
+    assert provider_type.length == 10
 
     cache_write_tokens = columns["total_cache_write_tokens"].type
     cache_read_tokens = columns["total_cache_read_tokens"].type

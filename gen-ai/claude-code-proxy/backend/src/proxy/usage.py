@@ -5,7 +5,7 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from ..domain import AnthropicUsage, CostCalculator, PricingConfig
+from ..domain import AnthropicUsage, CostCalculator, PricingConfig, Provider
 from ..repositories import TokenUsageRepository, UsageAggregateRepository
 from .context import RequestContext
 from .router import ProxyResponse
@@ -58,10 +58,12 @@ class UsageRecorder:
         # Emit metrics (fire and forget)
         asyncio.create_task(self._metrics.emit(response, latency_ms))
 
-        # Record token usage to DB (Bedrock success only)
-        if response.success and response.provider == "bedrock" and response.usage:
+        # Record token usage to DB for successful responses
+        if response.success and response.usage:
             await asyncio.shield(
-                self._record_usage_with_cost(ctx, response, latency_ms, model)
+                self._record_usage_with_cost(
+                    ctx, response, latency_ms, model, provider=response.provider
+                )
             )
 
     async def record_streaming_usage(
@@ -71,16 +73,19 @@ class UsageRecorder:
         latency_ms: int,
         model: str,
         is_fallback: bool,
+        provider: Provider = "bedrock",
     ) -> None:
         response = ProxyResponse(
             success=True,
             response=None,
             usage=usage,
-            provider="bedrock",
+            provider=provider,
             is_fallback=is_fallback,
             status_code=200,
         )
-        await self._record_usage_with_cost(ctx, response, latency_ms, model)
+        await self._record_usage_with_cost(
+            ctx, response, latency_ms, model, provider=provider
+        )
 
     async def _record_usage_with_cost(
         self,
@@ -88,6 +93,7 @@ class UsageRecorder:
         response: ProxyResponse,
         latency_ms: int,
         model: str,
+        provider: Provider,
     ) -> None:
         try:
             now_utc = datetime.now(timezone.utc)
@@ -98,9 +104,11 @@ class UsageRecorder:
             cache_read_tokens = response.usage.cache_read_input_tokens or 0
             total_tokens = input_tokens + output_tokens
 
+            pricing_region = ctx.bedrock_region if provider == "bedrock" else "global"
             cost_breakdown, pricing = self._calculate_cost_safe(
                 model,
-                ctx.bedrock_region,
+                pricing_region,
+                provider,
                 input_tokens,
                 output_tokens,
                 cache_write_tokens,
@@ -122,6 +130,7 @@ class UsageRecorder:
                             response=response,
                             latency_ms=latency_ms,
                             model=model,
+                            provider=provider,
                             pricing=pricing,
                             pricing_model_id=pricing_model_id,
                             cost_breakdown=cost_breakdown,
@@ -144,6 +153,7 @@ class UsageRecorder:
                     response=response,
                     latency_ms=latency_ms,
                     model=model,
+                    provider=provider,
                     pricing=pricing,
                     pricing_model_id=pricing_model_id,
                     cost_breakdown=cost_breakdown,
@@ -161,13 +171,16 @@ class UsageRecorder:
         self,
         model: str,
         region: str,
+        provider: Provider,
         input_tokens: int,
         output_tokens: int,
         cache_write_tokens: int,
         cache_read_tokens: int,
     ):
         try:
-            pricing = PricingConfig.get_pricing(model, region)
+            pricing = PricingConfig.get_pricing(
+                model, region=region, provider=provider
+            )
             if pricing:
                 return (
                     CostCalculator.calculate_cost(
@@ -192,6 +205,7 @@ class UsageRecorder:
         response: ProxyResponse,
         latency_ms: int,
         model: str,
+        provider: Provider,
         pricing,
         pricing_model_id: str,
         cost_breakdown,
@@ -207,6 +221,7 @@ class UsageRecorder:
             user_id=ctx.user_id,
             access_key_id=ctx.access_key_id,
             model=model,
+            provider=provider,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             total_tokens=total_tokens,
@@ -219,7 +234,9 @@ class UsageRecorder:
             output_cost_usd=cost_breakdown.output_cost,
             cache_write_cost_usd=cost_breakdown.cache_write_cost,
             cache_read_cost_usd=cost_breakdown.cache_read_cost,
-            pricing_region=pricing.region if pricing else ctx.bedrock_region,
+            pricing_region=pricing.region if pricing else "global"
+            if provider == "plan"
+            else ctx.bedrock_region,
             pricing_model_id=pricing_model_id,
             pricing_effective_date=pricing.effective_date if pricing else None,
             pricing_input_price_per_million=pricing.input_price_per_million
@@ -244,6 +261,7 @@ class UsageRecorder:
                 bucket_start=bucket_start,
                 user_id=ctx.user_id,
                 access_key_id=ctx.access_key_id,
+                provider=provider,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 total_tokens=total_tokens,

@@ -14,10 +14,13 @@ from src.domain import UsageResponse
 
 
 class FakeUsageAggregateRepository:
+    last_call: dict | None = None
+
     def __init__(self, _session) -> None:
         return None
 
-    async def query_bucket_totals(self, **_kwargs):
+    async def query_bucket_totals(self, **kwargs):
+        FakeUsageAggregateRepository.last_call = kwargs
         return [
             {
                 "bucket_start": datetime(2025, 1, 1, tzinfo=timezone.utc),
@@ -35,7 +38,8 @@ class FakeUsageAggregateRepository:
             }
         ]
 
-    async def get_totals(self, **_kwargs):
+    async def get_totals(self, **kwargs):
+        FakeUsageAggregateRepository.last_call = kwargs
         return {
             "total_requests": 2,
             "total_input_tokens": 100,
@@ -52,10 +56,13 @@ class FakeUsageAggregateRepository:
 
 
 class FakeTokenUsageRepository:
+    last_call: dict | None = None
+
     def __init__(self, _session) -> None:
         return None
 
-    async def get_cost_breakdown_by_model(self, **_kwargs):
+    async def get_cost_breakdown_by_model(self, **kwargs):
+        FakeTokenUsageRepository.last_call = kwargs
         return [
             {
                 "pricing_model_id": "claude-opus-4-5",
@@ -79,6 +86,7 @@ async def test_get_usage_response_includes_costs(monkeypatch: pytest.MonkeyPatch
         team_id=None,
         access_key_id=None,
         bucket_type="day",
+        provider=None,
         period=None,
         start_date=date(2025, 1, 1),
         end_date=date(2025, 1, 1),
@@ -93,6 +101,29 @@ async def test_get_usage_response_includes_costs(monkeypatch: pytest.MonkeyPatch
     assert response.estimated_cost_usd == "0.165000"
     assert response.cost_breakdown[0].model_id == "claude-opus-4-5"
     assert response.cost_breakdown[0].total_cost_usd == "0.165000"
+
+
+@pytest.mark.asyncio
+async def test_get_usage_filters_by_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(admin_usage, "UsageAggregateRepository", FakeUsageAggregateRepository)
+    monkeypatch.setattr(admin_usage, "TokenUsageRepository", FakeTokenUsageRepository)
+
+    await admin_usage.get_usage(
+        user_id=uuid4(),
+        team_id=None,
+        access_key_id=None,
+        bucket_type="day",
+        provider="plan",
+        period=None,
+        start_date=date(2025, 1, 1),
+        end_date=date(2025, 1, 1),
+        session=None,
+    )
+
+    assert FakeUsageAggregateRepository.last_call is not None
+    assert FakeUsageAggregateRepository.last_call["provider"] == "plan"
+    assert FakeTokenUsageRepository.last_call is not None
+    assert FakeTokenUsageRepository.last_call["provider"] == "plan"
 
 
 # Feature: cost-visibility, Property 10: KST Bucket Boundaries
@@ -143,7 +174,7 @@ async def test_get_top_users_defaults_to_last_24_hours(
     monkeypatch.setattr(admin_usage, "UsageAggregateRepository", FakeTopUsersRepository)
     monkeypatch.setattr(admin_usage, "datetime", FixedDateTime)
 
-    await admin_usage.get_top_users(bucket_type="hour", session=None)
+    await admin_usage.get_top_users(bucket_type="hour", provider=None, session=None)
 
     assert FakeTopUsersRepository.last_call is not None
     assert FakeTopUsersRepository.last_call["end_time"] == fixed_now
@@ -174,6 +205,7 @@ async def test_get_top_users_maps_results(monkeypatch: pytest.MonkeyPatch) -> No
     end = datetime(2025, 1, 2, 0, 0)
     results = await admin_usage.get_top_users(
         bucket_type="day",
+        provider="bedrock",
         start_time=start,
         end_time=end,
         limit=5,
@@ -183,3 +215,45 @@ async def test_get_top_users_maps_results(monkeypatch: pytest.MonkeyPatch) -> No
     assert results[0].name == "bravo"
     assert results[0].total_tokens == 450
     assert results[0].total_requests == 3
+
+
+@pytest.mark.asyncio
+async def test_get_top_user_series_filters_by_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class SeriesRepo:
+        calls: dict[str, dict] = {}
+
+        def __init__(self, _session) -> None:
+            return None
+
+        async def get_top_users(self, **kwargs):
+            SeriesRepo.calls["top_users"] = kwargs
+            return [
+                {
+                    "user_id": uuid4(),
+                    "name": "alpha",
+                    "total_tokens": 200,
+                    "total_requests": 2,
+                }
+            ]
+
+        async def get_user_series(self, **kwargs):
+            SeriesRepo.calls["series"] = kwargs
+            return []
+
+    monkeypatch.setattr(admin_usage, "UsageAggregateRepository", SeriesRepo)
+
+    start = datetime(2025, 1, 1, 0, 0)
+    end = datetime(2025, 1, 2, 0, 0)
+    await admin_usage.get_top_user_series(
+        bucket_type="day",
+        provider="plan",
+        start_time=start,
+        end_time=end,
+        limit=1,
+        session=None,
+    )
+
+    assert SeriesRepo.calls["top_users"]["provider"] == "plan"
+    assert SeriesRepo.calls["series"]["provider"] == "plan"

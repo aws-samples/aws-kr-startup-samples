@@ -12,6 +12,7 @@ from ..domain import (
     UsageTopUserSeries,
     UsageTopUserSeriesBucket,
     CostBreakdownByModel,
+    Provider,
 )
 from ..repositories import UsageAggregateRepository, TokenUsageRepository
 from .deps import require_admin
@@ -67,6 +68,7 @@ async def get_usage(
     team_id: UUID | None = None,
     access_key_id: UUID | None = None,
     bucket_type: str = Query(default="hour", pattern="^(minute|hour|day|week|month)$"),
+    provider: Provider | None = Query(default=None, pattern="^(plan|bedrock)$"),
     period: str | None = Query(default=None, pattern="^(day|week|month)$"),
     start_date: date | None = None,
     end_date: date | None = None,
@@ -88,6 +90,7 @@ async def get_usage(
         end_time=end_time,
         user_id=effective_user_id,
         access_key_id=access_key_id,
+        provider=provider,
     )
 
     totals = await repo.get_totals(
@@ -96,6 +99,7 @@ async def get_usage(
         end_time=end_time,
         user_id=effective_user_id,
         access_key_id=access_key_id,
+        provider=provider,
     )
 
     breakdown_rows = await token_repo.get_cost_breakdown_by_model(
@@ -103,6 +107,7 @@ async def get_usage(
         end_time=end_time,
         user_id=effective_user_id,
         access_key_id=access_key_id,
+        provider=provider,
     )
 
     buckets = [
@@ -153,6 +158,7 @@ async def get_usage(
 @router.get("/top-users", response_model=list[UsageTopUser])
 async def get_top_users(
     bucket_type: str = Query(default="hour", pattern="^(minute|hour|day|week|month)$"),
+    provider: Provider | None = Query(default=None, pattern="^(plan|bedrock)$"),
     start_time: datetime | None = None,
     end_time: datetime | None = None,
     limit: int = 10,
@@ -170,6 +176,7 @@ async def get_top_users(
         start_time=start_time,
         end_time=end_time,
         limit=limit,
+        provider=provider,
     )
 
     return [
@@ -186,6 +193,7 @@ async def get_top_users(
 @router.get("/top-users/series", response_model=list[UsageTopUserSeries])
 async def get_top_user_series(
     bucket_type: str = Query(default="hour", pattern="^(minute|hour|day|week|month)$"),
+    provider: Provider | None = Query(default=None, pattern="^(plan|bedrock)$"),
     start_time: datetime | None = None,
     end_time: datetime | None = None,
     limit: int = 5,
@@ -203,6 +211,7 @@ async def get_top_user_series(
         start_time=start_time,
         end_time=end_time,
         limit=limit,
+        provider=provider,
     )
     user_ids = [row["user_id"] for row in top_users]
     series_rows = await repo.get_user_series(
@@ -210,6 +219,7 @@ async def get_top_user_series(
         start_time=start_time,
         end_time=end_time,
         user_ids=user_ids,
+        provider=provider,
     )
 
     user_map = {

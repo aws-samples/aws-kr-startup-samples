@@ -145,3 +145,49 @@ async def test_record_streaming_usage_records_cost(monkeypatch: pytest.MonkeyPat
 
     assert len(token_repo.calls) == 1
     assert len(agg_repo.calls) == 5
+
+
+@pytest.mark.asyncio
+async def test_record_streaming_usage_defaults_to_bedrock_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pricing = ModelPricing(
+        model_id="claude-haiku-4-5",
+        region="ap-northeast-2",
+        input_price_per_million=Decimal("1.00"),
+        output_price_per_million=Decimal("2.00"),
+        cache_write_price_per_million=Decimal("3.00"),
+        cache_read_price_per_million=Decimal("4.00"),
+        effective_date=date(2025, 1, 1),
+    )
+    monkeypatch.setattr(PricingConfig, "get_pricing", lambda *_args, **_kwargs: pricing)
+
+    token_repo = FakeTokenUsageRepository()
+    agg_repo = FakeUsageAggregateRepository()
+    recorder = UsageRecorder(token_repo, agg_repo, metrics_emitter=DummyMetricsEmitter())
+
+    ctx = RequestContext(
+        request_id="req-stream-default",
+        user_id=uuid4(),
+        access_key_id=uuid4(),
+        access_key_prefix="ak",
+        bedrock_region="ap-northeast-2",
+        bedrock_model="anthropic.claude-haiku-4-5-20250514",
+        has_bedrock_key=True,
+    )
+    usage = AnthropicUsage(
+        input_tokens=10,
+        output_tokens=5,
+        cache_read_input_tokens=2,
+        cache_creation_input_tokens=1,
+    )
+
+    await recorder.record_streaming_usage(
+        ctx,
+        usage,
+        latency_ms=50,
+        model=ctx.bedrock_model,
+        is_fallback=False,
+    )
+
+    assert token_repo.calls[0]["provider"] == "bedrock"

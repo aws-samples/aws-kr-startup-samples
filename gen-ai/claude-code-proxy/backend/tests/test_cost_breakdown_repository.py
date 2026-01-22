@@ -140,6 +140,27 @@ class TestGetCostBreakdownByModel:
         assert "access_key_id" in compiled
 
     @pytest.mark.asyncio
+    async def test_filters_by_provider(self) -> None:
+        """Verify provider filter is applied when provided."""
+        mock_result = MagicMock()
+        mock_result.__iter__ = MagicMock(return_value=iter([]))
+
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        repo = TokenUsageRepository(mock_session)
+
+        await repo.get_cost_breakdown_by_model(
+            start_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            end_time=datetime(2025, 1, 2, tzinfo=timezone.utc),
+            provider="plan",
+        )
+
+        executed_query = mock_session.execute.call_args[0][0]
+        compiled = str(executed_query.compile(compile_kwargs={"literal_binds": False}))
+
+        assert "provider" in compiled
+
+    @pytest.mark.asyncio
     async def test_handles_null_cost_values(self) -> None:
         """Verify NULL cost values are converted to Decimal zero."""
         mock_result = MagicMock()

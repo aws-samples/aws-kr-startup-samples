@@ -98,6 +98,21 @@ async def test_budget_service_refreshes_cache_on_month_change(proxy_deps):
 
 
 @pytest.mark.asyncio
+async def test_budget_service_filters_bedrock_usage(proxy_deps):
+    user_id = uuid4()
+    user_repo = AsyncMock()
+    usage_repo = AsyncMock()
+    user_repo.get_by_id.return_value = _build_user(Decimal("10.00"))
+    usage_repo.get_monthly_usage_total.return_value = Decimal("0.00")
+
+    budget_service = BudgetService(user_repo, usage_repo)
+    await budget_service.check_budget(user_id)
+
+    _args, kwargs = usage_repo.get_monthly_usage_total.call_args
+    assert kwargs.get("provider") == "bedrock"
+
+
+@pytest.mark.asyncio
 async def test_budget_service_fail_open_on_lookup_error(proxy_deps):
     user_id = uuid4()
     user_repo = AsyncMock()

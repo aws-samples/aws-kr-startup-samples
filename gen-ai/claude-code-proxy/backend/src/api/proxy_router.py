@@ -14,6 +14,7 @@ from ..domain import (
     AnthropicError,
     AnthropicRequest,
     AnthropicUsage,
+    Provider,
     RoutingStrategy,
 )
 from ..logging import get_logger
@@ -225,6 +226,7 @@ async def _record_streaming_usage(
     latency_ms: int,
     model: str,
     is_fallback: bool,
+    provider: Provider = "bedrock",
 ) -> None:
     await asyncio.shield(
         usage_recorder.record_streaming_usage(
@@ -233,6 +235,7 @@ async def _record_streaming_usage(
             latency_ms,
             model,
             is_fallback=is_fallback,
+            provider=provider,
         )
     )
 
@@ -273,11 +276,59 @@ def _build_bedrock_streaming_response(
                         latency_ms,
                         request.model,
                         is_fallback,
+                        provider="bedrock",
                     )
 
     return StreamingResponse(
         bedrock_stream_generator(),
         media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
+
+
+def _build_plan_streaming_response(
+    ctx: RequestContext,
+    request: AnthropicRequest,
+    session: AsyncSession,
+    usage_aggregate_repo: UsageAggregateRepository,
+    plan_adapter: PlanAdapter,
+    plan_result,
+) -> StreamingResponse:
+    streaming_start = time.time()
+    usage_recorder = UsageRecorder(
+        TokenUsageRepository(session),
+        usage_aggregate_repo,
+        session_factory=async_session_factory,
+    )
+    usage_collector = StreamingUsageCollector()
+
+    async def plan_stream_generator():
+        try:
+            async for chunk in plan_result.aiter_bytes():
+                usage_collector.feed(chunk)
+                yield chunk
+        finally:
+            try:
+                await plan_result.aclose()
+            finally:
+                await plan_adapter.close()
+                usage = usage_collector.get_usage()
+                if usage:
+                    latency_ms = int((time.time() - streaming_start) * 1000)
+                    await _record_streaming_usage(
+                        usage_recorder,
+                        ctx,
+                        usage,
+                        latency_ms,
+                        request.model,
+                        is_fallback=False,
+                        provider="plan",
+                    )
+
+    media_type = plan_result.headers.get("content-type", "text/event-stream")
+    return StreamingResponse(
+        plan_stream_generator(),
+        media_type=media_type,
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
 
@@ -351,20 +402,13 @@ async def _stream_plan_first(
             return JSONResponse(content=error_body, status_code=result.status_code)
 
         streaming_started = True
-
-        async def stream_generator():
-            try:
-                async for chunk in result.aiter_bytes():
-                    yield chunk
-            finally:
-                await result.aclose()
-                await plan_adapter.close()
-
-        media_type = result.headers.get("content-type", "text/event-stream")
-        return StreamingResponse(
-            stream_generator(),
-            media_type=media_type,
-            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+        return _build_plan_streaming_response(
+            ctx=ctx,
+            request=request,
+            session=session,
+            usage_aggregate_repo=usage_aggregate_repo,
+            plan_adapter=plan_adapter,
+            plan_result=result,
         )
     finally:
         if not streaming_started:

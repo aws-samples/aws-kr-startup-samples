@@ -1,7 +1,15 @@
 from dataclasses import dataclass
 from collections.abc import Awaitable, Callable
 
-from ..domain import AnthropicRequest, AnthropicResponse, AnthropicUsage, RETRYABLE_ERRORS, ErrorType, RoutingStrategy
+from ..domain import (
+    AnthropicRequest,
+    AnthropicResponse,
+    AnthropicUsage,
+    Provider,
+    RETRYABLE_ERRORS,
+    ErrorType,
+    RoutingStrategy,
+)
 from .context import RequestContext
 from .budget import BudgetCheckResult, format_budget_exceeded_message
 from .adapter_base import AdapterResponse, AdapterError, Adapter
@@ -35,7 +43,7 @@ class ProxyResponse:
     success: bool
     response: AnthropicResponse | None
     usage: AnthropicUsage | None
-    provider: str  # "plan" or "bedrock"
+    provider: Provider
     is_fallback: bool
     status_code: int
     error_type: str | None = None
@@ -157,7 +165,7 @@ class ProxyRouter:
         return self._error_response("bedrock", result, is_fallback=False)
 
     def _success_response(
-        self, provider: str, result: AdapterResponse, is_fallback: bool
+        self, provider: Provider, result: AdapterResponse, is_fallback: bool
     ) -> ProxyResponse:
         return ProxyResponse(
             success=True,
@@ -169,7 +177,7 @@ class ProxyRouter:
         )
 
     def _error_response(
-        self, provider: str, error: AdapterError, is_fallback: bool
+        self, provider: Provider, error: AdapterError, is_fallback: bool
     ) -> ProxyResponse:
         return ProxyResponse(
             success=False,

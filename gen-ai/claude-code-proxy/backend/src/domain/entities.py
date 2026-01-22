@@ -4,6 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from .enums import UserStatus, KeyStatus, RoutingStrategy
+from .types import Provider
 
 
 @dataclass
@@ -55,7 +56,7 @@ class TokenUsage:
     cache_read_input_tokens: int | None
     cache_creation_input_tokens: int | None
     total_tokens: int
-    provider: str
+    provider: Provider
     is_fallback: bool
     latency_ms: int
     estimated_cost_usd: Decimal
@@ -79,6 +80,7 @@ class UsageAggregate:
     bucket_start: datetime
     user_id: UUID
     access_key_id: UUID | None
+    provider: Provider
     total_requests: int
     total_input_tokens: int
     total_output_tokens: int

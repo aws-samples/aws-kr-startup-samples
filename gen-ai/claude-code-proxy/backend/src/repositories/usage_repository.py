@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
 from ..db.models import TokenUsageModel, UsageAggregateModel, UserModel
-from ..domain import TokenUsage, UsageAggregate, UserStatus
+from ..domain import Provider, TokenUsage, UsageAggregate, UserStatus
 
 
 class TokenUsageRepository:
@@ -19,6 +19,7 @@ class TokenUsageRepository:
         user_id: UUID,
         access_key_id: UUID,
         model: str,
+        provider: Provider,
         input_tokens: int,
         output_tokens: int,
         total_tokens: int,
@@ -51,7 +52,7 @@ class TokenUsageRepository:
             cache_read_input_tokens=cache_read_input_tokens,
             cache_creation_input_tokens=cache_creation_input_tokens,
             total_tokens=total_tokens,
-            provider="bedrock",
+            provider=provider,
             is_fallback=is_fallback,
             latency_ms=latency_ms,
             estimated_cost_usd=estimated_cost_usd,
@@ -107,6 +108,7 @@ class TokenUsageRepository:
         end_time: datetime,
         user_id: UUID | None = None,
         access_key_id: UUID | None = None,
+        provider: Provider | None = None,
     ) -> list[dict]:
         query = select(
             TokenUsageModel.pricing_model_id.label("pricing_model_id"),
@@ -123,6 +125,8 @@ class TokenUsageRepository:
             query = query.where(TokenUsageModel.user_id == user_id)
         if access_key_id:
             query = query.where(TokenUsageModel.access_key_id == access_key_id)
+        if provider:
+            query = query.where(TokenUsageModel.provider == provider)
         query = query.group_by(TokenUsageModel.pricing_model_id).order_by(
             TokenUsageModel.pricing_model_id
         )
@@ -152,6 +156,7 @@ class UsageAggregateRepository:
         end_time: datetime,
         user_id: UUID | None = None,
         access_key_id: UUID | None = None,
+        provider: Provider | None = None,
     ) -> list[UsageAggregate]:
         query = select(UsageAggregateModel).where(
             UsageAggregateModel.bucket_type == bucket_type,
@@ -162,6 +167,8 @@ class UsageAggregateRepository:
             query = query.where(UsageAggregateModel.user_id == user_id)
         if access_key_id:
             query = query.where(UsageAggregateModel.access_key_id == access_key_id)
+        if provider:
+            query = query.where(UsageAggregateModel.provider == provider)
         query = query.order_by(UsageAggregateModel.bucket_start)
 
         result = await self.session.execute(query)
@@ -174,6 +181,7 @@ class UsageAggregateRepository:
         end_time: datetime,
         user_id: UUID | None = None,
         access_key_id: UUID | None = None,
+        provider: Provider | None = None,
     ) -> list[dict]:
         query = select(
             UsageAggregateModel.bucket_start.label("bucket_start"),
@@ -207,6 +215,8 @@ class UsageAggregateRepository:
             query = query.where(UsageAggregateModel.user_id == user_id)
         if access_key_id:
             query = query.where(UsageAggregateModel.access_key_id == access_key_id)
+        if provider:
+            query = query.where(UsageAggregateModel.provider == provider)
 
         query = query.group_by(UsageAggregateModel.bucket_start).order_by(
             UsageAggregateModel.bucket_start
@@ -237,6 +247,7 @@ class UsageAggregateRepository:
         end_time: datetime,
         user_id: UUID | None = None,
         access_key_id: UUID | None = None,
+        provider: str | None = None,
     ) -> dict:
         query = select(
             func.sum(UsageAggregateModel.total_requests),
@@ -259,6 +270,8 @@ class UsageAggregateRepository:
             query = query.where(UsageAggregateModel.user_id == user_id)
         if access_key_id:
             query = query.where(UsageAggregateModel.access_key_id == access_key_id)
+        if provider:
+            query = query.where(UsageAggregateModel.provider == provider)
 
         result = await self.session.execute(query)
         row = result.one()
@@ -281,6 +294,7 @@ class UsageAggregateRepository:
         user_id: UUID,
         start_time: datetime,
         end_time: datetime,
+        provider: Provider | None = None,
     ) -> Decimal:
         query = select(func.sum(UsageAggregateModel.total_estimated_cost_usd)).where(
             UsageAggregateModel.bucket_type == "month",
@@ -288,6 +302,8 @@ class UsageAggregateRepository:
             UsageAggregateModel.bucket_start < end_time,
             UsageAggregateModel.user_id == user_id,
         )
+        if provider:
+            query = query.where(UsageAggregateModel.provider == provider)
         result = await self.session.execute(query)
         total = result.scalar_one_or_none()
         return total or Decimal("0")
@@ -298,6 +314,7 @@ class UsageAggregateRepository:
         bucket_start: datetime,
         user_id: UUID,
         access_key_id: UUID,
+        provider: Provider,
         input_tokens: int,
         output_tokens: int,
         total_tokens: int,
@@ -315,6 +332,7 @@ class UsageAggregateRepository:
             bucket_start=bucket_start,
             user_id=user_id,
             access_key_id=access_key_id,
+            provider=provider,
             total_requests=1,
             total_input_tokens=input_tokens,
             total_output_tokens=output_tokens,
@@ -327,7 +345,13 @@ class UsageAggregateRepository:
             total_cache_read_cost_usd=total_cache_read_cost_usd,
             total_estimated_cost_usd=total_estimated_cost_usd,
         ).on_conflict_do_update(
-            index_elements=["bucket_type", "bucket_start", "user_id", "access_key_id"],
+            index_elements=[
+                "bucket_type",
+                "bucket_start",
+                "user_id",
+                "access_key_id",
+                "provider",
+            ],
             set_={
                 "total_requests": UsageAggregateModel.total_requests + 1,
                 "total_input_tokens": UsageAggregateModel.total_input_tokens + input_tokens,
@@ -357,6 +381,7 @@ class UsageAggregateRepository:
         start_time: datetime,
         end_time: datetime,
         limit: int = 10,
+        provider: Provider | None = None,
     ) -> list[dict]:
         query = (
             select(
@@ -377,6 +402,8 @@ class UsageAggregateRepository:
             .order_by(desc(func.sum(UsageAggregateModel.total_tokens)))
             .limit(limit)
         )
+        if provider:
+            query = query.where(UsageAggregateModel.provider == provider)
         result = await self.session.execute(query)
         return [
             {
@@ -394,6 +421,7 @@ class UsageAggregateRepository:
         start_time: datetime,
         end_time: datetime,
         user_ids: list[UUID],
+        provider: Provider | None = None,
     ) -> list[dict]:
         if not user_ids:
             return []
@@ -421,6 +449,8 @@ class UsageAggregateRepository:
             )
             .order_by(UsageAggregateModel.bucket_start)
         )
+        if provider:
+            query = query.where(UsageAggregateModel.provider == provider)
 
         result = await self.session.execute(query)
         return [
@@ -440,6 +470,7 @@ class UsageAggregateRepository:
             bucket_start=model.bucket_start,
             user_id=model.user_id,
             access_key_id=model.access_key_id,
+            provider=model.provider,
             total_requests=model.total_requests,
             total_input_tokens=model.total_input_tokens,
             total_output_tokens=model.total_output_tokens,

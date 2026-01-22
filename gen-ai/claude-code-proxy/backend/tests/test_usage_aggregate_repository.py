@@ -38,6 +38,7 @@ class TestIncrementUpsertLogic:
             bucket_start=bucket_start,
             user_id=user_id,
             access_key_id=access_key_id,
+            provider="bedrock",
             input_tokens=100,
             output_tokens=50,
             total_tokens=150,
@@ -65,6 +66,7 @@ class TestIncrementUpsertLogic:
         assert "bucket_start" in stmt_str
         assert "user_id" in stmt_str
         assert "access_key_id" in stmt_str
+        assert "provider" in stmt_str
 
     @pytest.mark.asyncio
     async def test_increment_on_conflict_updates_all_fields(self) -> None:
@@ -78,6 +80,7 @@ class TestIncrementUpsertLogic:
             bucket_start=datetime(2025, 1, 1, tzinfo=timezone.utc),
             user_id=uuid4(),
             access_key_id=uuid4(),
+            provider="bedrock",
             input_tokens=200,
             output_tokens=100,
             total_tokens=300,
@@ -126,6 +129,7 @@ class TestIncrementUpsertLogic:
             bucket_start=datetime(2025, 1, 1, 0, 0, tzinfo=timezone.utc),
             user_id=uuid4(),
             access_key_id=uuid4(),
+            provider="bedrock",
             input_tokens=50,
             output_tokens=25,
             total_tokens=75,
@@ -220,6 +224,28 @@ class TestQueryBucketTotals:
         compiled = str(executed_query.compile(compile_kwargs={"literal_binds": False}))
 
         assert "user_id" in compiled
+
+    @pytest.mark.asyncio
+    async def test_query_bucket_totals_filters_by_provider(self) -> None:
+        """Verify provider filter is applied to query."""
+        mock_result = MagicMock()
+        mock_result.__iter__ = MagicMock(return_value=iter([]))
+
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(return_value=mock_result)
+        repo = UsageAggregateRepository(mock_session)
+
+        await repo.query_bucket_totals(
+            bucket_type="day",
+            start_time=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            end_time=datetime(2025, 1, 2, tzinfo=timezone.utc),
+            provider="plan",
+        )
+
+        executed_query = mock_session.execute.call_args[0][0]
+        compiled = str(executed_query.compile(compile_kwargs={"literal_binds": False}))
+
+        assert "provider" in compiled
 
     @pytest.mark.asyncio
     async def test_query_bucket_totals_handles_null_aggregates(self) -> None:
@@ -382,6 +408,7 @@ class TestMultipleIncrementAccumulation:
                 bucket_start=bucket_start,
                 user_id=user_id,
                 access_key_id=access_key_id,
+                provider="bedrock",
                 input_tokens=100 * (i + 1),
                 output_tokens=50 * (i + 1),
                 total_tokens=150 * (i + 1),

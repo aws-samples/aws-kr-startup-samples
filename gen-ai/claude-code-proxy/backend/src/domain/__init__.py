@@ -2,6 +2,7 @@ from .enums import UserStatus, KeyStatus, RoutingStrategy, ErrorType, CIRCUIT_TR
 from .entities import User, AccessKey, BedrockKey, TokenUsage, UsageAggregate
 from .pricing import ModelPricing, PricingConfig
 from .cost_calculator import CostBreakdown, CostCalculator
+from .types import Provider
 from .schemas import (
     AnthropicMessage,
     AnthropicRequest,
@@ -47,6 +48,7 @@ __all__ = [
     "PricingConfig",
     "CostBreakdown",
     "CostCalculator",
+    "Provider",
     "AnthropicMessage",
     "AnthropicRequest",
     "AnthropicResponse",

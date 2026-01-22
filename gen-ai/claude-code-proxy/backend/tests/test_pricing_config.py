@@ -27,7 +27,7 @@ def reset_pricing_config(monkeypatch: pytest.MonkeyPatch) -> None:
     ],
 )
 def test_default_pricing_returns_positive_values(model_id: str) -> None:
-    pricing = PricingConfig.get_pricing(model_id)
+    pricing = PricingConfig.get_pricing(model_id, provider="bedrock")
 
     assert pricing is not None
     assert pricing.region == "ap-northeast-2"
@@ -39,7 +39,7 @@ def test_default_pricing_returns_positive_values(model_id: str) -> None:
 
 
 def test_get_all_pricing_returns_expected_models() -> None:
-    pricing_list = PricingConfig.get_all_pricing()
+    pricing_list = PricingConfig.get_all_pricing(provider="bedrock")
     model_ids = {pricing.model_id for pricing in pricing_list}
 
     assert model_ids == {
@@ -50,7 +50,9 @@ def test_get_all_pricing_returns_expected_models() -> None:
 
 
 def test_get_pricing_falls_back_to_default_region() -> None:
-    pricing = PricingConfig.get_pricing("claude-opus-4-5", region="eu-west-1")
+    pricing = PricingConfig.get_pricing(
+        "claude-opus-4-5", region="eu-west-1", provider="bedrock"
+    )
 
     assert pricing is not None
     assert pricing.region == "ap-northeast-2"
@@ -71,7 +73,7 @@ def test_reload_picks_up_env_pricing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PROXY_MODEL_PRICING", json.dumps(pricing_payload))
 
     PricingConfig.reload()
-    pricing = PricingConfig.get_pricing("claude-opus-4-5")
+    pricing = PricingConfig.get_pricing("claude-opus-4-5", provider="bedrock")
 
     assert pricing is not None
     assert pricing.input_price_per_million == Decimal("7.00")
@@ -96,7 +98,7 @@ def test_reload_updates_after_env_change(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("PROXY_MODEL_PRICING", json.dumps(first_payload))
     PricingConfig.reload()
 
-    first_pricing = PricingConfig.get_pricing("claude-haiku-4-5")
+    first_pricing = PricingConfig.get_pricing("claude-haiku-4-5", provider="bedrock")
     assert first_pricing is not None
     assert first_pricing.input_price_per_million == Decimal("1.10")
 
@@ -114,7 +116,7 @@ def test_reload_updates_after_env_change(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setenv("PROXY_MODEL_PRICING", json.dumps(second_payload))
     PricingConfig.reload()
 
-    second_pricing = PricingConfig.get_pricing("claude-haiku-4-5")
+    second_pricing = PricingConfig.get_pricing("claude-haiku-4-5", provider="bedrock")
     assert second_pricing is not None
     assert second_pricing.input_price_per_million == Decimal("1.25")
     assert second_pricing.effective_date == date(2025, 3, 1)
@@ -131,7 +133,7 @@ def test_reload_missing_fields_falls_back_to_defaults(monkeypatch: pytest.Monkey
     monkeypatch.setenv("PROXY_MODEL_PRICING", json.dumps(pricing_payload))
 
     PricingConfig.reload()
-    pricing = PricingConfig.get_pricing("claude-opus-4-5")
+    pricing = PricingConfig.get_pricing("claude-opus-4-5", provider="bedrock")
 
     assert pricing is not None
     assert pricing.input_price_per_million == Decimal("5.00")
@@ -142,7 +144,7 @@ def test_invalid_env_json_falls_back_to_defaults(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("PROXY_MODEL_PRICING", "{")
 
     PricingConfig.reload()
-    pricing = PricingConfig.get_pricing("claude-opus-4-5")
+    pricing = PricingConfig.get_pricing("claude-opus-4-5", provider="bedrock")
 
     assert pricing is not None
     assert pricing.input_price_per_million == Decimal("5.00")
@@ -150,7 +152,7 @@ def test_invalid_env_json_falls_back_to_defaults(monkeypatch: pytest.MonkeyPatch
 
 
 def test_get_all_pricing_falls_back_to_default_region() -> None:
-    pricing_list = PricingConfig.get_all_pricing(region="eu-west-1")
+    pricing_list = PricingConfig.get_all_pricing(region="eu-west-1", provider="bedrock")
     regions = {pricing.region for pricing in pricing_list}
 
     assert regions == {"ap-northeast-2"}
@@ -169,3 +171,88 @@ def test_get_all_pricing_falls_back_to_default_region() -> None:
 )
 def test_normalize_model_id_variants(raw_model_id: str, expected: str) -> None:
     assert PricingConfig.normalize_model_id(raw_model_id) == expected
+
+
+def test_provider_aware_pricing_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = {
+        "bedrock": {
+            "ap-northeast-2": {
+                "claude-opus-4-5": {
+                    "input_price_per_million": "6.00",
+                    "output_price_per_million": "26.00",
+                    "cache_write_price_per_million": "6.50",
+                    "cache_read_price_per_million": "0.55",
+                    "effective_date": "2025-05-01",
+                }
+            }
+        },
+        "plan": {
+            "global": {
+                "claude-opus-4-5": {
+                    "input_price_per_million": "4.00",
+                    "output_price_per_million": "20.00",
+                    "cache_write_price_per_million": "5.00",
+                    "cache_read_price_per_million": "0.40",
+                    "effective_date": "2025-05-01",
+                }
+            }
+        },
+    }
+    monkeypatch.setenv("PROXY_MODEL_PRICING", json.dumps(payload))
+
+    PricingConfig.reload()
+
+    bedrock_pricing = PricingConfig.get_pricing(
+        "claude-opus-4-5", region="ap-northeast-2", provider="bedrock"
+    )
+    plan_pricing = PricingConfig.get_pricing(
+        "claude-opus-4-5", region="global", provider="plan"
+    )
+    plan_fallback = PricingConfig.get_pricing(
+        "claude-opus-4-5", region="us-east-1", provider="plan"
+    )
+
+    assert bedrock_pricing is not None
+    assert plan_pricing is not None
+    assert plan_fallback is not None
+    assert bedrock_pricing.input_price_per_million != plan_pricing.input_price_per_million
+    assert plan_fallback.region == "global"
+
+
+def test_plan_pricing_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+    bedrock_payload = {
+        "ap-northeast-2": {
+            "claude-haiku-4-5": {
+                "input_price_per_million": "2.00",
+                "output_price_per_million": "4.00",
+                "cache_write_price_per_million": "1.50",
+                "cache_read_price_per_million": "0.20",
+                "effective_date": "2025-06-01",
+            }
+        }
+    }
+    plan_payload = {
+        "global": {
+            "claude-haiku-4-5": {
+                "input_price_per_million": "1.50",
+                "output_price_per_million": "3.50",
+                "cache_write_price_per_million": "1.10",
+                "cache_read_price_per_million": "0.15",
+                "effective_date": "2025-06-01",
+            }
+        }
+    }
+    monkeypatch.setenv("PROXY_MODEL_PRICING", json.dumps(bedrock_payload))
+    monkeypatch.setenv("PROXY_PLAN_PRICING", json.dumps(plan_payload))
+
+    PricingConfig.reload()
+
+    bedrock_pricing = PricingConfig.get_pricing(
+        "claude-haiku-4-5", provider="bedrock"
+    )
+    plan_pricing = PricingConfig.get_pricing("claude-haiku-4-5", provider="plan")
+
+    assert bedrock_pricing is not None
+    assert plan_pricing is not None
+    assert bedrock_pricing.input_price_per_million == Decimal("2.00")
+    assert plan_pricing.input_price_per_million == Decimal("1.50")

@@ -6,6 +6,7 @@ from typing import Protocol
 import boto3
 
 from ..config import get_settings
+from ..domain import Provider
 
 # Shared executor for blocking boto3 calls
 _executor = ThreadPoolExecutor(max_workers=2)
@@ -13,7 +14,7 @@ _executor = ThreadPoolExecutor(max_workers=2)
 
 class ProxyResponseProtocol(Protocol):
     """Protocol for ProxyResponse to avoid circular import."""
-    provider: str
+    provider: Provider
     error_type: str | None
     is_fallback: bool
     usage: object | None
@@ -67,7 +68,7 @@ class CloudWatchMetricsEmitter:
                 "MetricName": "FallbackCount",
                 "Value": 1,
                 "Unit": "Count",
-                "Dimensions": [],
+                "Dimensions": [{"Name": "Provider", "Value": response.provider}],
             })
 
         if response.usage and response.provider == "bedrock":
@@ -76,13 +77,19 @@ class CloudWatchMetricsEmitter:
                     "MetricName": "BedrockTokensUsed",
                     "Value": response.usage.input_tokens,
                     "Unit": "Count",
-                    "Dimensions": [{"Name": "TokenType", "Value": "input"}],
+                    "Dimensions": [
+                        {"Name": "TokenType", "Value": "input"},
+                        {"Name": "Provider", "Value": response.provider},
+                    ],
                 },
                 {
                     "MetricName": "BedrockTokensUsed",
                     "Value": response.usage.output_tokens,
                     "Unit": "Count",
-                    "Dimensions": [{"Name": "TokenType", "Value": "output"}],
+                    "Dimensions": [
+                        {"Name": "TokenType", "Value": "output"},
+                        {"Name": "Provider", "Value": response.provider},
+                    ],
                 },
             ])
 

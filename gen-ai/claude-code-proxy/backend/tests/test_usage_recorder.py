@@ -102,7 +102,9 @@ async def test_record_usage_with_cost_stores_pricing_snapshot(
 
     recorder, token_repo, _agg_repo, ctx, response = _build_recorder_context(monkeypatch, pricing)
 
-    await recorder._record_usage_with_cost(ctx, response, latency_ms=123, model=ctx.bedrock_model)
+    await recorder._record_usage_with_cost(
+        ctx, response, latency_ms=123, model=ctx.bedrock_model, provider="bedrock"
+    )
 
     assert len(token_repo.calls) == 1
     call = token_repo.calls[0]
@@ -143,7 +145,9 @@ async def test_record_usage_with_cost_increments_aggregates(
     )
     recorder, _token_repo, agg_repo, ctx, response = _build_recorder_context(monkeypatch, pricing)
 
-    await recorder._record_usage_with_cost(ctx, response, latency_ms=123, model=ctx.bedrock_model)
+    await recorder._record_usage_with_cost(
+        ctx, response, latency_ms=123, model=ctx.bedrock_model, provider="bedrock"
+    )
 
     expected_costs = CostCalculator.calculate_cost(
         input_tokens=100,
@@ -203,7 +207,9 @@ async def test_record_usage_with_cost_falls_back_to_zero_on_pricing_error(
         status_code=200,
     )
 
-    await recorder._record_usage_with_cost(ctx, response, latency_ms=45, model=ctx.bedrock_model)
+    await recorder._record_usage_with_cost(
+        ctx, response, latency_ms=45, model=ctx.bedrock_model, provider="bedrock"
+    )
 
     assert len(token_repo.calls) == 1
     call = token_repo.calls[0]
@@ -269,7 +275,11 @@ async def test_usage_accumulation_property(
         )
 
         await recorder._record_usage_with_cost(
-            ctx, response, latency_ms=123, model=ctx.bedrock_model
+            ctx,
+            response,
+            latency_ms=123,
+            model=ctx.bedrock_model,
+            provider="bedrock",
         )
 
         expected_costs = CostCalculator.calculate_cost(
@@ -283,3 +293,169 @@ async def test_usage_accumulation_property(
         assert agg_repo.calls
         for agg_call in agg_repo.calls:
             assert agg_call["total_estimated_cost_usd"] == expected_costs.total_cost
+
+
+@pytest.mark.asyncio
+async def test_plan_usage_recording_stores_provider_and_tokens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pricing = ModelPricing(
+        model_id="claude-opus-4-5",
+        region="global",
+        input_price_per_million=Decimal("4.00"),
+        output_price_per_million=Decimal("20.00"),
+        cache_write_price_per_million=Decimal("5.00"),
+        cache_read_price_per_million=Decimal("0.40"),
+        effective_date=date(2025, 1, 1),
+    )
+    monkeypatch.setattr(PricingConfig, "get_pricing", lambda *_args, **_kwargs: pricing)
+
+    token_repo = FakeTokenUsageRepository()
+    agg_repo = FakeUsageAggregateRepository()
+    recorder = UsageRecorder(token_repo, agg_repo, metrics_emitter=DummyMetricsEmitter())
+
+    ctx = RequestContext(
+        request_id="req-plan",
+        user_id=uuid4(),
+        access_key_id=uuid4(),
+        access_key_prefix="ak_plan",
+        bedrock_region="ap-northeast-2",
+        bedrock_model="claude-opus-4-5",
+        has_bedrock_key=True,
+    )
+    usage = AnthropicUsage(
+        input_tokens=120,
+        output_tokens=60,
+        cache_read_input_tokens=12,
+        cache_creation_input_tokens=6,
+    )
+    response = ProxyResponse(
+        success=True,
+        response=None,
+        usage=usage,
+        provider="plan",
+        is_fallback=False,
+        status_code=200,
+    )
+
+    await recorder._record_usage_with_cost(
+        ctx, response, latency_ms=80, model="claude-opus-4-5", provider="plan"
+    )
+
+    assert len(token_repo.calls) == 1
+    call = token_repo.calls[0]
+    assert call["provider"] == "plan"
+    assert call["input_tokens"] == 120
+    assert call["output_tokens"] == 60
+    assert call["cache_read_input_tokens"] == 12
+    assert call["cache_creation_input_tokens"] == 6
+    assert all(agg_call["provider"] == "plan" for agg_call in agg_repo.calls)
+
+
+@pytest.mark.asyncio
+async def test_plan_pricing_used_for_cost_calculation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pricing = ModelPricing(
+        model_id="claude-sonnet-4-5",
+        region="global",
+        input_price_per_million=Decimal("2.00"),
+        output_price_per_million=Decimal("10.00"),
+        cache_write_price_per_million=Decimal("2.50"),
+        cache_read_price_per_million=Decimal("0.20"),
+        effective_date=date(2025, 1, 1),
+    )
+    monkeypatch.setattr(PricingConfig, "get_pricing", lambda *_args, **_kwargs: pricing)
+
+    token_repo = FakeTokenUsageRepository()
+    agg_repo = FakeUsageAggregateRepository()
+    recorder = UsageRecorder(token_repo, agg_repo, metrics_emitter=DummyMetricsEmitter())
+
+    ctx = RequestContext(
+        request_id="req-plan-cost",
+        user_id=uuid4(),
+        access_key_id=uuid4(),
+        access_key_prefix="ak_plan",
+        bedrock_region="ap-northeast-2",
+        bedrock_model="claude-sonnet-4-5",
+        has_bedrock_key=True,
+    )
+    usage = AnthropicUsage(
+        input_tokens=1_000_000,
+        output_tokens=500_000,
+        cache_read_input_tokens=100_000,
+        cache_creation_input_tokens=50_000,
+    )
+    response = ProxyResponse(
+        success=True,
+        response=None,
+        usage=usage,
+        provider="plan",
+        is_fallback=False,
+        status_code=200,
+    )
+
+    await recorder._record_usage_with_cost(
+        ctx, response, latency_ms=120, model="claude-sonnet-4-5", provider="plan"
+    )
+
+    expected_costs = CostCalculator.calculate_cost(
+        input_tokens=1_000_000,
+        output_tokens=500_000,
+        cache_write_tokens=50_000,
+        cache_read_tokens=100_000,
+        pricing=pricing,
+    )
+    assert token_repo.calls[0]["estimated_cost_usd"] == expected_costs.total_cost
+    assert token_repo.calls[0]["input_cost_usd"] == expected_costs.input_cost
+    assert token_repo.calls[0]["output_cost_usd"] == expected_costs.output_cost
+
+
+@pytest.mark.asyncio
+async def test_plan_pricing_snapshot_stored(monkeypatch: pytest.MonkeyPatch) -> None:
+    pricing = ModelPricing(
+        model_id="claude-haiku-4-5",
+        region="global",
+        input_price_per_million=Decimal("1.10"),
+        output_price_per_million=Decimal("4.40"),
+        cache_write_price_per_million=Decimal("1.30"),
+        cache_read_price_per_million=Decimal("0.12"),
+        effective_date=date(2025, 2, 1),
+    )
+    monkeypatch.setattr(PricingConfig, "get_pricing", lambda *_args, **_kwargs: pricing)
+
+    token_repo = FakeTokenUsageRepository()
+    agg_repo = FakeUsageAggregateRepository()
+    recorder = UsageRecorder(token_repo, agg_repo, metrics_emitter=DummyMetricsEmitter())
+
+    ctx = RequestContext(
+        request_id="req-plan-snapshot",
+        user_id=uuid4(),
+        access_key_id=uuid4(),
+        access_key_prefix="ak_plan",
+        bedrock_region="ap-northeast-2",
+        bedrock_model="claude-haiku-4-5",
+        has_bedrock_key=True,
+    )
+    usage = AnthropicUsage(input_tokens=10, output_tokens=5)
+    response = ProxyResponse(
+        success=True,
+        response=None,
+        usage=usage,
+        provider="plan",
+        is_fallback=False,
+        status_code=200,
+    )
+
+    await recorder._record_usage_with_cost(
+        ctx, response, latency_ms=55, model="claude-haiku-4-5", provider="plan"
+    )
+
+    call = token_repo.calls[0]
+    assert call["pricing_region"] == "global"
+    assert call["pricing_model_id"] == "claude-haiku-4-5"
+    assert call["pricing_effective_date"] == date(2025, 2, 1)
+    assert call["pricing_input_price_per_million"] == Decimal("1.10")
+    assert call["pricing_output_price_per_million"] == Decimal("4.40")
+    assert call["pricing_cache_write_price_per_million"] == Decimal("1.30")
+    assert call["pricing_cache_read_price_per_million"] == Decimal("0.12")

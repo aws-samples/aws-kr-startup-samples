@@ -62,7 +62,9 @@ class BudgetService:
         start_kst, end_kst = self.get_month_window()
         start_utc = start_kst.astimezone(timezone.utc)
         end_utc = end_kst.astimezone(timezone.utc)
-        return await self._usage_repo.get_monthly_usage_total(user_id, start_utc, end_utc)
+        return await self._usage_repo.get_monthly_usage_total(
+            user_id, start_utc, end_utc, provider="bedrock"
+        )
 
     async def check_budget(
         self, user_id: UUID, *, fail_open: bool = True

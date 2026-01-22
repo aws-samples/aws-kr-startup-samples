@@ -11,6 +11,7 @@ from sqlalchemy import (
     LargeBinary,
     ForeignKey,
     Index,
+    UniqueConstraint,
     Numeric,
     Date,
 )
@@ -159,6 +160,7 @@ class UsageAggregateModel(Base):
     bucket_start: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     access_key_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    provider: Mapped[str] = mapped_column(String(10), nullable=False, default="bedrock")
     total_requests: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total_input_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     total_output_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
@@ -182,5 +184,19 @@ class UsageAggregateModel(Base):
     )
 
     __table_args__ = (
-        Index("idx_usage_aggregates_lookup", "bucket_type", "bucket_start", "user_id"),
+        Index(
+            "idx_usage_aggregates_lookup",
+            "bucket_type",
+            "bucket_start",
+            "user_id",
+            "provider",
+        ),
+        UniqueConstraint(
+            "bucket_type",
+            "bucket_start",
+            "user_id",
+            "access_key_id",
+            "provider",
+            name="uq_usage_aggregates_bucket_access_key_provider",
+        ),
     )

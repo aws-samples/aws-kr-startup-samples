@@ -100,10 +100,10 @@ class TestRecordMethodFlow:
     """Test the record() method's conditional flow."""
 
     @pytest.mark.asyncio
-    async def test_record_skips_db_for_non_bedrock_provider(
+    async def test_record_records_plan_usage(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Verify record() does not write to DB for non-bedrock responses."""
+        """Verify record() writes to DB for plan responses."""
         task_names = _capture_task_names(monkeypatch)
         token_repo = FakeTokenUsageRepository()
         agg_repo = FakeUsageAggregateRepository()
@@ -130,8 +130,8 @@ class TestRecordMethodFlow:
         await recorder.record(ctx, response, latency_ms=100, model=ctx.bedrock_model)
 
         assert task_names == ["emit"]
-        assert len(token_repo.calls) == 0
-        assert len(agg_repo.calls) == 0
+        assert len(token_repo.calls) == 1
+        assert len(agg_repo.calls) == 5
 
     @pytest.mark.asyncio
     async def test_record_skips_db_for_failed_responses(
@@ -291,7 +291,13 @@ class TestRecordUsageWithCostFlow:
             status_code=200,
         )
 
-        await recorder._record_usage_with_cost(ctx, response, latency_ms=150, model=ctx.bedrock_model)
+        await recorder._record_usage_with_cost(
+            ctx,
+            response,
+            latency_ms=150,
+            model=ctx.bedrock_model,
+            provider="bedrock",
+        )
 
         # Verify token usage was created
         assert len(token_repo.calls) == 1
@@ -358,7 +364,13 @@ class TestRecordUsageWithCostFlow:
             status_code=200,
         )
 
-        await recorder._record_usage_with_cost(ctx, response, latency_ms=50, model=ctx.bedrock_model)
+        await recorder._record_usage_with_cost(
+            ctx,
+            response,
+            latency_ms=50,
+            model=ctx.bedrock_model,
+            provider="bedrock",
+        )
 
         # Cache tokens should be 0
         for agg_call in agg_repo.calls:
@@ -418,7 +430,13 @@ class TestSessionFactoryFlow:
             status_code=200,
         )
 
-        await recorder._record_usage_with_cost(ctx, response, latency_ms=50, model=ctx.bedrock_model)
+        await recorder._record_usage_with_cost(
+            ctx,
+            response,
+            latency_ms=50,
+            model=ctx.bedrock_model,
+            provider="bedrock",
+        )
 
         assert sessions[0].commit_called is True
         assert sessions[0].rollback_called is False
@@ -473,7 +491,13 @@ class TestSessionFactoryFlow:
             status_code=200,
         )
 
-        await recorder._record_usage_with_cost(ctx, response, latency_ms=50, model=ctx.bedrock_model)
+        await recorder._record_usage_with_cost(
+            ctx,
+            response,
+            latency_ms=50,
+            model=ctx.bedrock_model,
+            provider="bedrock",
+        )
 
         assert sessions[0].rollback_called is True
         assert sessions[0].commit_called is False
@@ -492,6 +516,7 @@ class TestCalculateCostSafe:
             cost, pricing = recorder._calculate_cost_safe(
                 model="unknown-model",
                 region="ap-northeast-2",
+                provider="bedrock",
                 input_tokens=100,
                 output_tokens=50,
                 cache_write_tokens=10,
@@ -516,6 +541,7 @@ class TestCalculateCostSafe:
             cost, pricing = recorder._calculate_cost_safe(
                 model="claude-sonnet-4-5",
                 region="ap-northeast-2",
+                provider="bedrock",
                 input_tokens=100,
                 output_tokens=50,
                 cache_write_tokens=10,
@@ -545,6 +571,7 @@ class TestCalculateCostSafe:
             cost, returned_pricing = recorder._calculate_cost_safe(
                 model="anthropic.claude-opus-4-5-20250514",
                 region="ap-northeast-2",
+                provider="bedrock",
                 input_tokens=1_000_000,
                 output_tokens=500_000,
                 cache_write_tokens=100_000,
@@ -603,7 +630,13 @@ class TestErrorRecovery:
         )
 
         # Should not raise
-        await recorder._record_usage_with_cost(ctx, response, latency_ms=50, model=ctx.bedrock_model)
+        await recorder._record_usage_with_cost(
+            ctx,
+            response,
+            latency_ms=50,
+            model=ctx.bedrock_model,
+            provider="bedrock",
+        )
 
         # Aggregate calls should not have been made due to early failure
         assert len(agg_repo.calls) == 0
@@ -651,7 +684,13 @@ class TestBucketStartCalculation:
             status_code=200,
         )
 
-        await recorder._record_usage_with_cost(ctx, response, latency_ms=50, model=ctx.bedrock_model)
+        await recorder._record_usage_with_cost(
+            ctx,
+            response,
+            latency_ms=50,
+            model=ctx.bedrock_model,
+            provider="bedrock",
+        )
 
         # All bucket_start values should be timezone-aware
         for agg_call in agg_repo.calls:
