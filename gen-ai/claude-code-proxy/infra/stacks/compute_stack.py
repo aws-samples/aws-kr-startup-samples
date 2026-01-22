@@ -44,7 +44,10 @@ class ComputeStack(Stack):
             managed_policies=[
                 iam.ManagedPolicy.from_aws_managed_policy_name(
                     "service-role/AmazonECSTaskExecutionRolePolicy"
-                )
+                ),
+                iam.ManagedPolicy.from_aws_managed_policy_name(
+                    "AmazonSSMManagedInstanceCore"
+                ),
             ],
         )
 
@@ -122,6 +125,7 @@ class ComputeStack(Stack):
                     stream_prefix="claude-code-proxy"
                 ),
             ),
+            enable_execute_command=True,
         )
 
         fargate_service.target_group.configure_health_check(path="/health")
