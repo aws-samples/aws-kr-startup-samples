@@ -121,10 +121,28 @@ Open http://localhost:5173 and login with your admin credentials.
 
 Get an access key from your administrator, then configure Claude Code:
 
+### ⚠️ IMPORTANT: ANTHROPIC_AUTH_TOKEN Configuration
+
+**Your routing strategy determines how to set `ANTHROPIC_AUTH_TOKEN`:**
+
+| Routing Strategy | `ANTHROPIC_AUTH_TOKEN` | Why? |
+|------------------|------------------------|------|
+| **plan_first** (default) | **DO NOT SET** or leave empty | Proxy uses Plan API credentials internally |
+| **bedrock_only** | **Set to any non-empty value** | Required for Claude Code authentication |
+
+> **Wrong configuration = requests fail!** Check your routing strategy with your administrator.
+
 ### Option 1: Shell Environment (Recommended)
 
 Add to `~/.bashrc` or `~/.zshrc`:
 
+**For plan_first users (default):**
+```bash
+# DO NOT set ANTHROPIC_AUTH_TOKEN
+export ANTHROPIC_BASE_URL="https://proxy.example.com/ak/ak_your_access_key"
+```
+
+**For bedrock_only users:**
 ```bash
 export ANTHROPIC_AUTH_TOKEN="any-non-empty-value"
 export ANTHROPIC_BASE_URL="https://proxy.example.com/ak/ak_your_access_key"
@@ -138,6 +156,16 @@ Then reload: `source ~/.bashrc`
 
 Edit `~/.claude/settings.json`:
 
+**For plan_first users (default):**
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://proxy.example.com/ak/ak_your_access_key"
+  }
+}
+```
+
+**For bedrock_only users:**
 ```json
 {
   "env": {
@@ -349,6 +377,8 @@ echo "VITE_BACKEND_API_URL=https://<your-cloudfront-domain>" > .env.local
 | `Invalid access key` | Verify the key format: `ak_` prefix required |
 | `Budget exceeded` (429) | Check user budget in admin dashboard |
 | `Model not found` | Add model mapping via env var or dashboard |
+| **Requests fail with plan_first** | **Remove `ANTHROPIC_AUTH_TOKEN` from your environment** - Plan users should NOT set this variable |
+| **Requests fail with bedrock_only** | **Set `ANTHROPIC_AUTH_TOKEN` to any non-empty value** - Bedrock-only users MUST set this variable |
 
 ### Logs
 

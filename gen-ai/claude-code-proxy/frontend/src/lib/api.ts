@@ -117,6 +117,7 @@ class ApiClient {
     if (params.team_id) query.set('team_id', params.team_id);
     if (params.access_key_id) query.set('access_key_id', params.access_key_id);
     if (params.bucket_type) query.set('bucket_type', params.bucket_type);
+    if (params.provider) query.set('provider', params.provider);
     if (params.period) query.set('period', params.period);
     if (params.start_date) query.set('start_date', params.start_date);
     if (params.end_date) query.set('end_date', params.end_date);
@@ -126,6 +127,7 @@ class ApiClient {
   getTopUsers = (params: TopUsersParams) => {
     const query = new URLSearchParams();
     if (params.bucket_type) query.set('bucket_type', params.bucket_type);
+    if (params.provider) query.set('provider', params.provider);
     if (params.start_time) query.set('start_time', params.start_time);
     if (params.end_time) query.set('end_time', params.end_time);
     if (params.limit) query.set('limit', String(params.limit));
@@ -135,6 +137,7 @@ class ApiClient {
   getTopUserSeries = (params: TopUsersParams) => {
     const query = new URLSearchParams();
     if (params.bucket_type) query.set('bucket_type', params.bucket_type);
+    if (params.provider) query.set('provider', params.provider);
     if (params.start_time) query.set('start_time', params.start_time);
     if (params.end_time) query.set('end_time', params.end_time);
     if (params.limit) query.set('limit', String(params.limit));
@@ -191,6 +194,7 @@ export interface UsageParams {
   team_id?: string;
   access_key_id?: string;
   bucket_type?: string;
+  provider?: 'plan' | 'bedrock';
   period?: 'day' | 'week' | 'month';
   start_date?: string;
   end_date?: string;
@@ -198,6 +202,7 @@ export interface UsageParams {
 
 export interface TopUsersParams {
   bucket_type?: string;
+  provider?: 'plan' | 'bedrock';
   start_time?: string;
   end_time?: string;
   limit?: number;

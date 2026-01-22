@@ -4,12 +4,15 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+import structlog
 
 from ..domain import AnthropicUsage, CostCalculator, PricingConfig, Provider
 from ..repositories import TokenUsageRepository, UsageAggregateRepository
 from .context import RequestContext
 from .router import ProxyResponse
 from .metrics import CloudWatchMetricsEmitter
+
+logger = structlog.get_logger(__name__)
 
 
 def _get_bucket_start(ts: datetime, bucket_type: str, tz: ZoneInfo) -> datetime:
@@ -60,6 +63,20 @@ class UsageRecorder:
 
         # Record token usage to DB for successful responses
         if response.success and response.usage:
+            logger.info(
+                "usage_record_start",
+                request_id=ctx.request_id,
+                user_id=ctx.user_id,
+                access_key_id=ctx.access_key_id,
+                provider=response.provider,
+                is_fallback=response.is_fallback,
+                model=model,
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+                cache_creation_input_tokens=response.usage.cache_creation_input_tokens,
+                cache_read_input_tokens=response.usage.cache_read_input_tokens,
+                latency_ms=latency_ms,
+            )
             await asyncio.shield(
                 self._record_usage_with_cost(
                     ctx, response, latency_ms, model, provider=response.provider
@@ -75,6 +92,20 @@ class UsageRecorder:
         is_fallback: bool,
         provider: Provider = "bedrock",
     ) -> None:
+        logger.info(
+            "usage_record_streaming",
+            request_id=ctx.request_id,
+            user_id=ctx.user_id,
+            access_key_id=ctx.access_key_id,
+            provider=provider,
+            is_fallback=is_fallback,
+            model=model,
+            input_tokens=usage.input_tokens,
+            output_tokens=usage.output_tokens,
+            cache_creation_input_tokens=usage.cache_creation_input_tokens,
+            cache_read_input_tokens=usage.cache_read_input_tokens,
+            latency_ms=latency_ms,
+        )
         response = ProxyResponse(
             success=True,
             response=None,
@@ -142,8 +173,20 @@ class UsageRecorder:
                             now_kst=now_kst,
                         )
                         await session.commit()
-                    except Exception:
+                        logger.info(
+                            "usage_session_committed",
+                            request_id=ctx.request_id,
+                            user_id=ctx.user_id,
+                        )
+                    except Exception as e:
                         await session.rollback()
+                        logger.error(
+                            "usage_session_error",
+                            request_id=ctx.request_id,
+                            user_id=ctx.user_id,
+                            error=str(e),
+                            error_type=type(e).__name__,
+                        )
                         raise
             else:
                 await self._persist_usage(
@@ -164,8 +207,15 @@ class UsageRecorder:
                     cache_read_tokens=cache_read_tokens,
                     now_kst=now_kst,
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(
+                "usage_record_error",
+                request_id=ctx.request_id,
+                user_id=ctx.user_id,
+                provider=provider,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     def _calculate_cost_safe(
         self,
@@ -216,6 +266,21 @@ class UsageRecorder:
         cache_read_tokens: int,
         now_kst: datetime,
     ) -> None:
+        logger.info(
+            "usage_persist_start",
+            request_id=ctx.request_id,
+            user_id=ctx.user_id,
+            access_key_id=ctx.access_key_id,
+            provider=provider,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cache_write_tokens=cache_write_tokens,
+            cache_read_tokens=cache_read_tokens,
+            total_cost=float(cost_breakdown.total_cost),
+            pricing_region=pricing.region if pricing else "global" if provider == "plan" else ctx.bedrock_region,
+        )
+        
         await token_repo.create(
             request_id=ctx.request_id,
             user_id=ctx.user_id,
@@ -252,6 +317,13 @@ class UsageRecorder:
             if pricing
             else Decimal("0"),
         )
+        
+        logger.info(
+            "usage_token_usage_created",
+            request_id=ctx.request_id,
+            user_id=ctx.user_id,
+            access_key_id=ctx.access_key_id,
+        )
 
         for bucket_type in ("minute", "hour", "day", "week", "month"):
             bucket_start_kst = _get_bucket_start(now_kst, bucket_type, tz=self.KST)
@@ -273,3 +345,12 @@ class UsageRecorder:
                 total_cache_write_cost_usd=cost_breakdown.cache_write_cost,
                 total_cache_read_cost_usd=cost_breakdown.cache_read_cost,
             )
+        
+        logger.info(
+            "usage_persist_complete",
+            request_id=ctx.request_id,
+            user_id=ctx.user_id,
+            access_key_id=ctx.access_key_id,
+            provider=provider,
+            aggregates_created=5,  # minute, hour, day, week, month
+        )

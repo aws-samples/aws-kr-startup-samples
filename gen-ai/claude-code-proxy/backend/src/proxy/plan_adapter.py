@@ -1,4 +1,5 @@
 import httpx
+import structlog
 
 from ..domain import (
     AnthropicRequest,
@@ -10,6 +11,8 @@ from ..domain import (
 from ..config import get_settings
 from .context import RequestContext
 from .adapter_base import AdapterResponse, AdapterError
+
+logger = structlog.get_logger(__name__)
 
 
 def _handle_request_error(e: Exception, url: str) -> AdapterError:
@@ -57,16 +60,49 @@ class PlanAdapter:
     ) -> AdapterResponse | AdapterError:
         try:
             url = f"{self._base_url}/v1/messages"
+            request_payload = request.model_dump(exclude_none=True, exclude={"original_model"})
+            
+            logger.info(
+                "plan_api_request",
+                request_id=ctx.request_id,
+                user_id=ctx.user_id,
+                access_key_id=ctx.access_key_id,
+                model=request.model,
+                max_tokens=request.max_tokens,
+                stream=request.stream,
+                url=url,
+            )
+            
             response = await self._client.post(
                 url,
-                json=request.model_dump(exclude_none=True, exclude={"original_model"}),
+                json=request_payload,
                 headers=self._headers,
             )
 
             if response.status_code == 200:
                 try:
                     data = response.json()
+                    usage_data = data.get("usage", {})
+                    
+                    logger.info(
+                        "plan_api_response_success",
+                        request_id=ctx.request_id,
+                        user_id=ctx.user_id,
+                        access_key_id=ctx.access_key_id,
+                        model=request.model,
+                        response_model=data.get("model"),
+                        input_tokens=usage_data.get("input_tokens", 0),
+                        output_tokens=usage_data.get("output_tokens", 0),
+                        cache_creation_input_tokens=usage_data.get("cache_creation_input_tokens", 0),
+                        cache_read_input_tokens=usage_data.get("cache_read_input_tokens", 0),
+                        stop_reason=data.get("stop_reason"),
+                    )
                 except ValueError:
+                    logger.error(
+                        "plan_api_invalid_json",
+                        request_id=ctx.request_id,
+                        status_code=response.status_code,
+                    )
                     return AdapterError(
                         error_type=ErrorType.SERVER_ERROR,
                         status_code=502,
@@ -78,9 +114,22 @@ class PlanAdapter:
                     usage=AnthropicUsage(**data.get("usage", {})),
                 )
 
+            logger.warning(
+                "plan_api_response_error",
+                request_id=ctx.request_id,
+                user_id=ctx.user_id,
+                status_code=response.status_code,
+                response_text=response.text[:500],
+            )
             return self._classify_error(response.status_code, response.text)
 
         except (httpx.TimeoutException, httpx.RequestError) as e:
+            logger.error(
+                "plan_api_request_error",
+                request_id=ctx.request_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             return _handle_request_error(e, url)
 
     async def stream(
@@ -88,22 +137,52 @@ class PlanAdapter:
     ) -> httpx.Response | AdapterError:
         try:
             url = f"{self._base_url}/v1/messages"
+            request_payload = request.model_dump(exclude_none=True, exclude={"original_model"})
+            
+            logger.info(
+                "plan_api_stream_request",
+                request_id=request_id,
+                model=request.model,
+                max_tokens=request.max_tokens,
+                stream=request.stream,
+                url=url,
+            )
+            
             http_request = self._client.build_request(
                 "POST",
                 url,
-                json=request.model_dump(exclude_none=True, exclude={"original_model"}),
+                json=request_payload,
                 headers=self._headers,
             )
             response = await self._client.send(http_request, stream=True)
 
             if response.status_code == 200:
+                logger.info(
+                    "plan_api_stream_response_started",
+                    request_id=request_id,
+                    model=request.model,
+                    status_code=response.status_code,
+                )
                 return response
 
             body = await response.aread()
             await response.aclose()
+            
+            logger.warning(
+                "plan_api_stream_error",
+                request_id=request_id,
+                status_code=response.status_code,
+                response_text=body.decode(errors="ignore")[:500],
+            )
             return self._classify_error(response.status_code, body.decode(errors="ignore"))
 
         except (httpx.TimeoutException, httpx.RequestError) as e:
+            logger.error(
+                "plan_api_stream_request_error",
+                request_id=request_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
             return _handle_request_error(e, url)
 
     async def count_tokens(
