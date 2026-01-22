@@ -25,10 +25,17 @@ def upgrade() -> None:
     )
     op.execute("UPDATE usage_aggregates SET provider = 'bedrock' WHERE provider IS NULL")
 
+    # Drop existing unique constraint - try both possible constraint names
+    # (PostgreSQL truncates long names)
     op.execute(
         "ALTER TABLE usage_aggregates "
         "DROP CONSTRAINT IF EXISTS usage_aggregates_bucket_type_bucket_start_user_id_access_key_id_key"
     )
+    op.execute(
+        "ALTER TABLE usage_aggregates "
+        "DROP CONSTRAINT IF EXISTS usage_aggregates_bucket_type_bucket_start_user_id_access_ke_key"
+    )
+
     op.create_unique_constraint(
         "uq_usage_aggregates_bucket_access_key_provider",
         "usage_aggregates",
