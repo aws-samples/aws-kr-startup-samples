@@ -23,6 +23,7 @@ class DatabaseStack(Stack):
             storage_encrypted=True,
             backup=rds.BackupProps(retention=Duration.days(7)),
             credentials=rds.Credentials.from_generated_secret("postgres"),
+            default_database_name="proxy",  # 초기 데이터베이스 생성
         )
 
         self.db_secret = self.cluster.secret

@@ -197,6 +197,6 @@ class UsageAggregateModel(Base):
             "user_id",
             "access_key_id",
             "provider",
-            name="uq_usage_aggregates_bucket_access_key_provider",
+            name="uq_usage_agg_bucket_key_prov",
         ),
     )

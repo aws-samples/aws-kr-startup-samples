@@ -82,7 +82,13 @@ def upgrade() -> None:
         sa.Column("total_input_tokens", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("total_output_tokens", sa.BigInteger, nullable=False, server_default="0"),
         sa.Column("total_tokens", sa.BigInteger, nullable=False, server_default="0"),
-        sa.UniqueConstraint("bucket_type", "bucket_start", "user_id", "access_key_id"),
+        sa.UniqueConstraint(
+            "bucket_type",
+            "bucket_start",
+            "user_id",
+            "access_key_id",
+            name="uq_usage_agg_bucket_key",
+        ),
     )
     op.create_index("idx_usage_aggregates_lookup", "usage_aggregates", ["bucket_type", "bucket_start", "user_id"])
 
