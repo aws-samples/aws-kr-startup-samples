@@ -199,7 +199,7 @@ Control token usage with these environment variables:
 | **User Management** | Create users, issue access keys (shown once on creation) |
 | **Bedrock Credentials** | Register AWS credentials per access key |
 | **Budget Control** | Set monthly USD limits per user |
-| **Usage Analytics** | Token throughput, cost breakdown, top users |
+| **Usage Analytics** | Token throughput, cost breakdown by provider (Plan/Bedrock), top users |
 
 ### Routing Strategy
 
@@ -216,6 +216,26 @@ Configure per user in the dashboard:
 - Budget exceeded → 429 response, Bedrock requests blocked
 - Resets on 1st of each month (KST, UTC+9)
 - **Note**: Budget applies only to Bedrock requests
+
+### Cache Control (Bedrock)
+
+Prompt caching is supported when using Bedrock. Add `cache_control` to your messages:
+
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {"type": "text", "text": "Long context...", "cache_control": {"type": "ephemeral"}}
+      ]
+    }
+  ]
+}
+```
+
+- Maximum 4 cache points per request
+- Cache tokens tracked in usage analytics (`cache_read_input_tokens`, `cache_creation_input_tokens`)
 
 ### Model Mapping
 
@@ -357,6 +377,7 @@ echo "VITE_BACKEND_API_URL=https://<your-cloudfront-domain>" > .env.local
 | `PROXY_CIRCUIT_FAILURE_THRESHOLD` | 3 | Failures before circuit opens |
 | `PROXY_CIRCUIT_RESET_TIMEOUT` | 1800 | Circuit reset timeout (seconds) |
 | `PROXY_LOCAL_ENCRYPTION_KEY` | - | 32-byte key for local dev (KMS fallback) |
+| `PROXY_LOG_LEVEL` | INFO | Log level (DEBUG, INFO, WARNING, ERROR) |
 
 ### Production Variables
 
@@ -388,6 +409,10 @@ uvicorn src.main:app --reload --log-level debug
 
 # ECS logs (production)
 aws logs tail /ecs/claude-code-proxy --follow
+
+# ECS container shell (requires execute-command enabled)
+aws ecs execute-command --cluster <cluster-name> --task <task-id> \
+  --container backend --interactive --command "/bin/sh"
 ```
 
 ---

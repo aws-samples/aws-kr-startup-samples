@@ -144,6 +144,7 @@ alembic upgrade head
 | Routing logic | `backend/src/proxy/router.py` |
 | DB models | `backend/src/db/models.py` |
 | Config | `backend/src/config.py` |
+| Logging | `backend/src/logging.py` |
 | API client | `frontend/src/lib/api.ts` |
 | CDK app | `infra/app.py` |
 
@@ -190,7 +191,8 @@ POST /ak/{access_key}/v1/messages
 - `auth.py` - AuthService: Access key authentication with caching (60s TTL)
 - `circuit_breaker.py` - CircuitBreaker: Per-key failure tracking and recovery
 - `usage.py` - UsageRecorder: Tracks tokens and calculates costs with pricing snapshots
-- `bedrock_converse/` - Format conversion utilities for Bedrock API
+- `streaming_usage.py` - StreamingUsageCollector: Collects usage from SSE streams
+- `bedrock_converse/` - Format conversion utilities for Bedrock API (including cache control)
 
 **Admin API** (`backend/src/api/`)
 - `admin_auth.py` - JWT-based admin authentication
@@ -225,6 +227,7 @@ POST /ak/{access_key}/v1/messages
 | Multi-level Caching | Auth keys (60s), Bedrock keys (300s), budgets (60s) |
 | Streaming | SSE support with token counting during streaming |
 | Soft Deletes | `deleted_at` columns for audit compliance |
+| Structured Logging | JSON logs via structlog (configurable via `PROXY_LOG_LEVEL`) |
 
 ### Adapters
 
@@ -236,6 +239,7 @@ POST /ak/{access_key}/v1/messages
 - **BedrockAdapter** - AWS Bedrock Converse API client
   - Converts Claude Code request format to Bedrock format
   - Handles Extended Thinking (budget_tokens normalization)
+  - Supports cache control (max 4 cache points per request)
   - Streaming usage collection during response
   - Error mapping and rate limit detection
 
@@ -255,8 +259,10 @@ POST /ak/{access_key}/v1/messages
 
 - Token usage tracked per request with pricing snapshot
 - Cost breakdown: input, output, cache read, cache write
+- Provider-aware tracking: `plan` (Anthropic Plan API) and `bedrock` (AWS Bedrock)
 - Pricing config via `PROXY_MODEL_PRICING` (JSON, per region/model)
 - Usage filters: `period=day|week|month` or `start_date/end_date` (KST)
+- Filter by provider: `?provider=plan` or `?provider=bedrock`
 
 ## Admin API Endpoints
 
@@ -317,3 +323,5 @@ pytest --cov=src --cov-report=html
 - All DB operations require `await`
 - Budget enforcement applies only to Bedrock requests
 - Pricing snapshots are non-retroactive (stored per request)
+- Logs are JSON-formatted via structlog for production observability
+- ECS execute-command is enabled for container debugging
