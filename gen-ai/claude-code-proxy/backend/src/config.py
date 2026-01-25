@@ -119,6 +119,17 @@ class Settings(BaseSettings):
     cloudwatch_metrics_enabled: bool = True
     cloudwatch_namespace: str = "ClaudeCodeProxy"
 
+    # OTEL metrics (env: PROXY_OTEL_*; gRPC push to Collector/AMP)
+    otel_metrics_enabled: bool = False
+    otel_endpoint: str = "http://localhost:4317"
+    otel_protocol: str = "grpc"
+    otel_service_name: str = "claude-code-proxy"
+    otel_headers: str = ""
+    otel_insecure: bool = True
+    otel_export_interval_ms: int = 10000
+    otel_export_timeout_ms: int = 3000
+    otel_user_metrics_enabled: bool = False
+
     # URLs
     plan_api_url: str = "https://api.anthropic.com"
     bedrock_region: str = "ap-northeast-2"

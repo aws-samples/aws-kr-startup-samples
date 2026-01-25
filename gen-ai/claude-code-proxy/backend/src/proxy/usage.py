@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ..domain import AnthropicUsage, CostCalculator, PricingConfig, Provider
 from ..repositories import TokenUsageRepository, UsageAggregateRepository
 from .context import RequestContext
-from .metrics import CloudWatchMetricsEmitter
+from .metrics import get_default_metrics_emitter, MetricsEmitterProtocol
 from .router import ProxyResponse
 
 logger = structlog.get_logger(__name__)
@@ -45,12 +45,12 @@ class UsageRecorder:
         self,
         token_usage_repo: TokenUsageRepository,
         usage_aggregate_repo: UsageAggregateRepository,
-        metrics_emitter: CloudWatchMetricsEmitter | None = None,
+        metrics_emitter: MetricsEmitterProtocol | None = None,
         session_factory: async_sessionmaker[AsyncSession] | None = None,
     ):
         self._repo = token_usage_repo
         self._agg_repo = usage_aggregate_repo
-        self._metrics = metrics_emitter or CloudWatchMetricsEmitter()
+        self._metrics = metrics_emitter or get_default_metrics_emitter()
         self._session_factory = session_factory
 
     async def record(
@@ -85,6 +85,7 @@ class UsageRecorder:
                 stream=False,
                 ttft_ms=None,
                 fallback_reason=response.fallback_reason,
+                user_id=str(ctx.user_id),
             )
         )
 
@@ -155,6 +156,7 @@ class UsageRecorder:
                 stream=True,
                 ttft_ms=ttft_ms,
                 fallback_reason=fallback_reason,
+                user_id=str(ctx.user_id),
             )
         )
         logger.info(

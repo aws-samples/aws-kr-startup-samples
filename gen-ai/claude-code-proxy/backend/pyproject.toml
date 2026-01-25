@@ -17,6 +17,9 @@ dependencies = [
     "cryptography>=41.0.0",
     "python-jose[cryptography]>=3.3.0",
     "bcrypt>=4.0.0",
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-sdk>=1.27.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27.0",
 ]
 
 [project.optional-dependencies]

@@ -66,6 +66,7 @@ Backend (e.g., `.env` or runtime environment):
 - `PROXY_ADMIN_PASSWORD_HASH`
 - `PROXY_CLOUDWATCH_METRICS_ENABLED` (optional, default `true`): env on/off for CloudWatch metrics. `false` = no PutMetricData.
 - `PROXY_CLOUDWATCH_NAMESPACE` (optional, default `ClaudeCodeProxy`): CloudWatch namespace for `proxy.*` metrics. If changed, update ECS task IAM `cloudwatch:namespace` in `infra/stacks/compute_stack.py`.
+- OTEL (optional, default off): `PROXY_OTEL_METRICS_ENABLED`, `PROXY_OTEL_ENDPOINT` (e.g. `http://localhost:4317`), `PROXY_OTEL_SERVICE_NAME`, `PROXY_OTEL_INSECURE`, `PROXY_OTEL_EXPORT_INTERVAL_MS`, `PROXY_OTEL_EXPORT_TIMEOUT_MS`. `PROXY_OTEL_USER_METRICS_ENABLED` enables per-user `proxy.user.*` (OTEL only). See `.kiro/steering/tech.md`.
 
 Frontend:
 - Copy `frontend/.env.example` to `frontend/.env.local` (or `frontend/.env`) and update values.
@@ -193,6 +194,7 @@ POST /ak/{access_key}/v1/messages
 - `auth.py` - AuthService: Access key authentication with caching (60s TTL)
 - `circuit_breaker.py` - CircuitBreaker: Per-key failure tracking and recovery
 - `usage.py` - UsageRecorder: Tracks tokens and calculates costs with pricing snapshots
+- `metrics.py` - CloudWatchMetricsEmitter, OTELMetricsEmitter, CompositeMetricsEmitter: `proxy.*` (Tier 1) to CloudWatch and/or OTLP; `proxy.user.*` (Tier 2, OTEL only) when `PROXY_OTEL_USER_METRICS_ENABLED`
 - `streaming_usage.py` - StreamingUsageCollector: Collects usage from SSE streams
 - `bedrock_converse/` - Format conversion utilities for Bedrock API (including cache control)
 

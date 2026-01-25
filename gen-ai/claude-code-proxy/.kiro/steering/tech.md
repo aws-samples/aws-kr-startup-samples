@@ -121,6 +121,13 @@ docker-compose up db              # DB only
 | `PROXY_CIRCUIT_RESET_TIMEOUT` | `1800` | Circuit reset timeout (seconds) |
 | `PROXY_CLOUDWATCH_METRICS_ENABLED` | `true` | CloudWatch metrics on/off (env toggle). `false` = no PutMetricData. |
 | `PROXY_CLOUDWATCH_NAMESPACE` | `ClaudeCodeProxy` | CloudWatch namespace for `proxy.*` metrics. If changed, update ECS task IAM `cloudwatch:namespace` condition in `infra/stacks/compute_stack.py`. |
+| `PROXY_OTEL_METRICS_ENABLED` | `false` | OTEL metrics on/off. OTLP gRPC push to Collector/AMP. |
+| `PROXY_OTEL_ENDPOINT` | `http://localhost:4317` | OTLP gRPC endpoint (host:port; `http(s)://` stripped for gRPC). |
+| `PROXY_OTEL_SERVICE_NAME` | `claude-code-proxy` | Service name in OTEL resource. |
+| `PROXY_OTEL_INSECURE` | `true` | gRPC TLS: `true` = no TLS. |
+| `PROXY_OTEL_EXPORT_INTERVAL_MS` | `10000` | PeriodicExportingMetricReader interval. |
+| `PROXY_OTEL_EXPORT_TIMEOUT_MS` | `3000` | Export timeout. |
+| `PROXY_OTEL_USER_METRICS_ENABLED` | `false` | Per-user `proxy.user.*` (OTEL only; higher cardinality). |
 | `PROXY_MODEL_PRICING` | - | JSON pricing config for cost visibility (per region/model) |
 | `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `4096` | Maximum response tokens (overrides client value) |
 | `MAX_THINKING_TOKENS` | `1024` | Maximum Extended Thinking budget tokens |

@@ -1,12 +1,18 @@
-"""Tests for CloudWatch metrics emitter."""
+"""Tests for CloudWatch, OTEL, and Composite metrics emitters."""
 
 from dataclasses import dataclass
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.proxy.metrics import CloudWatchMetricsEmitter, _normalize_model
+from src.proxy.metrics import (
+    CloudWatchMetricsEmitter,
+    CompositeMetricsEmitter,
+    OTELMetricsEmitter,
+    _normalize_model,
+    get_default_metrics_emitter,
+)
 
 
 @dataclass
@@ -156,3 +162,44 @@ def test_normalize_model() -> None:
     assert _normalize_model("anthropic.claude-sonnet-4-5-20250514") != "unknown"
     assert _normalize_model("") == "unknown"
     assert _normalize_model("  ") == "unknown"
+
+
+@pytest.mark.asyncio
+async def test_otel_emit_noop_when_disabled() -> None:
+    with patch("src.proxy.metrics.get_settings") as m:
+        m.return_value.otel_metrics_enabled = False
+        m.return_value.otel_user_metrics_enabled = False
+        em = OTELMetricsEmitter()
+    resp = _MinimalResponse(provider="plan", error_type=None, is_fallback=False, usage=None)
+    await em.emit(resp, 10, "m", cost=Decimal("0"), stream=False, user_id="u1")
+    # No OTLP export when disabled; emit returns without error
+
+
+@pytest.mark.asyncio
+async def test_composite_emitter_calls_both() -> None:
+    cw = AsyncMock(spec=CloudWatchMetricsEmitter)
+    otel = AsyncMock(spec=OTELMetricsEmitter)
+    comp = CompositeMetricsEmitter(cw, otel)
+    resp = _MinimalResponse(provider="bedrock", error_type=None, is_fallback=False, usage=None)
+    await comp.emit(
+        resp, 100, "x",
+        cost=Decimal("0.001"), stream=True, ttft_ms=50,
+        fallback_reason=None, user_id="user-42",
+    )
+    cw.emit.assert_awaited_once_with(
+        resp, 100, "x",
+        cost=Decimal("0.001"), stream=True, ttft_ms=50,
+        fallback_reason=None, user_id="user-42",
+    )
+    otel.emit.assert_awaited_once_with(
+        resp, 100, "x",
+        cost=Decimal("0.001"), stream=True, ttft_ms=50,
+        fallback_reason=None, user_id="user-42",
+    )
+
+
+def test_get_default_metrics_emitter_singleton() -> None:
+    a = get_default_metrics_emitter()
+    b = get_default_metrics_emitter()
+    assert a is b
+    assert isinstance(a, CompositeMetricsEmitter)
