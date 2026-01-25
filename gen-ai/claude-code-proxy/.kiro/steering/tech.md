@@ -119,6 +119,8 @@ docker-compose up db              # DB only
 | `PROXY_BEDROCK_DEFAULT_MODEL` | (deprecated) | Fallback model ID (no longer used; mapping required) |
 | `PROXY_CIRCUIT_FAILURE_THRESHOLD` | `3` | Failures before circuit opens (per access key) |
 | `PROXY_CIRCUIT_RESET_TIMEOUT` | `1800` | Circuit reset timeout (seconds) |
+| `PROXY_CLOUDWATCH_METRICS_ENABLED` | `true` | CloudWatch metrics on/off (env toggle). `false` = no PutMetricData. |
+| `PROXY_CLOUDWATCH_NAMESPACE` | `ClaudeCodeProxy` | CloudWatch namespace for `proxy.*` metrics. If changed, update ECS task IAM `cloudwatch:namespace` condition in `infra/stacks/compute_stack.py`. |
 | `PROXY_MODEL_PRICING` | - | JSON pricing config for cost visibility (per region/model) |
 | `CLAUDE_CODE_MAX_OUTPUT_TOKENS` | `4096` | Maximum response tokens (overrides client value) |
 | `MAX_THINKING_TOKENS` | `1024` | Maximum Extended Thinking budget tokens |

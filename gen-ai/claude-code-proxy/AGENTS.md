@@ -64,6 +64,8 @@ Backend (e.g., `.env` or runtime environment):
 - `PROXY_KEY_HASHER_SECRET`
 - `PROXY_ADMIN_USERNAME`
 - `PROXY_ADMIN_PASSWORD_HASH`
+- `PROXY_CLOUDWATCH_METRICS_ENABLED` (optional, default `true`): env on/off for CloudWatch metrics. `false` = no PutMetricData.
+- `PROXY_CLOUDWATCH_NAMESPACE` (optional, default `ClaudeCodeProxy`): CloudWatch namespace for `proxy.*` metrics. If changed, update ECS task IAM `cloudwatch:namespace` in `infra/stacks/compute_stack.py`.
 
 Frontend:
 - Copy `frontend/.env.example` to `frontend/.env.local` (or `frontend/.env`) and update values.

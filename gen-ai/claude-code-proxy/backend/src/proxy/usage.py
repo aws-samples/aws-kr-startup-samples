@@ -1,16 +1,18 @@
 """Usage recording to database."""
+
 import asyncio
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
 import structlog
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..domain import AnthropicUsage, CostCalculator, PricingConfig, Provider
 from ..repositories import TokenUsageRepository, UsageAggregateRepository
 from .context import RequestContext
-from .router import ProxyResponse
 from .metrics import CloudWatchMetricsEmitter
+from .router import ProxyResponse
 
 logger = structlog.get_logger(__name__)
 
@@ -58,10 +60,34 @@ class UsageRecorder:
         latency_ms: int,
         model: str,
     ) -> None:
-        # Emit metrics (fire and forget)
-        asyncio.create_task(self._metrics.emit(response, latency_ms))
+        cost = Decimal("0")
+        cost_breakdown = None
+        pricing = None
+        if response.success and response.usage:
+            u = response.usage
+            cost_breakdown, pricing = self._calculate_cost_safe(
+                model,
+                ctx.bedrock_region if response.provider == "bedrock" else "global",
+                response.provider,
+                u.input_tokens,
+                u.output_tokens,
+                u.cache_creation_input_tokens or 0,
+                u.cache_read_input_tokens or 0,
+            )
+            cost = cost_breakdown.total_cost
 
-        # Record token usage to DB for successful responses
+        asyncio.create_task(
+            self._metrics.emit(
+                response,
+                latency_ms,
+                model,
+                cost=cost,
+                stream=False,
+                ttft_ms=None,
+                fallback_reason=response.fallback_reason,
+            )
+        )
+
         if response.success and response.usage:
             logger.info(
                 "usage_record_start",
@@ -79,7 +105,13 @@ class UsageRecorder:
             )
             await asyncio.shield(
                 self._record_usage_with_cost(
-                    ctx, response, latency_ms, model, provider=response.provider
+                    ctx,
+                    response,
+                    latency_ms,
+                    model,
+                    provider=response.provider,
+                    cost_breakdown=cost_breakdown,
+                    pricing=pricing,
                 )
             )
 
@@ -91,7 +123,40 @@ class UsageRecorder:
         model: str,
         is_fallback: bool,
         provider: Provider = "bedrock",
+        *,
+        fallback_reason: str | None = None,
+        ttft_ms: int | None = None,
     ) -> None:
+        pricing_region = ctx.bedrock_region if provider == "bedrock" else "global"
+        cost_breakdown, pricing = self._calculate_cost_safe(
+            model,
+            pricing_region,
+            provider,
+            usage.input_tokens,
+            usage.output_tokens,
+            usage.cache_creation_input_tokens or 0,
+            usage.cache_read_input_tokens or 0,
+        )
+        response = ProxyResponse(
+            success=True,
+            response=None,
+            usage=usage,
+            provider=provider,
+            is_fallback=is_fallback,
+            status_code=200,
+            fallback_reason=fallback_reason,
+        )
+        asyncio.create_task(
+            self._metrics.emit(
+                response,
+                latency_ms,
+                model,
+                cost=cost_breakdown.total_cost,
+                stream=True,
+                ttft_ms=ttft_ms,
+                fallback_reason=fallback_reason,
+            )
+        )
         logger.info(
             "usage_record_streaming",
             request_id=ctx.request_id,
@@ -106,16 +171,14 @@ class UsageRecorder:
             cache_read_input_tokens=usage.cache_read_input_tokens,
             latency_ms=latency_ms,
         )
-        response = ProxyResponse(
-            success=True,
-            response=None,
-            usage=usage,
-            provider=provider,
-            is_fallback=is_fallback,
-            status_code=200,
-        )
         await self._record_usage_with_cost(
-            ctx, response, latency_ms, model, provider=provider
+            ctx,
+            response,
+            latency_ms,
+            model,
+            provider=provider,
+            cost_breakdown=cost_breakdown,
+            pricing=pricing,
         )
 
     async def _record_usage_with_cost(
@@ -125,6 +188,9 @@ class UsageRecorder:
         latency_ms: int,
         model: str,
         provider: Provider,
+        *,
+        cost_breakdown=None,
+        pricing=None,
     ) -> None:
         try:
             now_utc = datetime.now(timezone.utc)
@@ -135,16 +201,17 @@ class UsageRecorder:
             cache_read_tokens = response.usage.cache_read_input_tokens or 0
             total_tokens = input_tokens + output_tokens
 
-            pricing_region = ctx.bedrock_region if provider == "bedrock" else "global"
-            cost_breakdown, pricing = self._calculate_cost_safe(
-                model,
-                pricing_region,
-                provider,
-                input_tokens,
-                output_tokens,
-                cache_write_tokens,
-                cache_read_tokens,
-            )
+            if cost_breakdown is None:
+                pricing_region = ctx.bedrock_region if provider == "bedrock" else "global"
+                cost_breakdown, pricing = self._calculate_cost_safe(
+                    model,
+                    pricing_region,
+                    provider,
+                    input_tokens,
+                    output_tokens,
+                    cache_write_tokens,
+                    cache_read_tokens,
+                )
             pricing_model_id = (
                 pricing.model_id if pricing else PricingConfig.normalize_model_id(model)
             )
@@ -228,9 +295,7 @@ class UsageRecorder:
         cache_read_tokens: int,
     ):
         try:
-            pricing = PricingConfig.get_pricing(
-                model, region=region, provider=provider
-            )
+            pricing = PricingConfig.get_pricing(model, region=region, provider=provider)
             if pricing:
                 return (
                     CostCalculator.calculate_cost(
@@ -278,9 +343,13 @@ class UsageRecorder:
             cache_write_tokens=cache_write_tokens,
             cache_read_tokens=cache_read_tokens,
             total_cost=float(cost_breakdown.total_cost),
-            pricing_region=pricing.region if pricing else "global" if provider == "plan" else ctx.bedrock_region,
+            pricing_region=pricing.region
+            if pricing
+            else "global"
+            if provider == "plan"
+            else ctx.bedrock_region,
         )
-        
+
         await token_repo.create(
             request_id=ctx.request_id,
             user_id=ctx.user_id,
@@ -299,7 +368,9 @@ class UsageRecorder:
             output_cost_usd=cost_breakdown.output_cost,
             cache_write_cost_usd=cost_breakdown.cache_write_cost,
             cache_read_cost_usd=cost_breakdown.cache_read_cost,
-            pricing_region=pricing.region if pricing else "global"
+            pricing_region=pricing.region
+            if pricing
+            else "global"
             if provider == "plan"
             else ctx.bedrock_region,
             pricing_model_id=pricing_model_id,
@@ -317,7 +388,7 @@ class UsageRecorder:
             if pricing
             else Decimal("0"),
         )
-        
+
         logger.info(
             "usage_token_usage_created",
             request_id=ctx.request_id,
@@ -345,7 +416,7 @@ class UsageRecorder:
                 total_cache_write_cost_usd=cost_breakdown.cache_write_cost,
                 total_cache_read_cost_usd=cost_breakdown.cache_read_cost,
             )
-        
+
         logger.info(
             "usage_persist_complete",
             request_id=ctx.request_id,

@@ -21,6 +21,7 @@ def _load_secret_from_arn(arn: str) -> dict | str | None:
             return secret_string
     except Exception as e:
         import sys
+
         print(f"ERROR: Failed to load secret from ARN {arn}: {e}", file=sys.stderr)
         return None
 
@@ -30,7 +31,10 @@ def _load_database_url_from_arn(arn: str) -> str | None:
     secret = _load_secret_from_arn(arn)
     if not secret or not isinstance(secret, dict):
         import sys
-        print(f"ERROR: Failed to load DB secret from ARN {arn}, got: {type(secret)}", file=sys.stderr)
+
+        print(
+            f"ERROR: Failed to load DB secret from ARN {arn}, got: {type(secret)}", file=sys.stderr
+        )
         return None
     try:
         from urllib.parse import quote_plus
@@ -43,10 +47,12 @@ def _load_database_url_from_arn(arn: str) -> str | None:
         dbname = secret.get("dbname", "proxy")
         db_url = f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{dbname}"
         import sys
+
         print(f"INFO: Loaded DB URL from ARN: {username}@{host}:{port}/{dbname}", file=sys.stderr)
         return db_url
     except Exception as e:
         import sys
+
         print(f"ERROR: Failed to construct DB URL from secret: {e}", file=sys.stderr)
         return None
 
@@ -109,6 +115,10 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("MAX_THINKING_TOKENS", "PROXY_MAX_THINKING_TOKENS"),
     )
 
+    # CloudWatch metrics (env: PROXY_CLOUDWATCH_METRICS_ENABLED, PROXY_CLOUDWATCH_NAMESPACE)
+    cloudwatch_metrics_enabled: bool = True
+    cloudwatch_namespace: str = "ClaudeCodeProxy"
+
     # URLs
     plan_api_url: str = "https://api.anthropic.com"
     bedrock_region: str = "ap-northeast-2"
@@ -153,6 +163,7 @@ class Settings(BaseSettings):
                 elif "password" in creds:
                     # Hash plain password with bcrypt (for backward compatibility)
                     import bcrypt
+
                     hashed = bcrypt.hashpw(creds["password"].encode(), bcrypt.gensalt()).decode()
                     object.__setattr__(self, "admin_password_hash", hashed)
 

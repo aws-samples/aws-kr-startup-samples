@@ -18,17 +18,17 @@ from .dependencies import get_proxy_deps
 
 # Map internal error types to Anthropic API error types
 ANTHROPIC_ERROR_TYPE_MAP = {
-    ErrorType.RATE_LIMIT:             "rate_limit_error",
-    ErrorType.USAGE_LIMIT:            "rate_limit_error",
-    ErrorType.SERVER_ERROR:           "api_error",
-    ErrorType.CLIENT_ERROR:           "invalid_request_error",
-    ErrorType.TIMEOUT:                "overloaded_error",
-    ErrorType.NETWORK_ERROR:          "api_error",
-    ErrorType.BEDROCK_AUTH_ERROR:     "authentication_error",
+    ErrorType.RATE_LIMIT: "rate_limit_error",
+    ErrorType.USAGE_LIMIT: "rate_limit_error",
+    ErrorType.SERVER_ERROR: "api_error",
+    ErrorType.CLIENT_ERROR: "invalid_request_error",
+    ErrorType.TIMEOUT: "overloaded_error",
+    ErrorType.NETWORK_ERROR: "api_error",
+    ErrorType.BEDROCK_AUTH_ERROR: "authentication_error",
     ErrorType.BEDROCK_QUOTA_EXCEEDED: "rate_limit_error",
-    ErrorType.BEDROCK_VALIDATION:     "invalid_request_error",
-    ErrorType.BEDROCK_MODEL_ERROR:    "api_error",
-    ErrorType.BEDROCK_UNAVAILABLE:    "overloaded_error",
+    ErrorType.BEDROCK_VALIDATION: "invalid_request_error",
+    ErrorType.BEDROCK_MODEL_ERROR: "api_error",
+    ErrorType.BEDROCK_UNAVAILABLE: "overloaded_error",
 }
 
 
@@ -48,6 +48,7 @@ class ProxyResponse:
     status_code: int
     error_type: str | None = None
     error_message: str | None = None
+    fallback_reason: str | None = None
 
 
 class ProxyRouter:
@@ -63,9 +64,7 @@ class ProxyRouter:
         self._bedrock = bedrock_adapter
         self._budget_checker = budget_checker
 
-    async def route(
-        self, ctx: RequestContext, request: AnthropicRequest
-    ) -> ProxyResponse:
+    async def route(self, ctx: RequestContext, request: AnthropicRequest) -> ProxyResponse:
         # Route based on user's routing strategy
         if ctx.routing_strategy == RoutingStrategy.BEDROCK_ONLY:
             return await self._route_bedrock_only(ctx, request)
@@ -95,6 +94,8 @@ class ProxyRouter:
             if not should_fallback:
                 return self._error_response("plan", result, is_fallback=False)
 
+            plan_error = result
+
         if ctx.has_bedrock_key:
             if self._budget_checker:
                 budget_result = await self._budget_checker(ctx)
@@ -112,7 +113,10 @@ class ProxyRouter:
             result = await self._bedrock.invoke(ctx, request)
 
             if isinstance(result, AdapterResponse):
-                return self._success_response("bedrock", result, is_fallback=plan_attempted)
+                fallback_reason = _map_error_type(plan_error.error_type) if plan_attempted else None
+                return self._success_response(
+                    "bedrock", result, is_fallback=plan_attempted, fallback_reason=fallback_reason
+                )
 
             return self._error_response("bedrock", result, is_fallback=plan_attempted)
 
@@ -165,7 +169,11 @@ class ProxyRouter:
         return self._error_response("bedrock", result, is_fallback=False)
 
     def _success_response(
-        self, provider: Provider, result: AdapterResponse, is_fallback: bool
+        self,
+        provider: Provider,
+        result: AdapterResponse,
+        is_fallback: bool,
+        fallback_reason: str | None = None,
     ) -> ProxyResponse:
         return ProxyResponse(
             success=True,
@@ -174,6 +182,7 @@ class ProxyRouter:
             provider=provider,
             is_fallback=is_fallback,
             status_code=200,
+            fallback_reason=fallback_reason,
         )
 
     def _error_response(

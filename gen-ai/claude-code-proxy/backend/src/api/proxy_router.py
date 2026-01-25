@@ -193,9 +193,7 @@ async def proxy_count_tokens(
     )
 
     settings = get_settings()
-    has_auth_header = (
-        "x-api-key" in outgoing_headers or "Authorization" in outgoing_headers
-    )
+    has_auth_header = "x-api-key" in outgoing_headers or "Authorization" in outgoing_headers
     has_plan_key = bool(settings.plan_api_key)
     if not has_auth_header and not has_plan_key:
         error_body = AnthropicError(
@@ -235,6 +233,9 @@ async def _record_streaming_usage(
     model: str,
     is_fallback: bool,
     provider: Provider = "bedrock",
+    *,
+    ttft_ms: int | None = None,
+    fallback_reason: str | None = None,
 ) -> None:
     await asyncio.shield(
         usage_recorder.record_streaming_usage(
@@ -244,6 +245,8 @@ async def _record_streaming_usage(
             model,
             is_fallback=is_fallback,
             provider=provider,
+            ttft_ms=ttft_ms,
+            fallback_reason=fallback_reason,
         )
     )
 
@@ -256,6 +259,8 @@ def _build_bedrock_streaming_response(
     bedrock_adapter: BedrockAdapter,
     bedrock_result: AsyncIterator[bytes],
     is_fallback: bool,
+    *,
+    fallback_reason: str | None = None,
 ) -> StreamingResponse:
     streaming_start = time.time()
     usage_recorder = UsageRecorder(
@@ -266,9 +271,12 @@ def _build_bedrock_streaming_response(
     usage_collector = StreamingUsageCollector()
 
     async def bedrock_stream_generator():
+        ttft_ms: int | None = None
         try:
             async for chunk in bedrock_result:
                 usage_collector.feed(chunk)
+                if ttft_ms is None:
+                    ttft_ms = int((time.time() - streaming_start) * 1000)
                 yield chunk
         finally:
             try:
@@ -285,6 +293,8 @@ def _build_bedrock_streaming_response(
                         request.model,
                         is_fallback,
                         provider="bedrock",
+                        ttft_ms=ttft_ms,
+                        fallback_reason=fallback_reason,
                     )
 
     return StreamingResponse(
@@ -311,9 +321,12 @@ def _build_plan_streaming_response(
     usage_collector = StreamingUsageCollector()
 
     async def plan_stream_generator():
+        ttft_ms: int | None = None
         try:
             async for chunk in plan_result.aiter_bytes():
                 usage_collector.feed(chunk)
+                if ttft_ms is None:
+                    ttft_ms = int((time.time() - streaming_start) * 1000)
                 yield chunk
         finally:
             try:
@@ -331,6 +344,8 @@ def _build_plan_streaming_response(
                         request.model,
                         is_fallback=False,
                         provider="plan",
+                        ttft_ms=ttft_ms,
+                        fallback_reason=None,
                     )
 
     media_type = plan_result.headers.get("content-type", "text/event-stream")
@@ -357,14 +372,10 @@ async def _stream_plan_first(
         result = await plan_adapter.stream(request, request_id=ctx.request_id)
         if isinstance(result, AdapterError):
             should_fallback = (
-                ctx.has_bedrock_key
-                and result.retryable
-                and result.error_type in RETRYABLE_ERRORS
+                ctx.has_bedrock_key and result.retryable and result.error_type in RETRYABLE_ERRORS
             )
             if should_fallback:
-                budget_result = await budget_service.check_budget(
-                    ctx.user_id, fail_open=False
-                )
+                budget_result = await budget_service.check_budget(ctx.user_id, fail_open=False)
                 if not budget_result.allowed:
                     error_body = AnthropicError(
                         error={
@@ -385,9 +396,7 @@ async def _stream_plan_first(
                         },
                         request_id=ctx.request_id,
                     ).model_dump()
-                    return JSONResponse(
-                        content=error_body, status_code=bedrock_result.status_code
-                    )
+                    return JSONResponse(content=error_body, status_code=bedrock_result.status_code)
 
                 streaming_started = True
                 return _build_bedrock_streaming_response(
@@ -398,6 +407,7 @@ async def _stream_plan_first(
                     bedrock_adapter=bedrock_adapter,
                     bedrock_result=bedrock_result,
                     is_fallback=True,
+                    fallback_reason=_map_error_type(result.error_type),
                 )
 
             error_body = AnthropicError(
@@ -466,9 +476,7 @@ async def _stream_bedrock_only(
                 },
                 request_id=ctx.request_id,
             ).model_dump()
-            return JSONResponse(
-                content=error_body, status_code=bedrock_result.status_code
-            )
+            return JSONResponse(content=error_body, status_code=bedrock_result.status_code)
 
         streaming_started = True
         return _build_bedrock_streaming_response(
