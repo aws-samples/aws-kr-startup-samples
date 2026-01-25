@@ -107,8 +107,10 @@ class ComputeStack(Stack):
             load_balancer=load_balancer,
             public_load_balancer=True,
             open_listener=False,
-            desired_count=1,
+            desired_count=2,
             assign_public_ip=False,
+            cpu=512,
+            memory_limit_mib=1024,
             task_subnets=private_subnets,
             security_groups=[ecs_sg],
             runtime_platform=ecs.RuntimePlatform(
