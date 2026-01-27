@@ -2,5 +2,5 @@ accelerate==0.32.1
 av==12.2.0
 bitsandbytes==0.43.1
 protobuf==4.25.8
-sentencepiece==0.2.0
+sentencepiece==0.2.1
 transformers==4.51.0
