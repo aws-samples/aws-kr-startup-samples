@@ -98,14 +98,18 @@ if torch.cuda.is_available():
     print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
 EOF
 
-# === PHASE 7: Server Start ===
+# === PHASE 7: Systemd Service Setup ===
 echo ""
-echo "=== PHASE 7: Server Start ==="
+echo "=== PHASE 7: Systemd Service Setup ==="
 
-echo "Starting Gradio server..."
-export HF_HOME=/opt/huggingface
-nohup python3 /opt/app/server.py > /var/log/gradio-server.log 2>&1 &
-echo "Gradio server started with PID: $!"
+echo "Installing systemd service..."
+cp /opt/app/qwen3-tts.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable qwen3-tts.service
+systemctl start qwen3-tts.service
+
+echo "Service status:"
+systemctl status qwen3-tts.service --no-pager || true
 echo "Access UI at http://<public-ip>:7860"
 
 echo ""

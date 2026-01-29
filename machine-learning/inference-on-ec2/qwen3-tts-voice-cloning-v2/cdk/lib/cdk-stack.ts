@@ -95,6 +95,14 @@ export class Qwen3TtsVoiceCloningStack extends cdk.Stack {
       '#!/bin/bash',
       'set -e',
       '',
+      '# Wait for all apt/dpkg locks (Deep Learning AMI runs apt-get on boot)',
+      'while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || \\',
+      '      fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \\',
+      '      fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do',
+      '    echo "Waiting for apt/dpkg locks to be released..."',
+      '    sleep 5',
+      'done',
+      '',
       '# Install CloudWatch Agent',
       'wget -q https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb',
       'dpkg -i amazon-cloudwatch-agent.deb || apt-get install -f -y',
@@ -115,8 +123,9 @@ export class Qwen3TtsVoiceCloningStack extends cdk.Stack {
       '',
       'chmod +x /opt/setup.sh',
       '',
-      '# Run setup script',
-      '/opt/setup.sh',
+      '# Run setup script in a new session to completely detach from cloud-init',
+      '# setsid creates a new session, ensuring the process survives cloud-init termination',
+      'setsid /opt/setup.sh < /dev/null > /dev/null 2>&1 &',
     );
 
     // AMI lookup

@@ -61,11 +61,13 @@ export class Qwen3TtsStack extends cdk.Stack {
 
     logGroup.grantWrite(role);
 
-    // Read setup script and server script
+    // Read setup script, server script, and systemd service
     const setupScriptPath = path.join(__dirname, '../../scripts/setup.sh');
     const setupScript = fs.readFileSync(setupScriptPath, 'utf8');
     const serverScriptPath = path.join(__dirname, '../../scripts/server.py');
     const serverScript = fs.readFileSync(serverScriptPath, 'utf8');
+    const serviceFilePath = path.join(__dirname, '../../scripts/qwen3-tts.service');
+    const serviceFile = fs.readFileSync(serviceFilePath, 'utf8');
 
     // CloudWatch Agent config
     const cloudWatchAgentConfig = {
@@ -114,6 +116,11 @@ export class Qwen3TtsStack extends cdk.Stack {
       `cat > /opt/app/server.py << 'SERVERSCRIPT'`,
       serverScript,
       'SERVERSCRIPT',
+      '',
+      '# Create systemd service file',
+      `cat > /opt/app/qwen3-tts.service << 'SERVICEFILE'`,
+      serviceFile,
+      'SERVICEFILE',
       '',
       'chmod +x /opt/setup.sh',
       '',
