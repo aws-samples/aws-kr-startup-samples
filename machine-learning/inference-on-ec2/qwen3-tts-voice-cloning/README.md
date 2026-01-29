@@ -77,7 +77,7 @@ npx cdk destroy
 
 ## 보안
 
-Security Group은 기본적으로 회사 IP 대역(15.248.0.0/16)만 허용합니다. 필요에 따라 `cdk/lib/cdk-stack.ts`의 `COMPANY_IP_CIDR` 값을 수정하세요.
+Security Group은 기본적으로 7860 포트를 전체 개방(0.0.0.0/0)합니다. 프로덕션 환경에서는 `cdk/lib/cdk-stack.ts`에서 특정 IP 대역만 허용하도록 수정하세요.
 
 ## 트러블슈팅
 
