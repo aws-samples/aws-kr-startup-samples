@@ -4,46 +4,62 @@ set -e
 LOG_FILE="/var/log/model-setup.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
+# PyTorch 환경의 Python 절대 경로 설정
+PYTHON=/opt/pytorch/bin/python
+PIP=/opt/pytorch/bin/pip
+
+# apt/dpkg lock 대기 함수
+wait_for_apt_lock() {
+    local max_wait=300  # 최대 5분 대기
+    local waited=0
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || \
+          fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
+          fuser /var/cache/apt/archives/lock >/dev/null 2>&1 || \
+          fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
+        if [ $waited -ge $max_wait ]; then
+            echo "Timeout waiting for apt locks after ${max_wait}s"
+            return 1
+        fi
+        echo "Waiting for apt/dpkg locks... (${waited}s)"
+        sleep 10
+        waited=$((waited + 10))
+    done
+    echo "All apt/dpkg locks released"
+}
+
 echo "=========================================="
 echo "=== Qwen3-TTS Voice Cloning Setup Start ==="
 echo "=========================================="
 echo "Timestamp: $(date)"
-
-echo ""
-echo "=== Phase 0: Wait for apt/dpkg locks ==="
-# Deep Learning AMI가 부팅 시 자동으로 apt-get을 실행하므로 모든 lock 해제를 대기
-while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || \
-      fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
-      fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do
-    echo "Waiting for apt/dpkg locks to be released..."
-    sleep 5
-done
-echo "All apt/dpkg locks released, proceeding..."
+echo "Using Python: $PYTHON"
 
 echo ""
 echo "=== Phase 1: System packages ==="
+# apt lock 대기 후 실행
+wait_for_apt_lock
 apt-get update
+wait_for_apt_lock
 apt-get install -y python3-venv libsndfile1 ffmpeg sox
 
 echo ""
 echo "=== Phase 2: Create app directory ==="
 mkdir -p /opt/app
+mkdir -p /opt/huggingface
 export HF_HOME=/opt/huggingface
 
 echo ""
 echo "=== Phase 3: Python packages ==="
-# DLAMI의 PyTorch 환경 활성화
-source /opt/pytorch/bin/activate
+# PyTorch 환경에 패키지 설치 (절대 경로 사용)
+$PIP install --upgrade pip
+$PIP install gradio soundfile qwen-tts
 
-pip install --upgrade pip
-pip install gradio soundfile
-
-# qwen-tts 설치
-pip install qwen-tts
+# 설치 확인
+echo "Verifying installation..."
+$PYTHON -c "import gradio; import qwen_tts; print('Packages verified!')"
 
 echo ""
 echo "=== Phase 4: Model download ==="
-python3 << 'PYEOF'
+$PYTHON << 'PYEOF'
 import torch
 from qwen_tts import Qwen3TTSModel
 
@@ -238,15 +254,52 @@ if __name__ == "__main__":
 SERVEREOF
 
 echo ""
-echo "=== Phase 6: Start Gradio server ==="
-cd /opt/app
-source /opt/pytorch/bin/activate
-export HF_HOME=/opt/huggingface
-nohup python3 /opt/app/server.py > /var/log/gradio-server.log 2>&1 &
+echo "=== Phase 6: Create systemd service ==="
+cat > /etc/systemd/system/gradio-server.service << 'SERVICEEOF'
+[Unit]
+Description=Qwen3-TTS Gradio Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/app
+Environment="HF_HOME=/opt/huggingface"
+Environment="CUDA_VISIBLE_DEVICES=0"
+ExecStart=/opt/pytorch/bin/python /opt/app/server.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/var/log/gradio-server.log
+StandardError=append:/var/log/gradio-server.log
+
+[Install]
+WantedBy=multi-user.target
+SERVICEEOF
+
+echo ""
+echo "=== Phase 7: Start Gradio server ==="
+systemctl daemon-reload
+systemctl enable gradio-server
+systemctl start gradio-server
+
+# 서버 시작 대기 및 확인
+echo "Waiting for server to start..."
+for i in {1..60}; do
+    if systemctl is-active --quiet gradio-server && ss -tlnp | grep -q ":7860"; then
+        echo "Gradio server is running on port 7860"
+        break
+    fi
+    sleep 5
+done
+
+# 최종 상태 확인
+systemctl status gradio-server --no-pager || true
 
 echo ""
 echo "=========================================="
 echo "=== Setup Complete ==="
 echo "=========================================="
-echo "Gradio server starting on port 7860"
-echo "Check /var/log/gradio-server.log for server logs"
+echo "Gradio server managed by systemd"
+echo "Commands: systemctl {start|stop|restart|status} gradio-server"
+echo "Logs: journalctl -u gradio-server -f"
+echo "      tail -f /var/log/gradio-server.log"

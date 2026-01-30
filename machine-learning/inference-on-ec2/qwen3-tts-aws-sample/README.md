@@ -1,141 +1,151 @@
-# Qwen3-TTS AWS EC2 Deployment
+# Qwen3-TTS Voice Cloning on AWS EC2
 
-AWS EC2 GPU 인스턴스에 Qwen3-TTS 모델을 원클릭 배포하는 CDK 템플릿입니다.
-배포 완료 후 브라우저에서 바로 TTS(Text-to-Speech)를 테스트할 수 있습니다.
-CDK 배포 완료 후, 약 10분정도 setup이 진행되며 CloudWatch Logs에서 진행 상황을 확인할 수 있습니다.
+Qwen3-TTS 1.7B 모델 3종을 AWS EC2 GPU 인스턴스에 배포하여 Voice Cloning, Custom Voice, Voice Design 기능을 제공하는 샘플 프로젝트입니다.
 
-## Features
+## 아키텍처
 
-- **배포**: `cdk deploy` 한 번으로 전체 인프라 + 모델 + UI 배포
-- **Gradio UI**: 브라우저에서 바로 TTS 테스트 가능
-- **CloudWatch 로그**: 설정 과정 실시간 모니터링
+- **인스턴스**: g4dn.xlarge (NVIDIA T4 16GB)
+- **AMI**: Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.6 (Ubuntu 22.04)
+- **모델**:
+  - [Qwen3-TTS-12Hz-1.7B-Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base) - Voice Cloning
+  - [Qwen3-TTS-12Hz-1.7B-CustomVoice](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice) - Preset Voices
+  - [Qwen3-TTS-12Hz-1.7B-VoiceDesign](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign) - Voice Design
+- **UI**: Gradio (포트 7860)
 
-## Architecture
-
-```mermaid
-graph LR
-    User[Browser] --> VPC
-    subgraph VPC
-        subgraph EC2[EC2 g4dn.xlarge]
-            Gradio[Gradio :7860]
-            Model[Qwen3-TTS-1.7B]
-        end
-    end
-    SSM[SSM Session Manager] --> EC2
-```
-
-## Prerequisites
+## 사전 요구사항
 
 - AWS CLI 설정 완료
-- Node.js 18+
+- Node.js 18+ 및 npm
 - AWS CDK CLI (`npm install -g aws-cdk`)
-- g4dn.xlarge 서비스 쿼터 확인 (vCPU 4개 필요)
 
-## Quick Start
+## 배포 방법
 
 ```bash
-# 1. 의존성 설치
 cd cdk
 npm install
-
-# 2. 배포 (약 10-15분 소요)
-AWS_REGION=ap-northeast-2 npx cdk deploy --require-approval never
-
-# 3. 출력된 GradioUrl로 브라우저 접속
-# 예: http://xx.xx.xx.xx:7860
+CDK_DEFAULT_REGION=ap-northeast-2 npx cdk deploy
 ```
 
-## Outputs
+배포 완료 후 출력되는 `GradioUrl`로 접속하면 됩니다.
 
-배포 완료 후 다음 정보가 출력됩니다:
+**참고**: 모델 다운로드에 시간이 소요됩니다. CloudWatch 로그 그룹 `/qwen3-tts-voice-cloning/model-setup`에서 진행 상황을 확인할 수 있습니다.
 
-| Output | 설명 |
-|--------|------|
-| GradioUrl | Gradio UI 접속 URL |
-| InstanceId | EC2 인스턴스 ID |
-| SsmConnectCommand | SSM 접속 명령어 |
-| LogGroupUrl | CloudWatch 로그 URL |
+## 사용 방법
 
-## Model Info
+Gradio UI에서 3개의 탭으로 각 모델을 테스트할 수 있습니다.
 
-| 항목 | 값 |
-|------|-----|
-| Model | Qwen3-TTS-12Hz-1.7B-CustomVoice |
-| Instance | g4dn.xlarge (T4 16GB) |
-| Speakers | aiden, dylan, eric, ono_anna, ryan, serena, sohee, uncle_fu, vivian |
-| Languages | auto, chinese, english, french, german, italian, japanese, korean, portuguese, russian, spanish |
+### Tab 1: Voice Cloning
 
-## Management
+참조 오디오의 목소리를 복제하여 새로운 텍스트를 읽어줍니다.
+
+| 필드 | 설명 | 예시 |
+|-----|-----|-----|
+| **Reference Audio** | 복제할 목소리의 샘플 오디오 (3초 이상 권장) | WAV/MP3 파일 업로드 |
+| **Reference Text** | Reference Audio에서 말한 내용의 정확한 대본 | "안녕하세요 반갑습니다" |
+| **Text to Synthesize** | 복제된 목소리로 생성할 문장 | "오늘 날씨가 좋네요" |
+| **Language** | 생성할 음성의 언어 | Korean, English, Chinese, Japanese |
+
+**사용 예시**
+1. 본인 목소리로 "테스트 음성입니다"라고 녹음한 파일을 업로드
+2. Reference Text에 `테스트 음성입니다` 입력
+3. Text to Synthesize에 생성하고 싶은 문장 입력
+4. Generate 클릭
+
+### Tab 2: Custom Voice
+
+9개의 프리셋 음성 중 선택하여 TTS를 수행합니다.
+
+| 필드 | 설명 |
+|-----|-----|
+| **Text to Synthesize** | 읽어줄 텍스트 |
+| **Speaker** | 프리셋 음성 선택 |
+| **Language** | 언어 선택 |
+| **Style Instruction** | (선택) 스타일 지시 (예: "Speak with excitement") |
+
+**사용 가능한 스피커**
+- Vivian, Serena, Uncle_Fu, Dylan, Eric, Ryan, Aiden, Ono_Anna, Sohee
+
+### Tab 3: Voice Design
+
+자연어로 원하는 음성의 특성을 설명하면 해당 음성으로 TTS를 수행합니다.
+
+| 필드 | 설명 |
+|-----|-----|
+| **Text to Synthesize** | 읽어줄 텍스트 |
+| **Voice Description** | 원하는 음성 특성 설명 |
+| **Language** | 언어 선택 |
+
+**Voice Description 예시**
+- "A warm, gentle female voice with a slight smile, speaking slowly and softly"
+- "Young energetic male voice, speaking fast with enthusiasm"
+- "차분하고 낮은 톤의 남성 목소리, 뉴스 앵커처럼 또박또박 말함"
+
+## 지원 언어
+
+English, Chinese, Japanese, Korean, German, French, Russian, Portuguese, Spanish, Italian
+
+## 프로젝트 구조
+
+```
+qwen3-tts-voice-cloning/
+├── README.md
+├── cdk/
+│   ├── bin/cdk.ts
+│   ├── lib/cdk-stack.ts
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── cdk.json
+└── scripts/
+    └── setup.sh
+```
+
+## 인프라 삭제
 
 ```bash
-# SSM으로 인스턴스 접속
-aws ssm start-session --target <instance-id>
-
-# Gradio 서버 로그 확인 (인스턴스 내부)
-tail -f /var/log/gradio-server.log
-
-# 서버 재시작 (인스턴스 내부)
-pkill -f server.py
-export HF_HOME=/opt/huggingface
-nohup python3 /opt/app/server.py > /var/log/gradio-server.log 2>&1 &
-
-# 스택 삭제
-AWS_REGION=ap-northeast-2 npx cdk destroy --force
+cd cdk
+npx cdk destroy
 ```
 
-## Cost
+## 보안
 
-| 리소스 | 예상 비용 |
-|--------|----------|
-| g4dn.xlarge | ~$0.526/hour (On-Demand, ap-northeast-2) |
-| EBS 100GB | ~$8/month |
+Security Group은 기본적으로 7860 포트를 전체 개방(0.0.0.0/0)합니다. 프로덕션 환경에서는 `cdk/lib/cdk-stack.ts`에서 특정 IP 대역만 허용하도록 수정하세요:
 
-**주의**: 사용하지 않을 때는 `cdk destroy`로 리소스를 삭제하세요.
+```typescript
+// 예: 특정 IP만 허용
+securityGroup.addIngressRule(
+  ec2.Peer.ipv4('YOUR_IP/32'),
+  ec2.Port.tcp(7860),
+  'Gradio UI - Specific IP only'
+);
+```
 
-## Customization
+## 트러블슈팅
 
-다른 모델로 교체하려면:
-
-1. `scripts/setup.sh` - 패키지 설치 및 모델 다운로드 수정
-2. `scripts/server.py` - Gradio UI 수정
-3. `cdk/lib/cdk-stack.ts` - 인스턴스 타입 변경 (필요시)
-
-상세 가이드: [.claude/deployment-checklist.md](.claude/deployment-checklist.md)
-
-## Troubleshooting
-
-### SSM 접속 안됨
-- 인스턴스 상태 확인: `aws ec2 describe-instance-status --instance-ids <id>`
-- 보통 5분 내 SSM Agent 등록됨
-
-### Gradio 접속 안됨
-- Security Group 확인: 7860 포트 Inbound 열려있는지
-- 서버 프로세스 확인: `pgrep -f server.py`
-- 로그 확인: `tail -f /var/log/gradio-server.log`
+### Gradio UI 접속 불가
+- Security Group에서 본인 IP가 허용되어 있는지 확인
+- EC2 인스턴스가 running 상태인지 확인
+- SSM으로 접속하여 서버 프로세스 확인: `pgrep -f server.py`
 
 ### 모델 로딩 실패
-- CloudWatch 로그 확인: `/qwen3-tts/model-setup`
-- GPU 메모리 확인: `nvidia-smi`
+- CloudWatch 로그 그룹 `/qwen3-tts-voice-cloning/model-setup` 확인
+- GPU 메모리 부족 시 인스턴스 타입 업그레이드 고려 (g4dn.2xlarge 등)
 
-## Project Structure
+### 오디오 처리 에러
+- ffmpeg이 설치되어 있는지 확인 (setup.sh에 포함됨)
+- 지원되는 오디오 포맷: WAV, MP3, FLAC, OGG
 
-```
-├── README.md                     # 이 파일
-├── CLAUDE.md                     # Claude Code 설정 (AI 어시스턴트용)
-├── .claude/
-│   ├── deployment-checklist.md   # 새 모델 배포 시 체크리스트
-│   ├── lessons-learned.md        # 문제 해결 기록
-│   └── current-deployment.md     # 현재 배포 상태
-├── cdk/
-│   ├── bin/cdk.ts               # CDK 앱 진입점
-│   ├── lib/cdk-stack.ts         # 인프라 정의 (VPC, EC2, SG, IAM)
-│   ├── package.json
-│   └── tsconfig.json
-└── scripts/
-    ├── setup.sh                 # EC2 초기화 스크립트
-    └── server.py                # Gradio 서버
+### setup.sh 실행 확인
+SSM으로 접속하여 확인:
+```bash
+aws ssm start-session --target <instance-id>
+tail -f /var/log/model-setup.log
 ```
 
-## License
+## 기술적 참고사항
 
-MIT
+- **UserData 백그라운드 실행**: `setsid`를 사용하여 cloud-init 종료 후에도 setup.sh가 계속 실행되도록 함
+- **apt/dpkg lock 대기**: Deep Learning AMI 부팅 시 자동 실행되는 apt-get과 충돌 방지
+
+## 라이선스
+
+이 프로젝트는 샘플 코드입니다. Qwen3-TTS 모델의 라이선스는 [HuggingFace 모델 컬렉션](https://huggingface.co/collections/Qwen/qwen3-tts)을 참조하세요.
