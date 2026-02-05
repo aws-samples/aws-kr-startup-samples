@@ -162,4 +162,5 @@ with gr.Blocks(title="Qwen3-TTS Demo") as demo:
 
 if __name__ == "__main__":
     print("Starting Gradio server on port 7860...")
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    root_path = os.environ.get("GRADIO_ROOT_PATH", "")
+    demo.launch(server_name="0.0.0.0", server_port=7860, root_path=root_path)

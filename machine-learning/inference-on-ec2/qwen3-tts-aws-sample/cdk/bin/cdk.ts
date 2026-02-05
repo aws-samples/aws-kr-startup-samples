@@ -6,6 +6,6 @@ const app = new cdk.App();
 new Qwen3TtsVoiceCloningStack(app, 'Qwen3TtsVoiceCloningStack', {
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION || 'ap-northeast-2',
+    region: 'ap-northeast-2',
   },
 });

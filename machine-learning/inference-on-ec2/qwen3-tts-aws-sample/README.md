@@ -4,7 +4,18 @@ Qwen3-TTS 1.7B 모델 3종을 AWS EC2 GPU 인스턴스에 배포하여 Voice Clo
 
 ## 아키텍처
 
-- **인스턴스**: g4dn.xlarge (NVIDIA T4 16GB)
+```
+User → CloudFront (HTTPS) → ALB (Custom Header 검증) → Private EC2
+```
+
+### 보안 구성
+- **EC2**: Private Subnet에 배치, NAT Gateway를 통한 아웃바운드만 허용
+- **ALB**: CloudFront Prefix List Security Group으로 보호
+- **CloudFront → ALB**: Custom Header (`X-Origin-Verify`)로 직접 ALB 접근 차단
+- **HTTPS**: CloudFront에서 HTTPS 강제, Mixed Content 방지
+
+### 인프라
+- **인스턴스**: g4dn.xlarge (NVIDIA T4 16GB), Private Subnet
 - **AMI**: Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.6 (Ubuntu 22.04)
 - **모델**:
   - [Qwen3-TTS-12Hz-1.7B-Base](https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base) - Voice Cloning
@@ -23,12 +34,12 @@ Qwen3-TTS 1.7B 모델 3종을 AWS EC2 GPU 인스턴스에 배포하여 Voice Clo
 ```bash
 cd cdk
 npm install
-CDK_DEFAULT_REGION=ap-northeast-2 npx cdk deploy
+cdk deploy
 ```
 
-배포 완료 후 출력되는 `GradioUrl`로 접속하면 됩니다.
+배포 완료 후 출력되는 `CloudFrontUrl`로 접속하면 됩니다.
 
-**참고**: 모델 다운로드에 시간이 소요됩니다. CloudWatch 로그 그룹 `/qwen3-tts-voice-cloning/model-setup`에서 진행 상황을 확인할 수 있습니다.
+**참고**: 모델 다운로드에 약 10-15분 소요됩니다. CloudWatch 로그 그룹 `/qwen3-tts-voice-cloning/model-setup`에서 진행 상황을 확인할 수 있습니다.
 
 ## 사용 방법
 
@@ -45,12 +56,6 @@ Gradio UI에서 3개의 탭으로 각 모델을 테스트할 수 있습니다.
 | **Text to Synthesize** | 복제된 목소리로 생성할 문장 | "오늘 날씨가 좋네요" |
 | **Language** | 생성할 음성의 언어 | Korean, English, Chinese, Japanese |
 
-**사용 예시**
-1. 본인 목소리로 "테스트 음성입니다"라고 녹음한 파일을 업로드
-2. Reference Text에 `테스트 음성입니다` 입력
-3. Text to Synthesize에 생성하고 싶은 문장 입력
-4. Generate 클릭
-
 ### Tab 2: Custom Voice
 
 9개의 프리셋 음성 중 선택하여 TTS를 수행합니다.
@@ -58,12 +63,9 @@ Gradio UI에서 3개의 탭으로 각 모델을 테스트할 수 있습니다.
 | 필드 | 설명 |
 |-----|-----|
 | **Text to Synthesize** | 읽어줄 텍스트 |
-| **Speaker** | 프리셋 음성 선택 |
+| **Speaker** | 프리셋 음성 선택 (Vivian, Serena, Uncle_Fu, Dylan, Eric, Ryan, Aiden, Ono_Anna, Sohee) |
 | **Language** | 언어 선택 |
 | **Style Instruction** | (선택) 스타일 지시 (예: "Speak with excitement") |
-
-**사용 가능한 스피커**
-- Vivian, Serena, Uncle_Fu, Dylan, Eric, Ryan, Aiden, Ono_Anna, Sohee
 
 ### Tab 3: Voice Design
 
@@ -77,7 +79,6 @@ Gradio UI에서 3개의 탭으로 각 모델을 테스트할 수 있습니다.
 
 **Voice Description 예시**
 - "A warm, gentle female voice with a slight smile, speaking slowly and softly"
-- "Young energetic male voice, speaking fast with enthusiasm"
 - "차분하고 낮은 톤의 남성 목소리, 뉴스 앵커처럼 또박또박 말함"
 
 ## 지원 언어
@@ -87,7 +88,7 @@ English, Chinese, Japanese, Korean, German, French, Russian, Portuguese, Spanish
 ## 프로젝트 구조
 
 ```
-qwen3-tts-voice-cloning/
+qwen3-tts-aws-sample/
 ├── README.md
 ├── cdk/
 │   ├── bin/cdk.ts
@@ -96,55 +97,38 @@ qwen3-tts-voice-cloning/
 │   ├── tsconfig.json
 │   └── cdk.json
 └── scripts/
-    └── setup.sh
+    ├── setup.sh
+    └── server.py
 ```
 
 ## 인프라 삭제
 
 ```bash
 cd cdk
-npx cdk destroy
-```
-
-## 보안
-
-Security Group은 기본적으로 7860 포트를 전체 개방(0.0.0.0/0)합니다. 프로덕션 환경에서는 `cdk/lib/cdk-stack.ts`에서 특정 IP 대역만 허용하도록 수정하세요:
-
-```typescript
-// 예: 특정 IP만 허용
-securityGroup.addIngressRule(
-  ec2.Peer.ipv4('YOUR_IP/32'),
-  ec2.Port.tcp(7860),
-  'Gradio UI - Specific IP only'
-);
+cdk destroy
 ```
 
 ## 트러블슈팅
 
 ### Gradio UI 접속 불가
-- Security Group에서 본인 IP가 허용되어 있는지 확인
+- CloudFront URL로 접속하고 있는지 확인 (ALB 직접 접속 불가)
 - EC2 인스턴스가 running 상태인지 확인
-- SSM으로 접속하여 서버 프로세스 확인: `pgrep -f server.py`
+- SSM으로 접속하여 서버 프로세스 확인: `systemctl status gradio-server`
+
+### UI가 깨져 보임 (Mixed Content)
+- 브라우저 캐시 삭제 후 재접속
+- 시크릿/프라이빗 창에서 접속 시도
 
 ### 모델 로딩 실패
 - CloudWatch 로그 그룹 `/qwen3-tts-voice-cloning/model-setup` 확인
 - GPU 메모리 부족 시 인스턴스 타입 업그레이드 고려 (g4dn.2xlarge 등)
 
-### 오디오 처리 에러
-- ffmpeg이 설치되어 있는지 확인 (setup.sh에 포함됨)
-- 지원되는 오디오 포맷: WAV, MP3, FLAC, OGG
-
-### setup.sh 실행 확인
-SSM으로 접속하여 확인:
+### SSM 접속
 ```bash
 aws ssm start-session --target <instance-id>
 tail -f /var/log/model-setup.log
+tail -f /var/log/gradio-server.log
 ```
-
-## 기술적 참고사항
-
-- **UserData 백그라운드 실행**: `setsid`를 사용하여 cloud-init 종료 후에도 setup.sh가 계속 실행되도록 함
-- **apt/dpkg lock 대기**: Deep Learning AMI 부팅 시 자동 실행되는 apt-get과 충돌 방지
 
 ## 라이선스
 
