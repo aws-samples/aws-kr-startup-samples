@@ -35,9 +35,10 @@ export class Qwen3TtsVoiceCloningStack extends cdk.Stack {
       allowAllOutbound: true,
     });
 
-    // Allow Gradio UI access
+    // Allow Gradio UI access (restricted to specific IP)
+    const allowedIp = this.node.tryGetContext('allowedIp') || '0.0.0.0/0';
     securityGroup.addIngressRule(
-      ec2.Peer.anyIpv4(),
+      ec2.Peer.ipv4(allowedIp),
       ec2.Port.tcp(7860),
       'Gradio UI'
     );
@@ -61,9 +62,13 @@ export class Qwen3TtsVoiceCloningStack extends cdk.Stack {
 
     logGroup.grantWrite(role);
 
-    // Read setup script
+    // Read setup script (for system packages and model pre-loading only)
     const setupScriptPath = path.join(__dirname, '../../scripts/setup.sh');
     const setupScript = fs.readFileSync(setupScriptPath, 'utf8');
+
+    // Read server script
+    const serverScriptPath = path.join(__dirname, '../../scripts/server.py');
+    const serverScript = fs.readFileSync(serverScriptPath, 'utf8');
 
     // CloudWatch Agent config
     const cloudWatchAgentConfig = {
@@ -137,20 +142,52 @@ export class Qwen3TtsVoiceCloningStack extends cdk.Stack {
       '# Start CloudWatch Agent',
       '/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json',
       '',
-      '# Create setup script',
+      '# Create directories',
+      'mkdir -p /opt/app',
+      'mkdir -p /opt/huggingface',
+      '',
+      '# Create server.py (independent of setup.sh)',
+      `cat > /opt/app/server.py << 'SERVERSCRIPT'`,
+      serverScript,
+      'SERVERSCRIPT',
+      '',
+      '# Create gradio-server.service (independent of setup.sh)',
+      `cat > /etc/systemd/system/gradio-server.service << 'GRADIOEOF'`,
+      '[Unit]',
+      'Description=Qwen3-TTS Gradio Server',
+      'After=network-online.target model-setup.service',
+      'Wants=network-online.target',
+      '',
+      '[Service]',
+      'Type=simple',
+      'User=root',
+      'WorkingDirectory=/opt/app',
+      'Environment="HF_HOME=/opt/huggingface"',
+      'Environment="CUDA_VISIBLE_DEVICES=0"',
+      'ExecStart=/opt/pytorch/bin/python /opt/app/server.py',
+      'Restart=on-failure',
+      'RestartSec=30',
+      'StandardOutput=append:/var/log/gradio-server.log',
+      'StandardError=append:/var/log/gradio-server.log',
+      '',
+      '[Install]',
+      'WantedBy=multi-user.target',
+      'GRADIOEOF',
+      '',
+      '# Create setup script (for system packages and model pre-loading)',
       `cat > /opt/setup.sh << 'SETUPSCRIPT'`,
       setupScript,
       'SETUPSCRIPT',
       '',
       'chmod +x /opt/setup.sh',
       '',
-      '# Create systemd oneshot service for setup script',
-      '# This ensures setup.sh runs independently of cloud-init and survives its termination',
+      '# Create model-setup.service (oneshot for pre-loading)',
       `cat > /etc/systemd/system/model-setup.service << 'ONESHOTEOF'`,
       '[Unit]',
-      'Description=Qwen3-TTS Model Setup',
+      'Description=Qwen3-TTS Model Setup (System packages and model pre-loading)',
       'After=network-online.target',
       'Wants=network-online.target',
+      'Before=gradio-server.service',
       '',
       '[Service]',
       'Type=oneshot',
@@ -163,10 +200,14 @@ export class Qwen3TtsVoiceCloningStack extends cdk.Stack {
       'WantedBy=multi-user.target',
       'ONESHOTEOF',
       '',
-      '# Enable and start the setup service',
+      '# Enable all services',
       'systemctl daemon-reload',
       'systemctl enable model-setup.service',
+      'systemctl enable gradio-server.service',
+      '',
+      '# Start model-setup first (non-blocking), then gradio-server will start after',
       'systemctl start model-setup.service --no-block',
+      'systemctl start gradio-server.service --no-block',
     );
 
     // AMI lookup
