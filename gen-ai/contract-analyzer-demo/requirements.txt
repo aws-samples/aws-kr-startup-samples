@@ -63,5 +63,5 @@ tornado==6.5
 typing-inspection==0.4.0
 typing_extensions==4.13.1
 tzdata==2025.2
-urllib3==2.6.0
+urllib3==2.6.3
 wheel @ file:///opt/homebrew/Cellar/python%403.13/3.13.0_1/libexec/wheel-0.44.0-py3-none-any.whl#sha256=f49b82715dce6365f75eddcb0a9bb47d0d46feaf14bbc739dfcbd677b7073f5b
