@@ -20,6 +20,11 @@ async def get_model_pricing(region: str = Query(default="ap-northeast-2")) -> Pr
                 input_price=str(pricing.input_price_per_million),
                 output_price=str(pricing.output_price_per_million),
                 cache_write_price=str(pricing.cache_write_price_per_million),
+                cache_write_1h_price=str(
+                    pricing.cache_write_1h_price_per_million
+                    if pricing.cache_write_1h_price_per_million is not None
+                    else pricing.cache_write_price_per_million
+                ),
                 cache_read_price=str(pricing.cache_read_price_per_million),
                 effective_date=pricing.effective_date.isoformat(),
             )

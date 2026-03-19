@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
-from sqlalchemy import select, update, or_
+
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -40,10 +41,8 @@ class AccessKeyRepository:
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
-    async def get_by_hash_with_user(
-        self, key_hash: str
-    ) -> tuple[AccessKey, UUID, str] | None:
-        """Returns (access_key, user_id, routing_strategy) or None."""
+    async def get_by_hash_with_user(self, key_hash: str) -> tuple[AccessKey, UUID, str, str] | None:
+        """Returns (access_key, user_id, routing_strategy, caching_strategy) or None."""
         now = datetime.utcnow()
         result = await self.session.execute(
             select(AccessKeyModel)
@@ -53,11 +52,10 @@ class AccessKeyRepository:
                 or_(
                     AccessKeyModel.status == KeyStatus.ACTIVE.value,
                     # ROTATING keys must not be expired
-                    (
-                        AccessKeyModel.status == KeyStatus.ROTATING.value
-                    ) & (
-                        (AccessKeyModel.rotation_expires_at == None) |
-                        (AccessKeyModel.rotation_expires_at > now)
+                    (AccessKeyModel.status == KeyStatus.ROTATING.value)
+                    & (
+                        (AccessKeyModel.rotation_expires_at.is_(None))
+                        | (AccessKeyModel.rotation_expires_at > now)
                     ),
                 ),
             )
@@ -65,7 +63,12 @@ class AccessKeyRepository:
         model = result.scalar_one_or_none()
         if not model or model.user.status != "active":
             return None
-        return self._to_entity(model), model.user_id, model.user.routing_strategy
+        return (
+            self._to_entity(model),
+            model.user_id,
+            model.user.routing_strategy,
+            model.user.caching_strategy,
+        )
 
     async def get_by_id(self, key_id: UUID) -> AccessKey | None:
         result = await self.session.execute(

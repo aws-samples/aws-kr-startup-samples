@@ -18,6 +18,12 @@ class RoutingStrategy(str, Enum):
     BEDROCK_ONLY = "bedrock_only"
 
 
+class CachingStrategy(str, Enum):
+    OFF = "off"
+    FIVE_MINUTES = "5m"
+    ONE_HOUR = "1h"
+
+
 class ErrorType(str, Enum):
     # Plan errors
     RATE_LIMIT = "rate_limit"

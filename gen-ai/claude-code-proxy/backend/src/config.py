@@ -1,7 +1,8 @@
+import json
+from functools import lru_cache
+
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
-from functools import lru_cache
-import json
 
 
 def _load_secret_from_arn(arn: str) -> dict | str | None:
@@ -133,8 +134,30 @@ class Settings(BaseSettings):
     # URLs
     plan_api_url: str = "https://api.anthropic.com"
     bedrock_region: str = "ap-northeast-2"
-    bedrock_default_model: str = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
-    bedrock_model_mapping: dict[str, str] = {}
+    bedrock_default_model: str = "global.anthropic.claude-sonnet-4-6"
+    legacy_bedrock_model_mapping: dict[str, str] = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices("PROXY_BEDROCK_MODEL_MAPPING"),
+        exclude=True,
+    )
+    anthropic_default_opus_model: str = Field(
+        default="global.anthropic.claude-opus-4-6-v1",
+        validation_alias=AliasChoices(
+            "ANTHROPIC_DEFAULT_OPUS_MODEL", "PROXY_ANTHROPIC_DEFAULT_OPUS_MODEL"
+        ),
+    )
+    anthropic_default_sonnet_model: str = Field(
+        default="global.anthropic.claude-sonnet-4-6",
+        validation_alias=AliasChoices(
+            "ANTHROPIC_DEFAULT_SONNET_MODEL", "PROXY_ANTHROPIC_DEFAULT_SONNET_MODEL"
+        ),
+    )
+    anthropic_default_haiku_model: str = Field(
+        default="global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        validation_alias=AliasChoices(
+            "ANTHROPIC_DEFAULT_HAIKU_MODEL", "PROXY_ANTHROPIC_DEFAULT_HAIKU_MODEL"
+        ),
+    )
     plan_verify_ssl: bool = True
     plan_ca_bundle: str = ""
 

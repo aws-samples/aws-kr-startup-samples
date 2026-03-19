@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from ..domain import RoutingStrategy
+from ..domain import CachingStrategy, RoutingStrategy
 
 
 @dataclass
@@ -16,3 +16,4 @@ class RequestContext:
     bedrock_model: str
     has_bedrock_key: bool
     routing_strategy: RoutingStrategy = RoutingStrategy.PLAN_FIRST
+    caching_strategy: CachingStrategy = CachingStrategy.FIVE_MINUTES

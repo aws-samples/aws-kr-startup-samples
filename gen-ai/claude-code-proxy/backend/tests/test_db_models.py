@@ -6,7 +6,7 @@ from sqlalchemy import BigInteger, Date, Numeric, String
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from src.db.models import TokenUsageModel, UsageAggregateModel, UserModel
+from src.db.models import TokenUsageModel, UsageAggregateModel, UserModel  # noqa: E402
 
 
 def test_token_usage_model_has_cost_snapshot_columns() -> None:
@@ -88,3 +88,12 @@ def test_user_model_has_monthly_budget() -> None:
     assert isinstance(budget_type, Numeric)
     assert budget_type.precision == 12
     assert budget_type.scale == 2
+
+
+def test_user_model_has_caching_strategy() -> None:
+    columns = UserModel.__table__.columns
+    assert "caching_strategy" in columns
+
+    caching_type = columns["caching_strategy"].type
+    assert isinstance(caching_type, String)
+    assert caching_type.length == 10

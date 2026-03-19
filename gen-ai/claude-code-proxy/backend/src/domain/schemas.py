@@ -1,8 +1,9 @@
-from pydantic import BaseModel, Field, field_validator
-from typing import Any, Literal
 from datetime import datetime
 from decimal import Decimal
+from typing import Any, Literal
 from uuid import UUID
+
+from pydantic import BaseModel, Field, field_validator
 
 
 # Anthropic API compatible schemas
@@ -61,6 +62,7 @@ class UserCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = None
     routing_strategy: Literal["plan_first", "bedrock_only"] = "plan_first"
+    caching_strategy: Literal["off", "5m", "1h"] = "5m"
     monthly_budget_usd: Decimal | None = Field(
         default=None, ge=Decimal("0.01"), le=Decimal("999999.99")
     )
@@ -72,6 +74,7 @@ class UserResponse(BaseModel):
     description: str | None
     status: str
     routing_strategy: str = "plan_first"
+    caching_strategy: str = "5m"
     monthly_budget_usd: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -88,6 +91,10 @@ class UserResponse(BaseModel):
 
 class UserRoutingStrategyUpdate(BaseModel):
     routing_strategy: Literal["plan_first", "bedrock_only"]
+
+
+class UserCachingStrategyUpdate(BaseModel):
+    caching_strategy: Literal["off", "5m", "1h"]
 
 
 class UserBudgetUpdate(BaseModel):
@@ -140,6 +147,7 @@ class ModelPricingResponse(BaseModel):
     input_price: str
     output_price: str
     cache_write_price: str
+    cache_write_1h_price: str
     cache_read_price: str
     effective_date: str
 
@@ -147,6 +155,81 @@ class ModelPricingResponse(BaseModel):
 class PricingListResponse(BaseModel):
     models: list[ModelPricingResponse]
     region: str
+
+
+class ModelSlotResponse(BaseModel):
+    id: UUID
+    slot: Literal["opus", "sonnet", "haiku"]
+    bedrock_model_id: str
+    description: str | None = None
+    updated_at: datetime
+
+
+class ModelSlotUpdate(BaseModel):
+    bedrock_model_id: str = Field(min_length=1, max_length=128)
+    description: str | None = None
+
+
+class ModelPricingCatalogCreate(BaseModel):
+    provider: Literal["bedrock", "plan"]
+    region: str = Field(min_length=1, max_length=32)
+    model_id: str = Field(min_length=1, max_length=128)
+    input_price_per_million: Decimal = Field(gt=Decimal("0"))
+    output_price_per_million: Decimal = Field(gt=Decimal("0"))
+    cache_write_price_per_million: Decimal = Field(ge=Decimal("0"))
+    cache_write_1h_price_per_million: Decimal = Field(ge=Decimal("0"))
+    cache_read_price_per_million: Decimal = Field(ge=Decimal("0"))
+    effective_date: str
+    is_active: bool = True
+
+
+class ModelPricingCatalogUpdate(BaseModel):
+    provider: Literal["bedrock", "plan"] | None = None
+    region: str | None = Field(default=None, min_length=1, max_length=32)
+    model_id: str | None = Field(default=None, min_length=1, max_length=128)
+    input_price_per_million: Decimal | None = Field(default=None, gt=Decimal("0"))
+    output_price_per_million: Decimal | None = Field(default=None, gt=Decimal("0"))
+    cache_write_price_per_million: Decimal | None = Field(default=None, ge=Decimal("0"))
+    cache_write_1h_price_per_million: Decimal | None = Field(default=None, ge=Decimal("0"))
+    cache_read_price_per_million: Decimal | None = Field(default=None, ge=Decimal("0"))
+    effective_date: str | None = None
+    is_active: bool | None = None
+
+
+class ModelPricingCatalogResponse(BaseModel):
+    id: UUID
+    provider: str
+    region: str
+    model_id: str
+    input_price_per_million: str
+    output_price_per_million: str
+    cache_write_price_per_million: str
+    cache_write_1h_price_per_million: str
+    cache_read_price_per_million: str
+    effective_date: str
+    is_active: bool
+    updated_at: datetime
+
+    @field_validator(
+        "input_price_per_million",
+        "output_price_per_million",
+        "cache_write_price_per_million",
+        "cache_write_1h_price_per_million",
+        "cache_read_price_per_million",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_decimal_fields(cls, value: Any) -> str:
+        if isinstance(value, Decimal):
+            return str(value)
+        return value
+
+    @field_validator("effective_date", mode="before")
+    @classmethod
+    def _coerce_effective_date(cls, value: Any) -> str:
+        if hasattr(value, "isoformat"):
+            return value.isoformat()
+        return value
 
 
 class CostBreakdownByModel(BaseModel):
@@ -205,27 +288,3 @@ class UsageTopUserSeries(BaseModel):
     user_id: UUID
     name: str
     buckets: list[UsageTopUserSeriesBucket]
-
-
-# Model Mapping schemas
-class ModelMappingCreate(BaseModel):
-    claude_model: str = Field(min_length=1, max_length=128)
-    bedrock_model: str = Field(min_length=1, max_length=128)
-    description: str | None = None
-    is_active: bool = True
-
-
-class ModelMappingUpdate(BaseModel):
-    bedrock_model: str | None = Field(default=None, min_length=1, max_length=128)
-    description: str | None = None
-    is_active: bool | None = None
-
-
-class ModelMappingResponse(BaseModel):
-    id: UUID
-    claude_model: str
-    bedrock_model: str
-    description: str | None
-    is_active: bool
-    created_at: datetime
-    updated_at: datetime

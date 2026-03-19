@@ -1,11 +1,12 @@
 import uuid
-from uuid import UUID
 from dataclasses import dataclass
+from uuid import UUID
+
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
-from ..domain import RoutingStrategy
+from ..domain import CachingStrategy, RoutingStrategy
 from ..repositories import AccessKeyRepository, BedrockKeyRepository
 from ..security import KeyHasher
 from .context import RequestContext
@@ -21,6 +22,7 @@ class _CachedAccessKey:
     bedrock_model: str
     has_bedrock_key: bool
     routing_strategy: RoutingStrategy
+    caching_strategy: CachingStrategy
 
 
 class AuthService:
@@ -49,6 +51,7 @@ class AuthService:
                 bedrock_model=cached.bedrock_model,
                 has_bedrock_key=cached.has_bedrock_key,
                 routing_strategy=cached.routing_strategy,
+                caching_strategy=cached.caching_strategy,
             )
 
         # Query database
@@ -56,11 +59,12 @@ class AuthService:
         if not result:
             return None
 
-        access_key, user_id, routing_strategy_str = result
+        access_key, user_id, routing_strategy_str, caching_strategy_str = result
 
         bedrock_key = await self._bedrock_key_repo.get_by_access_key_id(access_key.id)
         has_bedrock_key = bedrock_key is not None
         routing_strategy = RoutingStrategy(routing_strategy_str)
+        caching_strategy = CachingStrategy(caching_strategy_str)
 
         cached_entry = _CachedAccessKey(
             user_id=user_id,
@@ -70,6 +74,7 @@ class AuthService:
             bedrock_model=access_key.bedrock_model,
             has_bedrock_key=has_bedrock_key,
             routing_strategy=routing_strategy,
+            caching_strategy=caching_strategy,
         )
 
         # Cache result
@@ -83,6 +88,7 @@ class AuthService:
             bedrock_model=access_key.bedrock_model,
             has_bedrock_key=has_bedrock_key,
             routing_strategy=routing_strategy,
+            caching_strategy=caching_strategy,
         )
 
 

@@ -11,33 +11,46 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api import (
     admin_auth_router,
     admin_keys_router,
-    admin_models_router,
+    admin_model_pricing_router,
+    admin_model_slots_router,
     admin_pricing_router,
     admin_usage_router,
     admin_users_router,
     proxy_router,
 )
+from .config import get_settings
 from .db.session import async_session_factory
+from .domain.pricing import PricingConfig
 from .logging import setup_logging
 from .proxy import get_proxy_deps
-from .proxy.model_mapping import build_default_bedrock_model_resolver, set_cached_db_mappings
-from .repositories import ModelMappingRepository
+from .proxy.model_mapping import (
+    build_default_bedrock_model_resolver,
+    set_cached_model_slots,
+)
+from .repositories import (
+    ModelPricingCatalogRepository,
+    ModelSlotRepository,
+)
 
 setup_logging()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load DB model mappings on startup."""
+    """Load DB model slots and pricing catalog on startup."""
     try:
         async with async_session_factory() as session:
-            repo = ModelMappingRepository(session)
-            db_mappings = await repo.get_active_mappings_dict()
-            set_cached_db_mappings(db_mappings)
+            slot_repo = ModelSlotRepository(session)
+            pricing_repo = ModelPricingCatalogRepository(session)
+            slots = await slot_repo.get_slot_mapping()
+            pricing_rows = await pricing_repo.list_all(include_inactive=False)
 
-            # Update the global resolver with DB mappings
+            set_cached_model_slots(slots)
+            PricingConfig.set_catalog_pricing(PricingConfig.build_pricing_data_from_entries(pricing_rows))
+
+            # Update the global resolver with DB-backed slot models.
             deps = get_proxy_deps()
-            deps.bedrock_model_resolver = build_default_bedrock_model_resolver(db_mappings)
+            deps.bedrock_model_resolver = build_default_bedrock_model_resolver(model_slots=slots)
     except Exception:
         # Continue startup even if DB load fails (will use defaults)
         pass
@@ -51,9 +64,6 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
-
-
-from .config import get_settings
 
 _settings = get_settings()
 app.add_middleware(
@@ -70,7 +80,8 @@ app.include_router(admin_users_router)
 app.include_router(admin_keys_router)
 app.include_router(admin_usage_router)
 app.include_router(admin_pricing_router)
-app.include_router(admin_models_router)
+app.include_router(admin_model_slots_router)
+app.include_router(admin_model_pricing_router)
 
 
 @app.exception_handler(RequestValidationError)

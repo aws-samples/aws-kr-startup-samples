@@ -65,8 +65,11 @@ export default function UserDetailPage() {
   const [budgetError, setBudgetError] = useState('');
   const [budgetNotice, setBudgetNotice] = useState('');
   const [routingStrategy, setRoutingStrategy] = useState<'plan_first' | 'bedrock_only'>('plan_first');
+  const [cachingStrategy, setCachingStrategy] = useState<'off' | '5m' | '1h'>('5m');
   const [routingSaving, setRoutingSaving] = useState(false);
+  const [cachingSaving, setCachingSaving] = useState(false);
   const [routingNotice, setRoutingNotice] = useState('');
+  const [cachingNotice, setCachingNotice] = useState('');
 
   const showNotice = (message: string) => {
     setNotice(message);
@@ -83,6 +86,11 @@ export default function UserDetailPage() {
     setTimeout(() => setRoutingNotice(''), 2500);
   };
 
+  const showCachingNotice = (message: string) => {
+    setCachingNotice(message);
+    setTimeout(() => setCachingNotice(''), 2500);
+  };
+
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -90,6 +98,7 @@ export default function UserDetailPage() {
       if (!active) return;
       setUser(response);
       setRoutingStrategy(response.routing_strategy || 'plan_first');
+      setCachingStrategy(response.caching_strategy || '5m');
     });
     api.getAccessKeys(id).then((response) => {
       if (!active) return;
@@ -348,6 +357,23 @@ export default function UserDetailPage() {
     }
   };
 
+  const handleCachingStrategyChange = async (newStrategy: 'off' | '5m' | '1h') => {
+    if (!id || cachingSaving) return;
+    setCachingSaving(true);
+    try {
+      const updated = await api.updateUserCachingStrategy(id, newStrategy);
+      setCachingStrategy(updated.caching_strategy);
+      setUser((prev) =>
+        prev ? { ...prev, caching_strategy: updated.caching_strategy } : prev
+      );
+      showCachingNotice('Caching strategy updated.');
+    } catch {
+      showCachingNotice('Failed to update caching strategy.');
+    } finally {
+      setCachingSaving(false);
+    }
+  };
+
   const handleCopyPendingKey = async () => {
     if (!pendingKey?.value) return;
     const copySucceeded = await copyToClipboard(pendingKey.value);
@@ -490,6 +516,75 @@ export default function UserDetailPage() {
           <div className="mt-4 text-sm text-success">{routingNotice}</div>
         )}
         {routingSaving && (
+          <div className="mt-4 text-sm text-muted">Saving...</div>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-line bg-surface p-6 shadow-soft">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-ink">Caching Strategy</h2>
+            <p className="text-xs text-muted">
+              Control the default Bedrock prompt cache TTL for this user.
+            </p>
+          </div>
+          <span className="inline-flex items-center rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+            {cachingStrategy === 'off'
+              ? 'Off'
+              : cachingStrategy === '1h'
+                ? '1 Hour'
+                : '5 Minutes'}
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              value: 'off' as const,
+              title: 'Off',
+              description: 'Do not request prompt caching for Bedrock requests by default.',
+            },
+            {
+              value: '5m' as const,
+              title: '5 Minutes',
+              description: 'Default option. Good for frequent repeated prompts within a short session.',
+            },
+            {
+              value: '1h' as const,
+              title: '1 Hour',
+              description: 'Best for long-running agent flows and slower follow-up interactions.',
+            },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => handleCachingStrategyChange(option.value)}
+              disabled={cachingSaving}
+              className={[
+                'rounded-2xl border p-4 text-left transition',
+                cachingStrategy === option.value
+                  ? 'border-accent bg-accent/5 ring-2 ring-accent/20'
+                  : 'border-line hover:border-accent/50 hover:bg-surface-2',
+              ].join(' ')}
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className={[
+                    'h-4 w-4 rounded-full border-2',
+                    cachingStrategy === option.value ? 'border-accent bg-accent' : 'border-muted',
+                  ].join(' ')}
+                />
+                <span className="font-semibold text-ink">{option.title}</span>
+              </div>
+              <p className="mt-2 text-xs text-muted">{option.description}</p>
+            </button>
+          ))}
+        </div>
+
+        {cachingNotice && (
+          <div className="mt-4 text-sm text-success">{cachingNotice}</div>
+        )}
+        {cachingSaving && (
           <div className="mt-4 text-sm text-muted">Saving...</div>
         )}
       </div>

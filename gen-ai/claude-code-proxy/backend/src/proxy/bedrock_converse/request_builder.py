@@ -4,14 +4,17 @@ import json
 from typing import Any
 
 try:
-    from ...domain import AnthropicRequest
+    from ...domain import AnthropicRequest, CachingStrategy
 except ImportError:  # pragma: no cover
-    from domain import AnthropicRequest
+    from domain import AnthropicRequest, CachingStrategy
 
 
-# Bedrock Converse API cache point block
-CACHE_POINT_BLOCK: dict[str, Any] = {"cachePoint": {"type": "default"}}
 MAX_CACHE_POINTS = 4
+ONE_HOUR_TTL_SUPPORTED_MODEL_MARKERS = (
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5",
+    "claude-opus-4-6",
+)
 
 
 def _has_cache_control(block: Any) -> bool:
@@ -24,19 +27,48 @@ def _has_cache_control(block: Any) -> bool:
     return cache_control.get("type") == "ephemeral"
 
 
-def _append_cache_point(result: list[dict[str, Any]], counter: dict[str, int]) -> None:
+def _resolve_cache_ttl(
+    caching_strategy: CachingStrategy | str,
+    model_id: str | None,
+) -> str | None:
+    if caching_strategy == CachingStrategy.OFF:
+        return None
+    if caching_strategy == CachingStrategy.ONE_HOUR:
+        if model_id and any(marker in model_id for marker in ONE_HOUR_TTL_SUPPORTED_MODEL_MARKERS):
+            return CachingStrategy.ONE_HOUR.value
+    return CachingStrategy.FIVE_MINUTES.value
+
+
+def _build_cache_point_block(ttl: str) -> dict[str, Any]:
+    return {"cachePoint": {"type": "default", "ttl": ttl}}
+
+
+def _append_cache_point(
+    result: list[dict[str, Any]],
+    counter: dict[str, int],
+    *,
+    ttl: str | None,
+) -> None:
+    if ttl is None:
+        return
     if counter["count"] >= MAX_CACHE_POINTS:
         return
-    result.append(CACHE_POINT_BLOCK.copy())
+    result.append(_build_cache_point_block(ttl))
     counter["count"] += 1
 
 
-def build_converse_request(request: AnthropicRequest) -> dict[str, Any]:
+def build_converse_request(
+    request: AnthropicRequest,
+    *,
+    caching_strategy: CachingStrategy | str = CachingStrategy.FIVE_MINUTES,
+    model_id: str | None = None,
+) -> dict[str, Any]:
     cache_counter = {"count": 0}
-    messages = [_normalize_message(msg, cache_counter) for msg in request.messages]
+    cache_ttl = _resolve_cache_ttl(caching_strategy, model_id or request.model)
+    messages = [_normalize_message(msg, cache_counter, cache_ttl) for msg in request.messages]
     payload: dict[str, Any] = {"messages": messages}
 
-    system_blocks = _normalize_system(request.system, cache_counter)
+    system_blocks = _normalize_system(request.system, cache_counter, cache_ttl)
     if system_blocks:
         payload["system"] = system_blocks
 
@@ -44,13 +76,12 @@ def build_converse_request(request: AnthropicRequest) -> dict[str, Any]:
     if inference_config:
         payload["inferenceConfig"] = inference_config
 
-    tool_config = _build_tool_config(request.tools, request.tool_choice, cache_counter)
+    tool_config = _build_tool_config(request.tools, request.tool_choice, cache_counter, cache_ttl)
     if tool_config:
         payload["toolConfig"] = tool_config
 
-    request_metadata = _normalize_request_metadata(request.metadata)
-    if request_metadata:
-        payload["requestMetadata"] = request_metadata
+    # Bedrock requestMetadata is intentionally disabled.
+    # Claude Code metadata is not used by the proxy runtime.
 
     additional_fields = _build_additional_model_request_fields(request)
     if additional_fields:
@@ -59,12 +90,20 @@ def build_converse_request(request: AnthropicRequest) -> dict[str, Any]:
     return payload
 
 
-def _normalize_message(message: Any, cache_counter: dict[str, int]) -> dict[str, Any]:
-    content = _normalize_content(message.content, cache_counter)
+def _normalize_message(
+    message: Any,
+    cache_counter: dict[str, int],
+    cache_ttl: str | None,
+) -> dict[str, Any]:
+    content = _normalize_content(message.content, cache_counter, cache_ttl)
     return {"role": message.role, "content": content}
 
 
-def _normalize_content(content: Any, cache_counter: dict[str, int]) -> list[dict[str, Any]]:
+def _normalize_content(
+    content: Any,
+    cache_counter: dict[str, int],
+    cache_ttl: str | None,
+) -> list[dict[str, Any]]:
     if content is None:
         return []
     if isinstance(content, str):
@@ -72,19 +111,23 @@ def _normalize_content(content: Any, cache_counter: dict[str, int]) -> list[dict
     if isinstance(content, dict):
         result = [_normalize_content_block(content)]
         if _has_cache_control(content):
-            _append_cache_point(result, cache_counter)
+            _append_cache_point(result, cache_counter, ttl=cache_ttl)
         return result
     if isinstance(content, list):
         result: list[dict[str, Any]] = []
         for item in content:
             result.append(_normalize_content_block(item))
             if _has_cache_control(item):
-                _append_cache_point(result, cache_counter)
+                _append_cache_point(result, cache_counter, ttl=cache_ttl)
         return result
     return [{"text": json.dumps(content)}]
 
 
-def _normalize_system(system: Any, cache_counter: dict[str, int]) -> list[dict[str, Any]]:
+def _normalize_system(
+    system: Any,
+    cache_counter: dict[str, int],
+    cache_ttl: str | None,
+) -> list[dict[str, Any]]:
     if system is None:
         return []
     if isinstance(system, str):
@@ -92,14 +135,14 @@ def _normalize_system(system: Any, cache_counter: dict[str, int]) -> list[dict[s
     if isinstance(system, dict):
         result = [_normalize_system_block(system)]
         if _has_cache_control(system):
-            _append_cache_point(result, cache_counter)
+            _append_cache_point(result, cache_counter, ttl=cache_ttl)
         return result
     if isinstance(system, list):
         result: list[dict[str, Any]] = []
         for item in system:
             result.append(_normalize_system_block(item))
             if _has_cache_control(item):
-                _append_cache_point(result, cache_counter)
+                _append_cache_point(result, cache_counter, ttl=cache_ttl)
         return result
     return [{"text": json.dumps(system)}]
 
@@ -195,6 +238,7 @@ def _build_tool_config(
     tools: list[dict[str, Any]] | None,
     tool_choice: dict[str, Any] | str | None,
     cache_counter: dict[str, int],
+    cache_ttl: str | None,
 ) -> dict[str, Any] | None:
     if not tools:
         return None
@@ -202,7 +246,7 @@ def _build_tool_config(
     for tool in tools:
         tool_blocks.append(_normalize_tool(tool))
         if _has_cache_control(tool):
-            _append_cache_point(tool_blocks, cache_counter)
+            _append_cache_point(tool_blocks, cache_counter, ttl=cache_ttl)
     tool_config: dict[str, Any] = {"tools": tool_blocks}
     choice_block = _normalize_tool_choice(tool_choice)
     if choice_block:
@@ -253,20 +297,6 @@ def _normalize_tool_choice(choice: dict[str, Any] | str | None) -> dict[str, Any
     if isinstance(tool_choice, dict) and tool_choice.get("name"):
         return {"tool": {"name": tool_choice["name"]}}
     return None
-
-
-def _normalize_request_metadata(metadata: dict[str, Any] | None) -> dict[str, str] | None:
-    if not isinstance(metadata, dict):
-        return None
-    cleaned: dict[str, str] = {}
-    for key, value in metadata.items():
-        if len(cleaned) >= 16:
-            break
-        if not isinstance(key, str) or not isinstance(value, str):
-            continue
-        if 1 <= len(key) <= 256 and len(value) <= 256:
-            cleaned[key] = value
-    return cleaned or None
 
 
 def _build_additional_model_request_fields(

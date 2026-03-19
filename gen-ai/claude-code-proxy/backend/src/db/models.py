@@ -3,19 +3,20 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
-    String,
-    Text,
-    Integer,
     BigInteger,
     Boolean,
-    LargeBinary,
+    Date,
     ForeignKey,
     Index,
-    UniqueConstraint,
+    Integer,
+    LargeBinary,
     Numeric,
-    Date,
+    String,
+    Text,
+    UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID, TIMESTAMP
+from sqlalchemy.dialects.postgresql import TIMESTAMP
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -30,12 +31,11 @@ class UserModel(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
-    routing_strategy: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="plan_first"
+    routing_strategy: Mapped[str] = mapped_column(String(20), nullable=False, default="plan_first")
+    caching_strategy: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="5m", server_default="5m"
     )
-    monthly_budget_usd: Mapped[Decimal | None] = mapped_column(
-        Numeric(12, 2), nullable=True
-    )
+    monthly_budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
@@ -68,9 +68,7 @@ class AccessKeyModel(Base):
 class BedrockKeyModel(Base):
     __tablename__ = "bedrock_keys"
 
-    access_key_id: Mapped[UUID] = mapped_column(
-        ForeignKey("access_keys.id"), primary_key=True
-    )
+    access_key_id: Mapped[UUID] = mapped_column(ForeignKey("access_keys.id"), primary_key=True)
     encrypted_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
@@ -114,9 +112,7 @@ class TokenUsageModel(Base):
     pricing_region: Mapped[str] = mapped_column(
         String(32), nullable=False, default="ap-northeast-2"
     )
-    pricing_model_id: Mapped[str] = mapped_column(
-        String(64), nullable=False, default=""
-    )
+    pricing_model_id: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     pricing_effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     pricing_input_price_per_million: Mapped[Decimal] = mapped_column(
         Numeric(12, 6), nullable=False, default=Decimal("0")
@@ -150,6 +146,46 @@ class ModelMappingModel(Base):
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
 
     __table_args__ = (Index("idx_model_mappings_claude_model", "claude_model"),)
+
+
+class ModelSlotModel(Base):
+    __tablename__ = "model_slots"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    slot: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
+    bedrock_model_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+
+    __table_args__ = (Index("idx_model_slots_slot", "slot"),)
+
+
+class ModelPricingCatalogModel(Base):
+    __tablename__ = "model_pricing_catalog"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    provider: Mapped[str] = mapped_column(String(10), nullable=False)
+    region: Mapped[str] = mapped_column(String(32), nullable=False)
+    model_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    input_price_per_million: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False)
+    output_price_per_million: Mapped[Decimal] = mapped_column(Numeric(12, 6), nullable=False)
+    cache_write_price_per_million: Mapped[Decimal] = mapped_column(
+        Numeric(12, 6), nullable=False
+    )
+    cache_write_1h_price_per_million: Mapped[Decimal] = mapped_column(
+        Numeric(12, 6), nullable=False
+    )
+    cache_read_price_per_million: Mapped[Decimal] = mapped_column(
+        Numeric(12, 6), nullable=False
+    )
+    effective_date: Mapped[date] = mapped_column(Date, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+
+    __table_args__ = (
+        Index("idx_model_pricing_catalog_lookup", "provider", "region", "model_id"),
+        UniqueConstraint("provider", "region", "model_id", name="uq_model_pricing_catalog"),
+    )
 
 
 class UsageAggregateModel(Base):

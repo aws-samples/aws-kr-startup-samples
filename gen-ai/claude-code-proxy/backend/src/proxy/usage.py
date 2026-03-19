@@ -69,6 +69,7 @@ class UsageRecorder:
                 model,
                 ctx.bedrock_region if response.provider == "bedrock" else "global",
                 response.provider,
+                ctx.caching_strategy.value,
                 u.input_tokens,
                 u.output_tokens,
                 u.cache_creation_input_tokens or 0,
@@ -133,6 +134,7 @@ class UsageRecorder:
             model,
             pricing_region,
             provider,
+            ctx.caching_strategy.value,
             usage.input_tokens,
             usage.output_tokens,
             usage.cache_creation_input_tokens or 0,
@@ -209,14 +211,13 @@ class UsageRecorder:
                     model,
                     pricing_region,
                     provider,
+                    ctx.caching_strategy.value,
                     input_tokens,
                     output_tokens,
                     cache_write_tokens,
                     cache_read_tokens,
                 )
-            pricing_model_id = (
-                pricing.model_id if pricing else PricingConfig.normalize_model_id(model)
-            )
+            pricing_model_id = pricing.model_id if pricing else model
 
             if self._session_factory:
                 async with self._session_factory() as session:
@@ -291,6 +292,7 @@ class UsageRecorder:
         model: str,
         region: str,
         provider: Provider,
+        caching_strategy: str,
         input_tokens: int,
         output_tokens: int,
         cache_write_tokens: int,
@@ -299,15 +301,16 @@ class UsageRecorder:
         try:
             pricing = PricingConfig.get_pricing(model, region=region, provider=provider)
             if pricing:
+                effective_pricing = pricing.resolve_for_usage(caching_strategy=caching_strategy)
                 return (
                     CostCalculator.calculate_cost(
                         input_tokens=input_tokens,
                         output_tokens=output_tokens,
                         cache_write_tokens=cache_write_tokens,
                         cache_read_tokens=cache_read_tokens,
-                        pricing=pricing,
+                        pricing=effective_pricing,
                     ),
-                    pricing,
+                    effective_pricing,
                 )
         except Exception:
             pass

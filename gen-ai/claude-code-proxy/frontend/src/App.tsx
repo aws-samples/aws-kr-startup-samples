@@ -4,6 +4,7 @@ import UsersPage from '@/pages/UsersPage';
 import UserDetailPage from '@/pages/UserDetailPage';
 import DashboardPage from '@/pages/DashboardPage';
 import ModelsPage from '@/pages/ModelsPage';
+import PricingPage from '@/pages/PricingPage';
 import AdminLayout from '@/components/AdminLayout';
 import { api } from '@/lib/api';
 
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/users/:id" element={<UserDetailPage />} />
           <Route path="/models" element={<ModelsPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/usage" element={<Navigate to="/dashboard" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

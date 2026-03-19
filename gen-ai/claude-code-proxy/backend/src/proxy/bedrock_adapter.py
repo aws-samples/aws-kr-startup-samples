@@ -41,8 +41,12 @@ class BedrockAdapter:
                 message="Bedrock key not found",
                 retryable=False,
             )
-        payload = build_converse_request(request)
         resolved_model = get_proxy_deps().bedrock_model_resolver.resolve(request.model)
+        payload = build_converse_request(
+            request,
+            caching_strategy=ctx.caching_strategy,
+            model_id=resolved_model,
+        )
         try:
             url = _build_converse_url(ctx.bedrock_region, resolved_model, stream=False)
             headers = _build_headers(api_key)
@@ -86,8 +90,12 @@ class BedrockAdapter:
                 message="Bedrock key not found",
                 retryable=False,
             )
-        payload = build_converse_request(request)
         resolved_model = get_proxy_deps().bedrock_model_resolver.resolve(request.model)
+        payload = build_converse_request(
+            request,
+            caching_strategy=ctx.caching_strategy,
+            model_id=resolved_model,
+        )
         try:
             url = _build_converse_url(ctx.bedrock_region, resolved_model, stream=True)
             headers = _build_headers(api_key)

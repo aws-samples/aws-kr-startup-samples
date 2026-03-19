@@ -1,25 +1,33 @@
 from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..domain import (
+    CachingStrategy,
+    KeyStatus,
+    RoutingStrategy,
+    UserBudgetResponse,
+    UserBudgetUpdate,
+    UserCachingStrategyUpdate,
     UserCreate,
     UserResponse,
-    UserStatus,
-    UserBudgetUpdate,
-    UserBudgetResponse,
     UserRoutingStrategyUpdate,
-    RoutingStrategy,
-    KeyStatus,
+    UserStatus,
+)
+from ..proxy import (
+    BudgetCheckResult,
+    BudgetService,
+    invalidate_access_key_cache,
+    invalidate_budget_cache,
 )
 from ..repositories import (
-    UserRepository,
     AccessKeyRepository,
-    UsageAggregateRepository,
     BedrockKeyRepository,
+    UsageAggregateRepository,
+    UserRepository,
 )
-from ..proxy import invalidate_access_key_cache, BudgetService, BudgetCheckResult, invalidate_budget_cache
 from .deps import require_admin
 
 router = APIRouter(prefix="/admin/users", tags=["users"], dependencies=[Depends(require_admin)])
@@ -45,15 +53,16 @@ async def _ensure_bedrock_keys_for_routing(
     bedrock_repo: BedrockKeyRepository,
 ) -> None:
     keys = await key_repo.list_by_user(user_id)
-    valid_keys = [
-        key for key in keys if key.status in (KeyStatus.ACTIVE, KeyStatus.ROTATING)
-    ]
+    valid_keys = [key for key in keys if key.status in (KeyStatus.ACTIVE, KeyStatus.ROTATING)]
     if not valid_keys:
         raise HTTPException(
             status_code=400,
             detail={
                 "code": "NO_ACCESS_KEYS",
-                "message": "At least one active access key is required before enabling bedrock_only routing",
+                "message": (
+                    "At least one active access key is required before enabling "
+                    "bedrock_only routing"
+                ),
             },
         )
     bedrock_ids = await bedrock_repo.list_access_key_ids([key.id for key in valid_keys])
@@ -62,7 +71,10 @@ async def _ensure_bedrock_keys_for_routing(
             status_code=400,
             detail={
                 "code": "MISSING_BEDROCK_KEYS",
-                "message": "Bedrock credentials must be registered for all active access keys before enabling bedrock_only routing",
+                "message": (
+                    "Bedrock credentials must be registered for all active access "
+                    "keys before enabling bedrock_only routing"
+                ),
             },
         )
 
@@ -93,6 +105,7 @@ async def create_user(
         name=data.name,
         description=data.description,
         routing_strategy=RoutingStrategy(data.routing_strategy),
+        caching_strategy=CachingStrategy(data.caching_strategy),
         monthly_budget_usd=data.monthly_budget_usd,
     )
     if session is not None:
@@ -232,6 +245,35 @@ async def update_user_routing_strategy(
         await session.commit()
 
     # Invalidate cache for all user's keys to pick up new routing strategy
+    keys = await key_repo.list_by_user(user_id)
+    for key in keys:
+        invalidate_access_key_cache(key.key_hash)
+
+    user = await user_repo.get_by_id(user_id)
+    return UserResponse(**user.__dict__)
+
+
+@router.put("/{user_id}/caching-strategy", response_model=UserResponse)
+async def update_user_caching_strategy(
+    user_id: UUID,
+    data: UserCachingStrategyUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    user_repo = UserRepository(session)
+    key_repo = AccessKeyRepository(session)
+
+    user = await user_repo.get_by_id(user_id)
+    if not user or user.status == UserStatus.DELETED:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    caching_strategy = CachingStrategy(data.caching_strategy)
+    updated = await user_repo.update_caching_strategy(user_id, caching_strategy)
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if session is not None:
+        await session.commit()
+
     keys = await key_repo.list_by_user(user_id)
     for key in keys:
         invalidate_access_key_cache(key.key_hash)

@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 const navItems = [
   { to: '/users', label: 'Users' },
   { to: '/models', label: 'Models' },
+  { to: '/pricing', label: 'Pricing' },
 ];
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -49,9 +50,17 @@ export default function AdminLayout() {
             <Link to="/dashboard" className="text-sm font-semibold text-ink">
               Claude Proxy Admin
             </Link>
-            <NavLink to="/users" className={navLinkClass}>
-              Users
-            </NavLink>
+            <div className="flex gap-2">
+              <NavLink to="/users" className={navLinkClass}>
+                Users
+              </NavLink>
+              <NavLink to="/models" className={navLinkClass}>
+                Models
+              </NavLink>
+              <NavLink to="/pricing" className={navLinkClass}>
+                Pricing
+              </NavLink>
+            </div>
           </div>
 
           <div className="px-6 py-8 lg:px-10">

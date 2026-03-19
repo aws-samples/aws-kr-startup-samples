@@ -1,4 +1,5 @@
 import asyncio
+import re
 import time
 from collections.abc import AsyncIterator
 
@@ -26,6 +27,7 @@ from ..proxy import (
     ProxyRouter,
     UsageRecorder,
     get_auth_service,
+    get_proxy_deps,
 )
 from ..proxy.adapter_base import AdapterError
 from ..proxy.budget import format_budget_exceeded_message
@@ -59,10 +61,6 @@ def _extract_outgoing_headers(raw_request: Request) -> dict[str, str]:
             headers[name] = value
     return headers
 
-
-import re
-
-
 def _mask_access_key(path: str) -> str:
     """Mask access key in path: /ak/ak_abc123xyz -> /ak/***"""
     return re.sub(r"/ak/[^/]+", "/ak/***", path)
@@ -73,6 +71,12 @@ def _extract_request_info(raw_request: Request) -> tuple[str, str]:
     url = getattr(raw_request, "url", None)
     path = getattr(url, "path", "unknown") if url else "unknown"
     return method, _mask_access_key(path)
+
+
+def _get_usage_model_for_provider(provider: Provider, request: AnthropicRequest) -> str:
+    if provider == "bedrock":
+        return get_proxy_deps().bedrock_model_resolver.resolve(request.model)
+    return request.model
 
 
 @router.post("/ak/{access_key}/v1/messages")
@@ -149,7 +153,12 @@ async def proxy_messages(
         latency_ms = int((time.time() - start_time) * 1000)
 
         # Record usage
-        await usage_recorder.record(ctx, response, latency_ms, request.model)
+        await usage_recorder.record(
+            ctx,
+            response,
+            latency_ms,
+            _get_usage_model_for_provider(response.provider, request),
+        )
         await session.commit()
 
         if response.success and response.response:
@@ -290,7 +299,7 @@ def _build_bedrock_streaming_response(
                         ctx,
                         usage,
                         latency_ms,
-                        request.model,
+                        _get_usage_model_for_provider("bedrock", request),
                         is_fallback,
                         provider="bedrock",
                         ttft_ms=ttft_ms,
@@ -341,7 +350,7 @@ def _build_plan_streaming_response(
                         ctx,
                         usage,
                         latency_ms,
-                        request.model,
+                        _get_usage_model_for_provider("plan", request),
                         is_fallback=False,
                         provider="plan",
                         ttft_ms=ttft_ms,

@@ -11,7 +11,7 @@ import pytest
 root = Path(__file__).resolve().parents[1]
 sys.path.append(str(root))
 
-from src.domain import AnthropicUsage
+from src.domain import AnthropicUsage, CachingStrategy
 from src.domain.cost_calculator import CostCalculator
 from src.domain.pricing import ModelPricing, PricingConfig
 from src.proxy.context import RequestContext
@@ -219,7 +219,7 @@ async def test_record_usage_with_cost_falls_back_to_zero_on_pricing_error(
     assert call["output_cost_usd"] == Decimal("0.000000")
     assert call["cache_write_cost_usd"] == Decimal("0.000000")
     assert call["cache_read_cost_usd"] == Decimal("0.000000")
-    assert call["pricing_model_id"] == "claude-sonnet-4-5"
+    assert call["pricing_model_id"] == "anthropic.claude-sonnet-4-5-20250514"
 
 
 @given(
@@ -459,3 +459,57 @@ async def test_plan_pricing_snapshot_stored(monkeypatch: pytest.MonkeyPatch) -> 
     assert call["pricing_output_price_per_million"] == Decimal("4.40")
     assert call["pricing_cache_write_price_per_million"] == Decimal("1.30")
     assert call["pricing_cache_read_price_per_million"] == Decimal("0.12")
+
+
+@pytest.mark.asyncio
+async def test_one_hour_caching_strategy_uses_one_hour_cache_write_price(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pricing = ModelPricing(
+        model_id="claude-sonnet-4-6",
+        region="global",
+        input_price_per_million=Decimal("3.00"),
+        output_price_per_million=Decimal("15.00"),
+        cache_write_price_per_million=Decimal("3.75"),
+        cache_read_price_per_million=Decimal("0.30"),
+        effective_date=date(2025, 1, 1),
+        cache_write_1h_price_per_million=Decimal("6.00"),
+    )
+    monkeypatch.setattr(PricingConfig, "get_pricing", lambda *_args, **_kwargs: pricing)
+
+    token_repo = FakeTokenUsageRepository()
+    agg_repo = FakeUsageAggregateRepository()
+    recorder = UsageRecorder(token_repo, agg_repo, metrics_emitter=DummyMetricsEmitter())
+
+    ctx = RequestContext(
+        request_id="req-1h",
+        user_id=uuid4(),
+        access_key_id=uuid4(),
+        access_key_prefix="ak_1h",
+        bedrock_region="ap-northeast-2",
+        bedrock_model="claude-sonnet-4-6",
+        has_bedrock_key=True,
+        caching_strategy=CachingStrategy.ONE_HOUR,
+    )
+    usage = AnthropicUsage(
+        input_tokens=1000,
+        output_tokens=100,
+        cache_creation_input_tokens=100,
+        cache_read_input_tokens=50,
+    )
+    response = ProxyResponse(
+        success=True,
+        response=None,
+        usage=usage,
+        provider="plan",
+        is_fallback=False,
+        status_code=200,
+    )
+
+    await recorder._record_usage_with_cost(
+        ctx, response, latency_ms=10, model="claude-sonnet-4-6", provider="plan"
+    )
+
+    call = token_repo.calls[0]
+    assert call["pricing_cache_write_price_per_million"] == Decimal("6.00")
+    assert call["cache_write_cost_usd"] == Decimal("0.000600")

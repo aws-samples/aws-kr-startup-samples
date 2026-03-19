@@ -14,7 +14,6 @@ from .metrics import (
     get_default_metrics_emitter,
 )
 from .cache import TTLCache
-from .model_mapping import invalidate_model_mapping_cache
 
 __all__ = [
     "RequestContext",
@@ -40,5 +39,4 @@ __all__ = [
     "OTELMetricsEmitter",
     "get_default_metrics_emitter",
     "TTLCache",
-    "invalidate_model_mapping_cache",
 ]

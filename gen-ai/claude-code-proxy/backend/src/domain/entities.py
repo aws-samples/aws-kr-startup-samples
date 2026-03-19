@@ -3,7 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from .enums import UserStatus, KeyStatus, RoutingStrategy
+from .enums import CachingStrategy, KeyStatus, RoutingStrategy, UserStatus
 from .types import Provider
 
 
@@ -16,6 +16,7 @@ class User:
     created_at: datetime
     updated_at: datetime
     routing_strategy: RoutingStrategy = RoutingStrategy.PLAN_FIRST
+    caching_strategy: CachingStrategy = CachingStrategy.FIVE_MINUTES
     monthly_budget_usd: Decimal | None = None
     deleted_at: datetime | None = None
 

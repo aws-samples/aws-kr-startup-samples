@@ -88,6 +88,21 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify({ routing_strategy }),
     });
+  updateUserCachingStrategy = (id: string, caching_strategy: 'off' | '5m' | '1h') =>
+    this.fetch<User>(`/admin/users/${id}/caching-strategy`, {
+      method: 'PUT',
+      body: JSON.stringify({ caching_strategy }),
+    });
+  getModelSlots = () =>
+    this.fetch<ModelSlot[]>('/admin/model-slots');
+  updateModelSlot = (
+    slot: 'opus' | 'sonnet' | 'haiku',
+    data: { bedrock_model_id: string; description?: string }
+  ) =>
+    this.fetch<ModelSlot>(`/admin/model-slots/${slot}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
 
   // Access Keys
   getAccessKeys = (userId: string) =>
@@ -150,6 +165,52 @@ class ApiClient {
     query.set('region', region);
     return this.fetch<PricingListResponse>(`/api/pricing/models?${query}`);
   };
+  getPricingCatalog = (params: { provider?: 'bedrock' | 'plan'; region?: string; include_inactive?: boolean } = {}) => {
+    const query = new URLSearchParams();
+    if (params.provider) query.set('provider', params.provider);
+    if (params.region) query.set('region', params.region);
+    if (params.include_inactive !== undefined) {
+      query.set('include_inactive', String(params.include_inactive));
+    }
+    return this.fetch<ModelPricingCatalog[]>(`/admin/model-pricing?${query}`);
+  };
+  createPricingCatalogEntry = (data: {
+    provider: 'bedrock' | 'plan';
+    region: string;
+    model_id: string;
+    input_price_per_million: string;
+    output_price_per_million: string;
+    cache_write_price_per_million: string;
+    cache_write_1h_price_per_million: string;
+    cache_read_price_per_million: string;
+    effective_date: string;
+    is_active?: boolean;
+  }) =>
+    this.fetch<ModelPricingCatalog>('/admin/model-pricing', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  updatePricingCatalogEntry = (
+    id: string,
+    data: Partial<{
+      provider: 'bedrock' | 'plan';
+      region: string;
+      model_id: string;
+      input_price_per_million: string;
+      output_price_per_million: string;
+      cache_write_price_per_million: string;
+      cache_write_1h_price_per_million: string;
+      cache_read_price_per_million: string;
+      effective_date: string;
+      is_active: boolean;
+    }>
+  ) =>
+    this.fetch<ModelPricingCatalog>(`/admin/model-pricing/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  deletePricingCatalogEntry = (id: string) =>
+    this.fetch<void>(`/admin/model-pricing/${id}`, { method: 'DELETE' });
 
   reloadPricing = () =>
     this.fetch<void>('/api/pricing/reload', { method: 'POST' });
@@ -163,6 +224,7 @@ export interface User {
   description: string | null;
   status: string;
   routing_strategy: 'plan_first' | 'bedrock_only';
+  caching_strategy: 'off' | '5m' | '1h';
   monthly_budget_usd?: string | null;
   created_at: string;
   updated_at: string;
@@ -187,6 +249,14 @@ export interface AccessKey {
   created_at: string;
   raw_key?: string;
   has_bedrock_key?: boolean;
+}
+
+export interface ModelSlot {
+  id: string;
+  slot: 'opus' | 'sonnet' | 'haiku';
+  bedrock_model_id: string;
+  description: string | null;
+  updated_at: string;
 }
 
 export interface UsageParams {
@@ -264,6 +334,7 @@ export interface ModelPricing {
   input_price: string;
   output_price: string;
   cache_write_price: string;
+  cache_write_1h_price: string;
   cache_read_price: string;
   effective_date: string;
 }
@@ -271,6 +342,21 @@ export interface ModelPricing {
 export interface PricingListResponse {
   models: ModelPricing[];
   region: string;
+}
+
+export interface ModelPricingCatalog {
+  id: string;
+  provider: 'bedrock' | 'plan';
+  region: string;
+  model_id: string;
+  input_price_per_million: string;
+  output_price_per_million: string;
+  cache_write_price_per_million: string;
+  cache_write_1h_price_per_million: string;
+  cache_read_price_per_million: string;
+  effective_date: string;
+  is_active: boolean;
+  updated_at: string;
 }
 
 export interface CostBreakdownByModel {

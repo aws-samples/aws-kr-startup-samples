@@ -21,7 +21,9 @@ def upgrade() -> None:
         VALUES 
             (gen_random_uuid(), 'claude-haiku-4-5-20251001', 'global.anthropic.claude-haiku-4-5-20251001-v1:0', 'Claude Haiku 4.5 (default)', true, now(), now()),
             (gen_random_uuid(), 'claude-sonnet-4-5-20250929', 'global.anthropic.claude-sonnet-4-5-20250929-v1:0', 'Claude Sonnet 4.5 (default)', true, now(), now()),
-            (gen_random_uuid(), 'claude-opus-4-5-20251101', 'global.anthropic.claude-opus-4-5-20251101-v1:0', 'Claude Opus 4.5 (default)', true, now(), now())
+            (gen_random_uuid(), 'claude-opus-4-5-20251101', 'global.anthropic.claude-opus-4-5-20251101-v1:0', 'Claude Opus 4.5 (default)', true, now(), now()),
+            (gen_random_uuid(), 'claude-sonnet-4-6', 'global.anthropic.claude-sonnet-4-6', 'Claude Sonnet 4.6 (default)', true, now(), now()),
+            (gen_random_uuid(), 'claude-opus-4-6-v1', 'global.anthropic.claude-opus-4-6-v1', 'Claude Opus 4.6 (default)', true, now(), now())
         ON CONFLICT (claude_model) DO NOTHING
     """)
 
@@ -33,7 +35,9 @@ def downgrade() -> None:
         WHERE claude_model IN (
             'claude-haiku-4-5-20251001',
             'claude-sonnet-4-5-20250929',
-            'claude-opus-4-5-20251101'
+            'claude-opus-4-5-20251101',
+            'claude-sonnet-4-6',
+            'claude-opus-4-6-v1'
         )
         AND description LIKE '%(default)%'
     """)

@@ -1,4 +1,6 @@
 import json
+
+import bedrock_converse.stream_decoder as stream_decoder
 import pytest
 from bedrock_converse import (
     StreamState,
@@ -6,10 +8,9 @@ from bedrock_converse import (
     build_converse_request,
     parse_converse_response,
 )
-import bedrock_converse.stream_decoder as stream_decoder
 from bedrock_converse.stream_decoder import _to_sse
 
-from domain import AnthropicRequest
+from domain import AnthropicRequest, CachingStrategy
 
 
 def test_build_converse_request_basic():
@@ -62,21 +63,16 @@ def test_build_converse_request_tools_and_choice():
     assert tool_config["toolChoice"] == {"auto": {}}
 
 
-def test_build_converse_request_metadata_limit_and_filter():
-    metadata = {"k0": "v0", "bad": 1}
-    metadata.update({f"k{i}": f"v{i}" for i in range(1, 20)})
-
+def test_build_converse_request_omits_request_metadata():
     request = AnthropicRequest(
         model="claude-test",
         messages=[{"role": "user", "content": "Hello"}],
-        metadata=metadata,
+        metadata={"trace_id": "x"},
     )
 
     payload = build_converse_request(request)
-    request_metadata = payload["requestMetadata"]
 
-    assert "bad" not in request_metadata
-    assert len(request_metadata) == 16
+    assert "requestMetadata" not in payload
 
 
 def test_build_converse_request_thinking_fields():
@@ -415,7 +411,7 @@ def test_build_converse_request_content_with_cache_control():
 
     assert len(content) == 2
     assert content[0] == {"text": "Long context to cache..."}
-    assert content[1] == {"cachePoint": {"type": "default"}}
+    assert content[1] == {"cachePoint": {"type": "default", "ttl": "5m"}}
 
 
 def test_build_converse_request_multiple_content_blocks_with_cache_control():
@@ -444,7 +440,7 @@ def test_build_converse_request_multiple_content_blocks_with_cache_control():
     assert len(content) == 4
     assert content[0] == {"text": "First block"}
     assert content[1] == {"text": "Second block to cache"}
-    assert content[2] == {"cachePoint": {"type": "default"}}
+    assert content[2] == {"cachePoint": {"type": "default", "ttl": "5m"}}
     assert content[3] == {"text": "Third block"}
 
 
@@ -505,7 +501,7 @@ def test_build_converse_request_system_block_with_cache_control():
 
     assert len(payload["system"]) == 2
     assert payload["system"][0] == {"text": "System instructions to cache"}
-    assert payload["system"][1] == {"cachePoint": {"type": "default"}}
+    assert payload["system"][1] == {"cachePoint": {"type": "default", "ttl": "5m"}}
 
 
 def test_build_converse_request_system_multiple_blocks_selective_cache():
@@ -528,7 +524,7 @@ def test_build_converse_request_system_multiple_blocks_selective_cache():
     assert len(payload["system"]) == 3
     assert payload["system"][0] == {"text": "Instructions part 1"}
     assert payload["system"][1] == {"text": "Instructions part 2 to cache"}
-    assert payload["system"][2] == {"cachePoint": {"type": "default"}}
+    assert payload["system"][2] == {"cachePoint": {"type": "default", "ttl": "5m"}}
 
 
 # =============================================================================
@@ -556,7 +552,7 @@ def test_build_converse_request_tool_with_cache_control():
 
     assert len(tools) == 2
     assert tools[0]["toolSpec"]["name"] == "get_weather"
-    assert tools[1] == {"cachePoint": {"type": "default"}}
+    assert tools[1] == {"cachePoint": {"type": "default", "ttl": "5m"}}
 
 
 def test_build_converse_request_multiple_tools_with_cache_control():
@@ -585,7 +581,7 @@ def test_build_converse_request_multiple_tools_with_cache_control():
     assert len(tools) == 3
     assert tools[0]["toolSpec"]["name"] == "tool_a"
     assert tools[1]["toolSpec"]["name"] == "tool_b"
-    assert tools[2] == {"cachePoint": {"type": "default"}}
+    assert tools[2] == {"cachePoint": {"type": "default", "ttl": "5m"}}
 
 
 def test_build_converse_request_tool_without_cache_control():
@@ -651,15 +647,19 @@ def test_build_converse_request_cache_control_in_all_fields():
 
     # Check system: 1 text block + 1 cachePoint
     assert len(payload["system"]) == 2
-    assert payload["system"][1] == {"cachePoint": {"type": "default"}}
+    assert payload["system"][1] == {"cachePoint": {"type": "default", "ttl": "5m"}}
 
     # Check messages: 1 text block + 1 cachePoint
     assert len(payload["messages"][0]["content"]) == 2
-    assert payload["messages"][0]["content"][1] == {"cachePoint": {"type": "default"}}
+    assert payload["messages"][0]["content"][1] == {
+        "cachePoint": {"type": "default", "ttl": "5m"}
+    }
 
     # Check tools: 1 tool + 1 cachePoint
     assert len(payload["toolConfig"]["tools"]) == 2
-    assert payload["toolConfig"]["tools"][1] == {"cachePoint": {"type": "default"}}
+    assert payload["toolConfig"]["tools"][1] == {
+        "cachePoint": {"type": "default", "ttl": "5m"}
+    }
 
 
 def test_build_converse_request_max_cache_points():
@@ -862,6 +862,100 @@ def test_build_converse_request_cache_control_invalid_type():
 
     assert len(content) == 1
     assert content[0] == {"text": "Block with invalid type"}
+
+
+@pytest.mark.parametrize(
+    "model_id",
+    [
+        "global.anthropic.claude-sonnet-4-6",
+        "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "global.anthropic.claude-opus-4-6-v1",
+    ],
+)
+def test_build_converse_request_uses_one_hour_ttl_for_supported_models(model_id: str):
+    request = AnthropicRequest(
+        model="claude-test",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "User message to cache",
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+            }
+        ],
+    )
+
+    payload = build_converse_request(
+        request,
+        caching_strategy=CachingStrategy.ONE_HOUR,
+        model_id=model_id,
+    )
+
+    assert payload["messages"][0]["content"][1] == {
+        "cachePoint": {"type": "default", "ttl": "1h"}
+    }
+
+
+def test_build_converse_request_falls_back_to_five_minutes_for_unsupported_one_hour_model():
+    request = AnthropicRequest(
+        model="claude-test",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "User message to cache",
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+            }
+        ],
+    )
+
+    payload = build_converse_request(
+        request,
+        caching_strategy=CachingStrategy.ONE_HOUR,
+        model_id="anthropic.claude-3-7-sonnet-20250219-v1:0",
+    )
+
+    assert payload["messages"][0]["content"][1] == {
+        "cachePoint": {"type": "default", "ttl": "5m"}
+    }
+
+
+def test_build_converse_request_skips_cache_points_when_strategy_is_off():
+    request = AnthropicRequest(
+        model="claude-test",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "User message to cache",
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+            }
+        ],
+        system=[
+            {
+                "type": "text",
+                "text": "System prompt to cache",
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
+    )
+
+    payload = build_converse_request(request, caching_strategy=CachingStrategy.OFF)
+
+    assert payload["messages"][0]["content"] == [{"text": "User message to cache"}]
+    assert payload["system"] == [{"text": "System prompt to cache"}]
 
 
 # =============================================================================

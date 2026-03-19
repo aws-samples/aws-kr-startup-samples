@@ -8,9 +8,11 @@ from fastapi import HTTPException
 from src.api import admin_users
 from src.domain import (
     AccessKey,
+    CachingStrategy,
     KeyStatus,
     RoutingStrategy,
     User,
+    UserCachingStrategyUpdate,
     UserCreate,
     UserRoutingStrategyUpdate,
     UserStatus,
@@ -34,6 +36,47 @@ async def test_create_user_rejects_bedrock_only_without_keys() -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_user_defaults_caching_strategy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user_id = uuid4()
+
+    class FakeUserRepository:
+        def __init__(self, _session) -> None:
+            self.created_with = None
+
+        async def create(
+            self,
+            name,
+            description=None,
+            routing_strategy=RoutingStrategy.PLAN_FIRST,
+            caching_strategy=CachingStrategy.FIVE_MINUTES,
+            monthly_budget_usd=None,
+        ):
+            self.created_with = caching_strategy
+            return User(
+                id=user_id,
+                name=name,
+                description=description,
+                status=UserStatus.ACTIVE,
+                routing_strategy=routing_strategy,
+                caching_strategy=caching_strategy,
+                monthly_budget_usd=monthly_budget_usd,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+
+    monkeypatch.setattr(admin_users, "UserRepository", FakeUserRepository)
+
+    response = await admin_users.create_user(
+        data=UserCreate(name="user", description=None, monthly_budget_usd=None),
+        session=None,
+    )
+
+    assert response.caching_strategy == CachingStrategy.FIVE_MINUTES.value
+
+
+@pytest.mark.asyncio
 async def test_update_user_routing_strategy_requires_bedrock_keys(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -48,6 +91,7 @@ async def test_update_user_routing_strategy_requires_bedrock_keys(
                 description=None,
                 status=UserStatus.ACTIVE,
                 monthly_budget_usd=Decimal("10.00"),
+                caching_strategy=CachingStrategy.FIVE_MINUTES,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
@@ -90,9 +134,7 @@ async def test_update_user_routing_strategy_requires_bedrock_keys(
     with pytest.raises(HTTPException) as exc:
         await admin_users.update_user_routing_strategy(
             user_id=user_id,
-            data=UserRoutingStrategyUpdate(
-                routing_strategy=RoutingStrategy.BEDROCK_ONLY.value
-            ),
+            data=UserRoutingStrategyUpdate(routing_strategy=RoutingStrategy.BEDROCK_ONLY.value),
             session=None,
         )
 
@@ -114,6 +156,7 @@ async def test_update_user_routing_strategy_allows_bedrock_only_with_keys(
                 description=None,
                 status=UserStatus.ACTIVE,
                 monthly_budget_usd=Decimal("10.00"),
+                caching_strategy=CachingStrategy.FIVE_MINUTES,
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc),
             )
@@ -128,6 +171,7 @@ async def test_update_user_routing_strategy_allows_bedrock_only_with_keys(
                 description=self.user.description,
                 status=self.user.status,
                 routing_strategy=strategy,
+                caching_strategy=self.user.caching_strategy,
                 monthly_budget_usd=self.user.monthly_budget_usd,
                 created_at=self.user.created_at,
                 updated_at=self.user.updated_at,
@@ -165,10 +209,64 @@ async def test_update_user_routing_strategy_allows_bedrock_only_with_keys(
 
     response = await admin_users.update_user_routing_strategy(
         user_id=user_id,
-        data=UserRoutingStrategyUpdate(
-            routing_strategy=RoutingStrategy.BEDROCK_ONLY.value
-        ),
+        data=UserRoutingStrategyUpdate(routing_strategy=RoutingStrategy.BEDROCK_ONLY.value),
         session=None,
     )
 
     assert response.routing_strategy == RoutingStrategy.BEDROCK_ONLY.value
+
+
+@pytest.mark.asyncio
+async def test_update_user_caching_strategy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    user_id = uuid4()
+
+    class FakeUserRepository:
+        def __init__(self, _session) -> None:
+            self.user = User(
+                id=user_id,
+                name="user",
+                description=None,
+                status=UserStatus.ACTIVE,
+                routing_strategy=RoutingStrategy.PLAN_FIRST,
+                caching_strategy=CachingStrategy.FIVE_MINUTES,
+                monthly_budget_usd=Decimal("10.00"),
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+
+        async def get_by_id(self, _user_id):
+            return self.user
+
+        async def update_caching_strategy(self, _user_id, strategy):
+            self.user = User(
+                id=self.user.id,
+                name=self.user.name,
+                description=self.user.description,
+                status=self.user.status,
+                routing_strategy=self.user.routing_strategy,
+                caching_strategy=strategy,
+                monthly_budget_usd=self.user.monthly_budget_usd,
+                created_at=self.user.created_at,
+                updated_at=self.user.updated_at,
+            )
+            return True
+
+    class FakeAccessKeyRepository:
+        def __init__(self, _session) -> None:
+            self._keys = []
+
+        async def list_by_user(self, _user_id):
+            return self._keys
+
+    monkeypatch.setattr(admin_users, "UserRepository", FakeUserRepository)
+    monkeypatch.setattr(admin_users, "AccessKeyRepository", FakeAccessKeyRepository)
+
+    response = await admin_users.update_user_caching_strategy(
+        user_id=user_id,
+        data=UserCachingStrategyUpdate(caching_strategy=CachingStrategy.ONE_HOUR.value),
+        session=None,
+    )
+
+    assert response.caching_strategy == CachingStrategy.ONE_HOUR.value
