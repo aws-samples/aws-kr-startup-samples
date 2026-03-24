@@ -48,9 +48,21 @@ router = APIRouter()
 
 _PASSTHROUGH_HEADERS = ("anthropic-version", "anthropic-beta", "content-type")
 
+# Custom header name for access key authentication (used with ANTHROPIC_CUSTOM_HEADERS)
+_CUSTOM_ACCESS_KEY_HEADER = "x-proxy-access-key"
+
+
+def _extract_access_key_from_header(raw_request: Request) -> str | None:
+    """Extract access key from custom header (for ANTHROPIC_CUSTOM_HEADERS auth)."""
+    return raw_request.headers.get(_CUSTOM_ACCESS_KEY_HEADER)
+
 
 def _extract_outgoing_headers(raw_request: Request) -> dict[str, str]:
-    """Extract auth and passthrough headers from incoming request."""
+    """Extract auth and passthrough headers from incoming request.
+
+    Strips proxy-internal headers (x-proxy-access-key) so they are not
+    forwarded to upstream providers.
+    """
     headers: dict[str, str] = {}
     if x_api_key := raw_request.headers.get("x-api-key"):
         headers["x-api-key"] = x_api_key
@@ -86,6 +98,37 @@ async def proxy_messages(
     raw_request: Request,
     session: AsyncSession = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
+):
+    return await _handle_messages(access_key, request, raw_request, session, auth_service)
+
+
+@router.post("/v1/messages")
+async def proxy_messages_custom_header(
+    request: AnthropicRequest,
+    raw_request: Request,
+    session: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """Authenticate via x-proxy-access-key custom header.
+
+    Use with ANTHROPIC_CUSTOM_HEADERS="x-proxy-access-key: ak_xxx".
+    Compatible with /login OAuth (plan_first + SSO).
+    """
+    access_key = _extract_access_key_from_header(raw_request)
+    if not access_key:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Missing {_CUSTOM_ACCESS_KEY_HEADER} header",
+        )
+    return await _handle_messages(access_key, request, raw_request, session, auth_service)
+
+
+async def _handle_messages(
+    access_key: str,
+    request: AnthropicRequest,
+    raw_request: Request,
+    session: AsyncSession,
+    auth_service: AuthService,
 ):
     start_time = time.time()
 
@@ -183,6 +226,31 @@ async def proxy_count_tokens(
     request: AnthropicRequest,
     raw_request: Request,
     auth_service: AuthService = Depends(get_auth_service),
+):
+    return await _handle_count_tokens(access_key, request, raw_request, auth_service)
+
+
+@router.post("/v1/messages/count_tokens")
+async def proxy_count_tokens_custom_header(
+    request: AnthropicRequest,
+    raw_request: Request,
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """Count tokens via x-proxy-access-key custom header auth."""
+    access_key = _extract_access_key_from_header(raw_request)
+    if not access_key:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Missing {_CUSTOM_ACCESS_KEY_HEADER} header",
+        )
+    return await _handle_count_tokens(access_key, request, raw_request, auth_service)
+
+
+async def _handle_count_tokens(
+    access_key: str,
+    request: AnthropicRequest,
+    raw_request: Request,
+    auth_service: AuthService,
 ):
     # Authenticate
     ctx = await auth_service.authenticate(access_key)
