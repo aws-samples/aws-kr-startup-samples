@@ -16,6 +16,7 @@ from .api import (
     admin_pricing_router,
     admin_usage_router,
     admin_users_router,
+    auth_sso_router,
     proxy_router,
 )
 from .config import get_settings
@@ -75,6 +76,7 @@ app.add_middleware(
 )
 
 app.include_router(proxy_router)
+app.include_router(auth_sso_router)
 app.include_router(admin_auth_router)
 app.include_router(admin_users_router)
 app.include_router(admin_keys_router)

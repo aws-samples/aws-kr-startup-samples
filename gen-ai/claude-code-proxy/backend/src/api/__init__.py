@@ -6,6 +6,7 @@ from .admin_usage import router as admin_usage_router
 from .admin_pricing import router as admin_pricing_router
 from .admin_model_slots import router as admin_model_slots_router
 from .admin_model_pricing import router as admin_model_pricing_router
+from .auth_sso import router as auth_sso_router
 
 __all__ = [
     "proxy_router",
@@ -16,4 +17,5 @@ __all__ = [
     "admin_pricing_router",
     "admin_model_slots_router",
     "admin_model_pricing_router",
+    "auth_sso_router",
 ]

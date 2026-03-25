@@ -17,7 +17,7 @@ class UserRepository:
         self,
         name: str,
         description: str | None = None,
-        routing_strategy: RoutingStrategy = RoutingStrategy.PLAN_FIRST,
+        routing_strategy: RoutingStrategy = RoutingStrategy.BEDROCK_ONLY,
         caching_strategy: CachingStrategy = CachingStrategy.FIVE_MINUTES,
         monthly_budget_usd: Decimal | None = None,
     ) -> User:
@@ -35,6 +35,17 @@ class UserRepository:
         self.session.add(model)
         await self.session.flush()
         return self._to_entity(model)
+
+    async def get_by_name(self, name: str) -> User | None:
+        result = await self.session.execute(
+            select(UserModel).where(
+                UserModel.name == name,
+                UserModel.deleted_at.is_(None),
+                UserModel.status != UserStatus.DELETED.value,
+            )
+        )
+        model = result.scalar_one_or_none()
+        return self._to_entity(model) if model else None
 
     async def get_by_id(self, user_id: UUID) -> User | None:
         result = await self.session.execute(
