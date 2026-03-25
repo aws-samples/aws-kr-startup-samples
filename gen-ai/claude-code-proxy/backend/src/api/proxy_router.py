@@ -61,6 +61,19 @@ def _get_bedrock_model(request: AnthropicRequest) -> str:
 # Endpoints
 # ---------------------------------------------------------------------------
 
+def _extract_access_key(raw_request: Request) -> str | None:
+    """Extract access_key from Authorization Bearer or X-Api-Key header."""
+    if auth := raw_request.headers.get("authorization"):
+        if auth.lower().startswith("bearer "):
+            token = auth[7:].strip()
+            if token.startswith("ak_"):
+                return token
+    if api_key := raw_request.headers.get("x-api-key"):
+        if api_key.startswith("ak_"):
+            return api_key
+    return None
+
+
 @router.post("/ak/{access_key}/v1/messages")
 async def proxy_messages(
     access_key: str,
@@ -69,6 +82,20 @@ async def proxy_messages(
     session: AsyncSession = Depends(get_session),
     auth_service: AuthService = Depends(get_auth_service),
 ):
+    return await _handle_messages(access_key, request, raw_request, session, auth_service)
+
+
+@router.post("/v1/messages")
+async def proxy_messages_header_auth(
+    request: AnthropicRequest,
+    raw_request: Request,
+    session: AsyncSession = Depends(get_session),
+    auth_service: AuthService = Depends(get_auth_service),
+):
+    """Authenticate via Bearer/X-Api-Key header (for apiKeyHelper SSO flow)."""
+    access_key = _extract_access_key(raw_request)
+    if not access_key:
+        raise HTTPException(status_code=401, detail="Missing access key in auth headers")
     return await _handle_messages(access_key, request, raw_request, session, auth_service)
 
 

@@ -1,0 +1,10 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://{API_GATEWAY_URL}",
+    "AWS_PROFILE": "claude-code",
+    "AWS_REGION": "ap-northeast-2",
+    "PROXY_TOKEN_SERVICE_URL": "https://{API_GATEWAY_ID}.execute-api.{REGION}.amazonaws.com/v1/auth/sso"
+  },
+  "apiKeyHelper": "/path/to/scripts/get-proxy-token.sh",
+  "awsAuthRefresh": "aws sso login --profile claude-code"
+}
