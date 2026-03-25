@@ -6,14 +6,11 @@ from ..domain import (
     AnthropicResponse,
     AnthropicUsage,
     Provider,
-    RETRYABLE_ERRORS,
     ErrorType,
-    RoutingStrategy,
 )
 from .context import RequestContext
 from .budget import BudgetCheckResult, format_budget_exceeded_message
 from .adapter_base import AdapterResponse, AdapterError, Adapter
-from .dependencies import get_proxy_deps
 
 
 # Map internal error types to Anthropic API error types
@@ -52,111 +49,31 @@ class ProxyResponse:
 
 
 class ProxyRouter:
-    """Routes requests between Plan and Bedrock."""
+    """Routes requests to Bedrock."""
 
     def __init__(
         self,
-        plan_adapter: Adapter | None,
         bedrock_adapter: Adapter,
         budget_checker: Callable[[RequestContext], Awaitable[BudgetCheckResult]] | None = None,
     ):
-        self._plan = plan_adapter
         self._bedrock = bedrock_adapter
         self._budget_checker = budget_checker
 
     async def route(self, ctx: RequestContext, request: AnthropicRequest) -> ProxyResponse:
-        # Route based on user's routing strategy
-        if ctx.routing_strategy == RoutingStrategy.BEDROCK_ONLY:
-            return await self._route_bedrock_only(ctx, request)
-
-        # Default: plan_first
-        return await self._route_plan_first(ctx, request)
-
-    async def _route_plan_first(
-        self, ctx: RequestContext, request: AnthropicRequest
-    ) -> ProxyResponse:
-        """Plan API first, fallback to Bedrock on retryable errors."""
-        key_id = str(ctx.access_key_id)
-        cb = get_proxy_deps().circuit_breaker
-        plan_attempted = False
-
-        if not cb.is_open(key_id):
-            plan_attempted = True
-            result = await self._plan.invoke(ctx, request)
-
-            if isinstance(result, AdapterResponse):
-                cb.record_success(key_id)
-                return self._success_response("plan", result, is_fallback=False)
-
-            cb.record_failure(key_id, result.error_type)
-
-            should_fallback = result.retryable and result.error_type in RETRYABLE_ERRORS
-            if not should_fallback:
-                return self._error_response("plan", result, is_fallback=False)
-
-            plan_error = result
-
-        if ctx.has_bedrock_key:
-            if self._budget_checker:
-                budget_result = await self._budget_checker(ctx)
-                if not budget_result.allowed:
-                    return ProxyResponse(
-                        success=False,
-                        response=None,
-                        usage=None,
-                        provider="bedrock",
-                        is_fallback=plan_attempted,
-                        status_code=429,
-                        error_type="rate_limit_error",
-                        error_message=format_budget_exceeded_message(budget_result),
-                    )
-            result = await self._bedrock.invoke(ctx, request)
-
-            if isinstance(result, AdapterResponse):
-                fallback_reason = _map_error_type(plan_error.error_type) if plan_attempted else None
-                return self._success_response(
-                    "bedrock", result, is_fallback=plan_attempted, fallback_reason=fallback_reason
-                )
-
-            return self._error_response("bedrock", result, is_fallback=plan_attempted)
-
-        return ProxyResponse(
-            success=False,
-            response=None,
-            usage=None,
-            provider="plan",
-            is_fallback=False,
-            status_code=503,
-            error_type="overloaded_error",
-            error_message="Service unavailable and no fallback configured",
-        )
-
-    async def _route_bedrock_only(
-        self, ctx: RequestContext, request: AnthropicRequest
-    ) -> ProxyResponse:
-        """Bedrock only, skip Plan API entirely."""
         if not ctx.has_bedrock_key:
             return ProxyResponse(
-                success=False,
-                response=None,
-                usage=None,
-                provider="bedrock",
-                is_fallback=False,
-                status_code=503,
+                success=False, response=None, usage=None, provider="bedrock",
+                is_fallback=False, status_code=503,
                 error_type="api_error",
-                error_message="Bedrock key not configured for bedrock_only routing",
+                error_message="Bedrock key not configured",
             )
 
         if self._budget_checker:
             budget_result = await self._budget_checker(ctx)
             if not budget_result.allowed:
                 return ProxyResponse(
-                    success=False,
-                    response=None,
-                    usage=None,
-                    provider="bedrock",
-                    is_fallback=False,
-                    status_code=429,
+                    success=False, response=None, usage=None, provider="bedrock",
+                    is_fallback=False, status_code=429,
                     error_type="rate_limit_error",
                     error_message=format_budget_exceeded_message(budget_result),
                 )
@@ -164,37 +81,13 @@ class ProxyRouter:
         result = await self._bedrock.invoke(ctx, request)
 
         if isinstance(result, AdapterResponse):
-            return self._success_response("bedrock", result, is_fallback=False)
+            return ProxyResponse(
+                success=True, response=result.response, usage=result.usage,
+                provider="bedrock", is_fallback=False, status_code=200,
+            )
 
-        return self._error_response("bedrock", result, is_fallback=False)
-
-    def _success_response(
-        self,
-        provider: Provider,
-        result: AdapterResponse,
-        is_fallback: bool,
-        fallback_reason: str | None = None,
-    ) -> ProxyResponse:
         return ProxyResponse(
-            success=True,
-            response=result.response,
-            usage=result.usage,
-            provider=provider,
-            is_fallback=is_fallback,
-            status_code=200,
-            fallback_reason=fallback_reason,
-        )
-
-    def _error_response(
-        self, provider: Provider, error: AdapterError, is_fallback: bool
-    ) -> ProxyResponse:
-        return ProxyResponse(
-            success=False,
-            response=None,
-            usage=None,
-            provider=provider,
-            is_fallback=is_fallback,
-            status_code=error.status_code,
-            error_type=_map_error_type(error.error_type),
-            error_message=error.message,
+            success=False, response=None, usage=None, provider="bedrock",
+            is_fallback=False, status_code=result.status_code,
+            error_type=_map_error_type(result.error_type), error_message=result.message,
         )

@@ -76,8 +76,6 @@ class Settings(BaseSettings):
     db_ssl_verify: bool = True
 
     # Secrets (loaded from env or Secrets Manager)
-    plan_api_key: str = ""
-    plan_force_rate_limit: bool = False
     key_hasher_secret: str = ""
     key_hasher_secret_arn: str = ""  # Optional: Secrets Manager ARN
     jwt_secret: str = ""
@@ -132,7 +130,6 @@ class Settings(BaseSettings):
     otel_user_metrics_enabled: bool = False
 
     # URLs
-    plan_api_url: str = "https://api.anthropic.com"
     bedrock_region: str = "ap-northeast-2"
     bedrock_default_model: str = "global.anthropic.claude-sonnet-4-6"
     legacy_bedrock_model_mapping: dict[str, str] = Field(
@@ -158,9 +155,6 @@ class Settings(BaseSettings):
             "ANTHROPIC_DEFAULT_HAIKU_MODEL", "PROXY_ANTHROPIC_DEFAULT_HAIKU_MODEL"
         ),
     )
-    plan_verify_ssl: bool = True
-    plan_ca_bundle: str = ""
-
     model_config = {"env_prefix": "PROXY_", "env_file": ".env"}
 
     def model_post_init(self, __context) -> None:

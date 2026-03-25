@@ -7,24 +7,18 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..config import get_settings
 from ..db import async_session_factory, get_session
 from ..domain import (
-    RETRYABLE_ERRORS,
-    AnthropicCountTokensResponse,
     AnthropicError,
     AnthropicRequest,
     AnthropicUsage,
     Provider,
-    RoutingStrategy,
 )
 from ..logging import get_logger
 from ..proxy import (
     AuthService,
     BedrockAdapter,
     BudgetService,
-    PlanAdapter,
-    ProxyRouter,
     UsageRecorder,
     get_auth_service,
     get_proxy_deps,
@@ -46,32 +40,6 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
-_PASSTHROUGH_HEADERS = ("anthropic-version", "anthropic-beta", "content-type")
-
-# Custom header name for access key authentication (used with ANTHROPIC_CUSTOM_HEADERS)
-_CUSTOM_ACCESS_KEY_HEADER = "x-proxy-access-key"
-
-
-def _extract_access_key_from_header(raw_request: Request) -> str | None:
-    """Extract access key from custom header (for ANTHROPIC_CUSTOM_HEADERS auth)."""
-    return raw_request.headers.get(_CUSTOM_ACCESS_KEY_HEADER)
-
-
-def _extract_outgoing_headers(raw_request: Request) -> dict[str, str]:
-    """Extract auth and passthrough headers from incoming request.
-
-    Strips proxy-internal headers (x-proxy-access-key) so they are not
-    forwarded to upstream providers.
-    """
-    headers: dict[str, str] = {}
-    if x_api_key := raw_request.headers.get("x-api-key"):
-        headers["x-api-key"] = x_api_key
-    if authorization := raw_request.headers.get("authorization"):
-        headers["Authorization"] = authorization
-    for name in _PASSTHROUGH_HEADERS:
-        if value := raw_request.headers.get(name):
-            headers[name] = value
-    return headers
 
 def _mask_access_key(path: str) -> str:
     """Mask access key in path: /ak/ak_abc123xyz -> /ak/***"""
@@ -85,11 +53,13 @@ def _extract_request_info(raw_request: Request) -> tuple[str, str]:
     return method, _mask_access_key(path)
 
 
-def _get_usage_model_for_provider(provider: Provider, request: AnthropicRequest) -> str:
-    if provider == "bedrock":
-        return get_proxy_deps().bedrock_model_resolver.resolve(request.model)
-    return request.model
+def _get_bedrock_model(request: AnthropicRequest) -> str:
+    return get_proxy_deps().bedrock_model_resolver.resolve(request.model)
 
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 @router.post("/ak/{access_key}/v1/messages")
 async def proxy_messages(
@@ -102,26 +72,14 @@ async def proxy_messages(
     return await _handle_messages(access_key, request, raw_request, session, auth_service)
 
 
-@router.post("/v1/messages")
-async def proxy_messages_custom_header(
-    request: AnthropicRequest,
-    raw_request: Request,
-    session: AsyncSession = Depends(get_session),
-    auth_service: AuthService = Depends(get_auth_service),
-):
-    """Authenticate via x-proxy-access-key custom header.
+@router.get("/health")
+async def health():
+    return {"status": "healthy"}
 
-    Use with ANTHROPIC_CUSTOM_HEADERS="x-proxy-access-key: ak_xxx".
-    Compatible with /login OAuth (plan_first + SSO).
-    """
-    access_key = _extract_access_key_from_header(raw_request)
-    if not access_key:
-        raise HTTPException(
-            status_code=401,
-            detail=f"Missing {_CUSTOM_ACCESS_KEY_HEADER} header",
-        )
-    return await _handle_messages(access_key, request, raw_request, session, auth_service)
 
+# ---------------------------------------------------------------------------
+# Core handler
+# ---------------------------------------------------------------------------
 
 async def _handle_messages(
     access_key: str,
@@ -132,414 +90,99 @@ async def _handle_messages(
 ):
     start_time = time.time()
 
-    # Authenticate
     ctx = await auth_service.authenticate(access_key)
     if not ctx:
         raise HTTPException(status_code=404, detail="Not found")
 
-    outgoing_headers = _extract_outgoing_headers(raw_request)
-
     normalize_thinking_request(request)
 
     method, path = _extract_request_info(raw_request)
-    logger.info(
-        "api_request",
-        request_id=ctx.request_id,
-        method=method,
-        path=path,
-    )
+    logger.info("api_request", request_id=ctx.request_id, method=method, path=path)
 
     usage_aggregate_repo = UsageAggregateRepository(session)
     budget_service = BudgetService(UserRepository(session), usage_aggregate_repo)
 
     if request.stream:
-        # Route streaming based on user's routing strategy
-        if ctx.routing_strategy == RoutingStrategy.BEDROCK_ONLY:
-            return await _stream_bedrock_only(
-                ctx, request, session, budget_service, usage_aggregate_repo
-            )
+        return await _stream_bedrock(ctx, request, session, budget_service, usage_aggregate_repo)
 
-        # Default: plan_first streaming
-        return await _stream_plan_first(
-            ctx, request, session, outgoing_headers, budget_service, usage_aggregate_repo
-        )
+    # Non-streaming
+    return await _invoke_bedrock(ctx, request, session, budget_service, usage_aggregate_repo, start_time)
 
-    # Setup adapters
-    token_usage_repo = TokenUsageRepository(session)
 
-    # Bedrock Only 사용자는 PlanAdapter 불필요
-    plan_adapter = (
-        None
-        if ctx.routing_strategy == RoutingStrategy.BEDROCK_ONLY
-        else PlanAdapter(headers=outgoing_headers)
-    )
+# ---------------------------------------------------------------------------
+# Non-streaming Bedrock
+# ---------------------------------------------------------------------------
+
+async def _invoke_bedrock(
+    ctx: RequestContext,
+    request: AnthropicRequest,
+    session: AsyncSession,
+    budget_service: BudgetService,
+    usage_aggregate_repo: UsageAggregateRepository,
+    start_time: float,
+):
+    if not ctx.has_bedrock_key:
+        return _bedrock_not_configured_error(ctx)
+
+    budget_result = await budget_service.check_budget(ctx.user_id, fail_open=False)
+    if not budget_result.allowed:
+        return _budget_exceeded_error(ctx, budget_result)
+
     bedrock_adapter = BedrockAdapter(BedrockKeyRepository(session))
-
-    async def _budget_checker(ctx):
-        return await budget_service.check_budget(ctx.user_id, fail_open=False)
-
-    proxy_router = ProxyRouter(
-        plan_adapter,
-        bedrock_adapter,
-        budget_checker=_budget_checker,
-    )
+    token_usage_repo = TokenUsageRepository(session)
     usage_recorder = UsageRecorder(
-        token_usage_repo,
-        usage_aggregate_repo,
-        session_factory=async_session_factory,
+        token_usage_repo, usage_aggregate_repo, session_factory=async_session_factory,
     )
 
     try:
-        # Route request
-        response = await proxy_router.route(ctx, request)
-        # Calculate latency
+        result = await bedrock_adapter.invoke(ctx, request)
         latency_ms = int((time.time() - start_time) * 1000)
 
-        # Record usage
-        await usage_recorder.record(
-            ctx,
-            response,
-            latency_ms,
-            _get_usage_model_for_provider(response.provider, request),
-        )
+        from ..proxy.router import ProxyResponse
+        if isinstance(result, AdapterError):
+            response = ProxyResponse(
+                success=False, response=None, usage=None, provider="bedrock",
+                is_fallback=False, status_code=result.status_code,
+                error_type=_map_error_type(result.error_type), error_message=result.message,
+            )
+        else:
+            response = ProxyResponse(
+                success=True, response=result.response, usage=result.usage,
+                provider="bedrock", is_fallback=False, status_code=200,
+            )
+
+        await usage_recorder.record(ctx, response, latency_ms, _get_bedrock_model(request))
         await session.commit()
 
         if response.success and response.response:
             return response.response.model_dump()
 
-        # Return error with proper HTTP status code
         error_body = AnthropicError(
             error={"type": response.error_type, "message": response.error_message},
             request_id=ctx.request_id,
         ).model_dump()
         return JSONResponse(content=error_body, status_code=response.status_code)
-
     finally:
-        if plan_adapter:
-            await plan_adapter.close()
         await bedrock_adapter.close()
 
 
-@router.post("/ak/{access_key}/v1/messages/count_tokens")
-async def proxy_count_tokens(
-    access_key: str,
-    request: AnthropicRequest,
-    raw_request: Request,
-    auth_service: AuthService = Depends(get_auth_service),
-):
-    return await _handle_count_tokens(access_key, request, raw_request, auth_service)
+# ---------------------------------------------------------------------------
+# Streaming Bedrock
+# ---------------------------------------------------------------------------
 
-
-@router.post("/v1/messages/count_tokens")
-async def proxy_count_tokens_custom_header(
-    request: AnthropicRequest,
-    raw_request: Request,
-    auth_service: AuthService = Depends(get_auth_service),
-):
-    """Count tokens via x-proxy-access-key custom header auth."""
-    access_key = _extract_access_key_from_header(raw_request)
-    if not access_key:
-        raise HTTPException(
-            status_code=401,
-            detail=f"Missing {_CUSTOM_ACCESS_KEY_HEADER} header",
-        )
-    return await _handle_count_tokens(access_key, request, raw_request, auth_service)
-
-
-async def _handle_count_tokens(
-    access_key: str,
-    request: AnthropicRequest,
-    raw_request: Request,
-    auth_service: AuthService,
-):
-    # Authenticate
-    ctx = await auth_service.authenticate(access_key)
-    if not ctx:
-        raise HTTPException(status_code=404, detail="Not found")
-
-    outgoing_headers = _extract_outgoing_headers(raw_request)
-
-    normalize_thinking_request(request)
-
-    method, path = _extract_request_info(raw_request)
-    logger.info(
-        "api_request",
-        request_id=ctx.request_id,
-        method=method,
-        path=path,
-    )
-
-    settings = get_settings()
-    has_auth_header = "x-api-key" in outgoing_headers or "Authorization" in outgoing_headers
-    has_plan_key = bool(settings.plan_api_key)
-    if not has_auth_header and not has_plan_key:
-        error_body = AnthropicError(
-            error={
-                "type": "authentication_error",
-                "message": "Missing API key for count_tokens",
-            },
-            request_id=ctx.request_id,
-        ).model_dump()
-        return JSONResponse(content=error_body, status_code=401)
-
-    plan_adapter = PlanAdapter(headers=outgoing_headers)
-    try:
-        result = await plan_adapter.count_tokens(request, request_id=ctx.request_id)
-        if isinstance(result, AnthropicCountTokensResponse):
-            return result.model_dump()
-
-        error_body = AnthropicError(
-            error={"type": _map_error_type(result.error_type), "message": result.message},
-            request_id=ctx.request_id,
-        ).model_dump()
-        return JSONResponse(content=error_body, status_code=result.status_code)
-    finally:
-        await plan_adapter.close()
-
-
-@router.get("/health")
-async def health():
-    return {"status": "healthy"}
-
-
-async def _record_streaming_usage(
-    usage_recorder: UsageRecorder,
-    ctx: RequestContext,
-    usage: AnthropicUsage,
-    latency_ms: int,
-    model: str,
-    is_fallback: bool,
-    provider: Provider = "bedrock",
-    *,
-    ttft_ms: int | None = None,
-    fallback_reason: str | None = None,
-) -> None:
-    await asyncio.shield(
-        usage_recorder.record_streaming_usage(
-            ctx,
-            usage,
-            latency_ms,
-            model,
-            is_fallback=is_fallback,
-            provider=provider,
-            ttft_ms=ttft_ms,
-            fallback_reason=fallback_reason,
-        )
-    )
-
-
-def _build_bedrock_streaming_response(
-    ctx: RequestContext,
-    request: AnthropicRequest,
-    session: AsyncSession,
-    usage_aggregate_repo: UsageAggregateRepository,
-    bedrock_adapter: BedrockAdapter,
-    bedrock_result: AsyncIterator[bytes],
-    is_fallback: bool,
-    *,
-    fallback_reason: str | None = None,
-) -> StreamingResponse:
-    streaming_start = time.time()
-    usage_recorder = UsageRecorder(
-        TokenUsageRepository(session),
-        usage_aggregate_repo,
-        session_factory=async_session_factory,
-    )
-    usage_collector = StreamingUsageCollector()
-
-    async def bedrock_stream_generator():
-        ttft_ms: int | None = None
-        try:
-            async for chunk in bedrock_result:
-                usage_collector.feed(chunk)
-                if ttft_ms is None:
-                    ttft_ms = int((time.time() - streaming_start) * 1000)
-                yield chunk
-        finally:
-            try:
-                await asyncio.shield(bedrock_adapter.close())
-            finally:
-                usage = usage_collector.get_usage()
-                if usage:
-                    latency_ms = int((time.time() - streaming_start) * 1000)
-                    await _record_streaming_usage(
-                        usage_recorder,
-                        ctx,
-                        usage,
-                        latency_ms,
-                        _get_usage_model_for_provider("bedrock", request),
-                        is_fallback,
-                        provider="bedrock",
-                        ttft_ms=ttft_ms,
-                        fallback_reason=fallback_reason,
-                    )
-
-    return StreamingResponse(
-        bedrock_stream_generator(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-    )
-
-
-def _build_plan_streaming_response(
-    ctx: RequestContext,
-    request: AnthropicRequest,
-    session: AsyncSession,
-    usage_aggregate_repo: UsageAggregateRepository,
-    plan_adapter: PlanAdapter,
-    plan_result,
-) -> StreamingResponse:
-    streaming_start = time.time()
-    usage_recorder = UsageRecorder(
-        TokenUsageRepository(session),
-        usage_aggregate_repo,
-        session_factory=async_session_factory,
-    )
-    usage_collector = StreamingUsageCollector()
-
-    async def plan_stream_generator():
-        ttft_ms: int | None = None
-        try:
-            async for chunk in plan_result.aiter_bytes():
-                usage_collector.feed(chunk)
-                if ttft_ms is None:
-                    ttft_ms = int((time.time() - streaming_start) * 1000)
-                yield chunk
-        finally:
-            try:
-                await plan_result.aclose()
-            finally:
-                await plan_adapter.close()
-                usage = usage_collector.get_usage()
-                if usage:
-                    latency_ms = int((time.time() - streaming_start) * 1000)
-                    await _record_streaming_usage(
-                        usage_recorder,
-                        ctx,
-                        usage,
-                        latency_ms,
-                        _get_usage_model_for_provider("plan", request),
-                        is_fallback=False,
-                        provider="plan",
-                        ttft_ms=ttft_ms,
-                        fallback_reason=None,
-                    )
-
-    media_type = plan_result.headers.get("content-type", "text/event-stream")
-    return StreamingResponse(
-        plan_stream_generator(),
-        media_type=media_type,
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
-    )
-
-
-async def _stream_plan_first(
-    ctx: RequestContext,
-    request: AnthropicRequest,
-    session: AsyncSession,
-    outgoing_headers: dict[str, str],
-    budget_service: BudgetService,
-    usage_aggregate_repo: UsageAggregateRepository,
-):
-    """Stream with Plan API first, fallback to Bedrock on retryable errors."""
-    plan_adapter = PlanAdapter(headers=outgoing_headers)
-    bedrock_adapter = None
-    streaming_started = False
-    try:
-        result = await plan_adapter.stream(request, request_id=ctx.request_id)
-        if isinstance(result, AdapterError):
-            should_fallback = (
-                ctx.has_bedrock_key and result.retryable and result.error_type in RETRYABLE_ERRORS
-            )
-            if should_fallback:
-                budget_result = await budget_service.check_budget(ctx.user_id, fail_open=False)
-                if not budget_result.allowed:
-                    error_body = AnthropicError(
-                        error={
-                            "type": "rate_limit_error",
-                            "message": format_budget_exceeded_message(budget_result),
-                        },
-                        request_id=ctx.request_id,
-                    ).model_dump()
-                    return JSONResponse(content=error_body, status_code=429)
-
-                bedrock_adapter = BedrockAdapter(BedrockKeyRepository(session))
-                bedrock_result = await bedrock_adapter.stream(ctx, request)
-                if isinstance(bedrock_result, AdapterError):
-                    error_body = AnthropicError(
-                        error={
-                            "type": _map_error_type(bedrock_result.error_type),
-                            "message": bedrock_result.message,
-                        },
-                        request_id=ctx.request_id,
-                    ).model_dump()
-                    return JSONResponse(content=error_body, status_code=bedrock_result.status_code)
-
-                streaming_started = True
-                return _build_bedrock_streaming_response(
-                    ctx=ctx,
-                    request=request,
-                    session=session,
-                    usage_aggregate_repo=usage_aggregate_repo,
-                    bedrock_adapter=bedrock_adapter,
-                    bedrock_result=bedrock_result,
-                    is_fallback=True,
-                    fallback_reason=_map_error_type(result.error_type),
-                )
-
-            error_body = AnthropicError(
-                error={
-                    "type": _map_error_type(result.error_type),
-                    "message": result.message,
-                },
-                request_id=ctx.request_id,
-            ).model_dump()
-            return JSONResponse(content=error_body, status_code=result.status_code)
-
-        streaming_started = True
-        return _build_plan_streaming_response(
-            ctx=ctx,
-            request=request,
-            session=session,
-            usage_aggregate_repo=usage_aggregate_repo,
-            plan_adapter=plan_adapter,
-            plan_result=result,
-        )
-    finally:
-        if not streaming_started:
-            await plan_adapter.close()
-            if bedrock_adapter:
-                await bedrock_adapter.close()
-
-
-async def _stream_bedrock_only(
+async def _stream_bedrock(
     ctx: RequestContext,
     request: AnthropicRequest,
     session: AsyncSession,
     budget_service: BudgetService,
     usage_aggregate_repo: UsageAggregateRepository,
 ):
-    """Stream directly to Bedrock, skip Plan API entirely."""
     if not ctx.has_bedrock_key:
-        error_body = AnthropicError(
-            error={
-                "type": "api_error",
-                "message": "Bedrock key not configured for bedrock_only routing",
-            },
-            request_id=ctx.request_id,
-        ).model_dump()
-        return JSONResponse(content=error_body, status_code=503)
+        return _bedrock_not_configured_error(ctx)
 
     budget_result = await budget_service.check_budget(ctx.user_id, fail_open=False)
     if not budget_result.allowed:
-        error_body = AnthropicError(
-            error={
-                "type": "rate_limit_error",
-                "message": format_budget_exceeded_message(budget_result),
-            },
-            request_id=ctx.request_id,
-        ).model_dump()
-        return JSONResponse(content=error_body, status_code=429)
+        return _budget_exceeded_error(ctx, budget_result)
 
     bedrock_adapter = BedrockAdapter(BedrockKeyRepository(session))
     streaming_started = False
@@ -556,15 +199,76 @@ async def _stream_bedrock_only(
             return JSONResponse(content=error_body, status_code=bedrock_result.status_code)
 
         streaming_started = True
-        return _build_bedrock_streaming_response(
-            ctx=ctx,
-            request=request,
-            session=session,
-            usage_aggregate_repo=usage_aggregate_repo,
-            bedrock_adapter=bedrock_adapter,
-            bedrock_result=bedrock_result,
-            is_fallback=False,
+        return _build_streaming_response(
+            ctx, request, session, usage_aggregate_repo, bedrock_adapter, bedrock_result,
         )
     finally:
         if not streaming_started:
             await bedrock_adapter.close()
+
+
+def _build_streaming_response(
+    ctx: RequestContext,
+    request: AnthropicRequest,
+    session: AsyncSession,
+    usage_aggregate_repo: UsageAggregateRepository,
+    bedrock_adapter: BedrockAdapter,
+    bedrock_result: AsyncIterator[bytes],
+) -> StreamingResponse:
+    streaming_start = time.time()
+    usage_recorder = UsageRecorder(
+        TokenUsageRepository(session), usage_aggregate_repo,
+        session_factory=async_session_factory,
+    )
+    usage_collector = StreamingUsageCollector()
+
+    async def stream_generator():
+        ttft_ms: int | None = None
+        try:
+            async for chunk in bedrock_result:
+                usage_collector.feed(chunk)
+                if ttft_ms is None:
+                    ttft_ms = int((time.time() - streaming_start) * 1000)
+                yield chunk
+        finally:
+            try:
+                await asyncio.shield(bedrock_adapter.close())
+            finally:
+                usage = usage_collector.get_usage()
+                if usage:
+                    latency_ms = int((time.time() - streaming_start) * 1000)
+                    await asyncio.shield(
+                        usage_recorder.record_streaming_usage(
+                            ctx, usage, latency_ms, _get_bedrock_model(request),
+                            is_fallback=False, provider="bedrock", ttft_ms=ttft_ms,
+                        )
+                    )
+
+    return StreamingResponse(
+        stream_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Error helpers
+# ---------------------------------------------------------------------------
+
+def _bedrock_not_configured_error(ctx: RequestContext):
+    error_body = AnthropicError(
+        error={"type": "api_error", "message": "Bedrock key not configured"},
+        request_id=ctx.request_id,
+    ).model_dump()
+    return JSONResponse(content=error_body, status_code=503)
+
+
+def _budget_exceeded_error(ctx: RequestContext, budget_result):
+    error_body = AnthropicError(
+        error={
+            "type": "rate_limit_error",
+            "message": format_budget_exceeded_message(budget_result),
+        },
+        request_id=ctx.request_id,
+    ).model_dump()
+    return JSONResponse(content=error_body, status_code=429)

@@ -14,7 +14,6 @@ class KeyStatus(str, Enum):
 
 
 class RoutingStrategy(str, Enum):
-    PLAN_FIRST = "plan_first"
     BEDROCK_ONLY = "bedrock_only"
 
 
