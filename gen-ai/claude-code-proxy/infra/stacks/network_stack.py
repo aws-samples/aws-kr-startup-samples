@@ -23,31 +23,19 @@ class NetworkStack(Stack):
             ],
         )
 
-        # Separate ALB security group.
-        # Note: CloudFront prefix list (pl-22a6434b) exceeds default SG rule limit (~130 rules).
-        # Security is enforced via X-Origin-Verify header validation in ComputeStack.
-        # To use prefix list, increase "Inbound rules per security group" quota to 200+.
-        self.alb_sg = ec2.SecurityGroup(
-            self,
-            "AlbSg",
-            vpc=self.vpc,
-            description="ALB Security Group - Protected by X-Origin-Verify header",
+        # ECS tasks security group
+        self.ecs_sg = ec2.SecurityGroup(
+            self, "EcsSg", vpc=self.vpc, description="ECS tasks"
         )
 
-        # Allow HTTP/HTTPS from anywhere (security enforced by X-Origin-Verify header)
-        self.alb_sg.add_ingress_rule(
-            ec2.Peer.any_ipv4(),
-            ec2.Port.tcp(443),
-            "HTTPS (protected by X-Origin-Verify header)",
+        # VPC Link security group — API Gateway uses this to reach ECS
+        self.vpclink_sg = ec2.SecurityGroup(
+            self, "VpcLinkSg", vpc=self.vpc, description="API Gateway VPC Link"
         )
-        self.alb_sg.add_ingress_rule(
-            ec2.Peer.any_ipv4(),
-            ec2.Port.tcp(80),
-            "HTTP (protected by X-Origin-Verify header)",
+        self.ecs_sg.add_ingress_rule(
+            self.vpclink_sg, ec2.Port.tcp(8000), "API Gateway VPC Link → ECS"
         )
 
-        self.ecs_sg = ec2.SecurityGroup(self, "EcsSg", vpc=self.vpc)
-        self.ecs_sg.add_ingress_rule(self.alb_sg, ec2.Port.tcp(8000))
-
+        # Database security group
         self.db_sg = ec2.SecurityGroup(self, "DbSg", vpc=self.vpc)
         self.db_sg.add_ingress_rule(self.ecs_sg, ec2.Port.tcp(5432))
