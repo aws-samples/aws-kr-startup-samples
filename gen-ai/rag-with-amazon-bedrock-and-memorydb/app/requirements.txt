@@ -4,4 +4,4 @@ langchain-aws>=0.2,<0.3
 langchain-community>=0.3,<0.4
 redis==5.0.1
 SQLAlchemy==2.0.28
-streamlit==1.37.0
+streamlit==1.54.0
