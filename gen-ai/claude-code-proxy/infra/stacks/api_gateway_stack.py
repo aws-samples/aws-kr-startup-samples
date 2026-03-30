@@ -1,4 +1,5 @@
 from aws_cdk import (
+    Duration,
     Stack,
     CfnOutput,
     aws_apigatewayv2 as apigwv2,
@@ -53,6 +54,18 @@ class ApiGatewayStack(Stack):
             "ProxyApi",
             api_name="claude-code-proxy",
             description="Claude Code Proxy — bedrock_only + SSO",
+            cors_preflight=apigwv2.CorsPreflightOptions(
+                allow_origins=["*"],
+                allow_methods=[
+                    apigwv2.CorsHttpMethod.GET,
+                    apigwv2.CorsHttpMethod.POST,
+                    apigwv2.CorsHttpMethod.PUT,
+                    apigwv2.CorsHttpMethod.DELETE,
+                    apigwv2.CorsHttpMethod.OPTIONS,
+                ],
+                allow_headers=["Authorization", "Content-Type", "X-Api-Key", "x-proxy-access-key"],
+                max_age=Duration.hours(1),
+            ),
         )
 
         # Integration via Cloud Map service discovery
