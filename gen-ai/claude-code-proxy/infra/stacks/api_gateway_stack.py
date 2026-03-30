@@ -105,6 +105,25 @@ class ApiGatewayStack(Stack):
             integration=ecs_integration,
         )
 
+        # --- /admin/* (catch-all for admin dashboard API) ---
+        api.add_routes(
+            path="/admin/{proxy+}",
+            methods=[
+                apigwv2.HttpMethod.GET,
+                apigwv2.HttpMethod.POST,
+                apigwv2.HttpMethod.PUT,
+                apigwv2.HttpMethod.DELETE,
+            ],
+            integration=ecs_integration,
+        )
+
+        # --- /api/* (pricing API) ---
+        api.add_routes(
+            path="/api/{proxy+}",
+            methods=[apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST],
+            integration=ecs_integration,
+        )
+
         # IAM policy for SSO users to invoke /auth/sso
         self.sso_invoke_policy = iam.ManagedPolicy(
             self,
