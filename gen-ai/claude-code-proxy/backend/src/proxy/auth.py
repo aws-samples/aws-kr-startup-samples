@@ -23,6 +23,7 @@ class _CachedAccessKey:
     has_bedrock_key: bool
     routing_strategy: RoutingStrategy
     caching_strategy: CachingStrategy
+    group_id: UUID | None = None
 
 
 class AuthService:
@@ -52,6 +53,7 @@ class AuthService:
                 has_bedrock_key=cached.has_bedrock_key,
                 routing_strategy=cached.routing_strategy,
                 caching_strategy=cached.caching_strategy,
+                group_id=cached.group_id,
             )
 
         # Query database
@@ -59,7 +61,7 @@ class AuthService:
         if not result:
             return None
 
-        access_key, user_id, routing_strategy_str, caching_strategy_str = result
+        access_key, user_id, routing_strategy_str, caching_strategy_str, group_id = result
 
         bedrock_key = await self._bedrock_key_repo.get_by_access_key_id(access_key.id)
         has_bedrock_key = bedrock_key is not None
@@ -75,6 +77,7 @@ class AuthService:
             has_bedrock_key=has_bedrock_key,
             routing_strategy=routing_strategy,
             caching_strategy=caching_strategy,
+            group_id=group_id,
         )
 
         # Cache result
@@ -89,6 +92,7 @@ class AuthService:
             has_bedrock_key=has_bedrock_key,
             routing_strategy=routing_strategy,
             caching_strategy=caching_strategy,
+            group_id=group_id,
         )
 
 

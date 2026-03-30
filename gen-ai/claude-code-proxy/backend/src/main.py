@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api import (
     admin_auth_router,
+    admin_groups_router,
     admin_keys_router,
     admin_model_pricing_router,
     admin_model_slots_router,
@@ -84,6 +85,7 @@ app.include_router(admin_usage_router)
 app.include_router(admin_pricing_router)
 app.include_router(admin_model_slots_router)
 app.include_router(admin_model_pricing_router)
+app.include_router(admin_groups_router)
 
 
 @app.exception_handler(RequestValidationError)

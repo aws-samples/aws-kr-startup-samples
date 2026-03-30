@@ -24,6 +24,21 @@ class Base(DeclarativeBase):
     pass
 
 
+class GroupModel(Base):
+    __tablename__ = "groups"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    monthly_budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    allowed_models: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+
+    users: Mapped[list["UserModel"]] = relationship(back_populates="group")
+
+
 class UserModel(Base):
     __tablename__ = "users"
 
@@ -36,11 +51,15 @@ class UserModel(Base):
         String(10), nullable=False, default="5m", server_default="5m"
     )
     monthly_budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
+    group_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("groups.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
 
     access_keys: Mapped[list["AccessKeyModel"]] = relationship(back_populates="user")
+    group: Mapped["GroupModel | None"] = relationship(back_populates="users")
 
 
 class AccessKeyModel(Base):
@@ -56,6 +75,9 @@ class AccessKeyModel(Base):
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True), nullable=True)
     rotation_expires_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True
     )
 
@@ -234,5 +256,53 @@ class UsageAggregateModel(Base):
             "access_key_id",
             "provider",
             name="uq_usage_agg_bucket_key_prov",
+        ),
+    )
+
+
+class GroupUsageAggregateModel(Base):
+    __tablename__ = "group_usage_aggregates"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    bucket_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    bucket_start: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    group_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    provider: Mapped[str] = mapped_column(String(10), nullable=False, default="bedrock")
+    total_requests: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_input_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    total_output_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    total_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    total_cache_write_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    total_cache_read_tokens: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    total_input_cost_usd: Mapped[Decimal] = mapped_column(
+        Numeric(15, 6), nullable=False, default=Decimal("0")
+    )
+    total_output_cost_usd: Mapped[Decimal] = mapped_column(
+        Numeric(15, 6), nullable=False, default=Decimal("0")
+    )
+    total_cache_write_cost_usd: Mapped[Decimal] = mapped_column(
+        Numeric(15, 6), nullable=False, default=Decimal("0")
+    )
+    total_cache_read_cost_usd: Mapped[Decimal] = mapped_column(
+        Numeric(15, 6), nullable=False, default=Decimal("0")
+    )
+    total_estimated_cost_usd: Mapped[Decimal] = mapped_column(
+        Numeric(15, 6), nullable=False, default=Decimal("0")
+    )
+
+    __table_args__ = (
+        Index(
+            "idx_group_usage_agg_lookup",
+            "bucket_type",
+            "bucket_start",
+            "group_id",
+            "provider",
+        ),
+        UniqueConstraint(
+            "bucket_type",
+            "bucket_start",
+            "group_id",
+            "provider",
+            name="uq_group_usage_agg_bucket_prov",
         ),
     )

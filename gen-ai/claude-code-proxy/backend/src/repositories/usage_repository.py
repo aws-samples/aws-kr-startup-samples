@@ -5,7 +5,7 @@ from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
-from ..db.models import TokenUsageModel, UsageAggregateModel, UserModel
+from ..db.models import GroupUsageAggregateModel, TokenUsageModel, UsageAggregateModel, UserModel
 from ..domain import Provider, TokenUsage, UsageAggregate, UserStatus
 
 
@@ -462,6 +462,84 @@ class UsageAggregateRepository:
             }
             for row in result
         ]
+
+    async def increment_group(
+        self,
+        bucket_type: str,
+        bucket_start: datetime,
+        group_id: UUID,
+        provider: Provider,
+        input_tokens: int,
+        output_tokens: int,
+        total_tokens: int,
+        cache_write_tokens: int = 0,
+        cache_read_tokens: int = 0,
+        total_estimated_cost_usd: Decimal = Decimal("0"),
+        total_input_cost_usd: Decimal = Decimal("0"),
+        total_output_cost_usd: Decimal = Decimal("0"),
+        total_cache_write_cost_usd: Decimal = Decimal("0"),
+        total_cache_read_cost_usd: Decimal = Decimal("0"),
+    ) -> None:
+        stmt = insert(GroupUsageAggregateModel).values(
+            id=uuid4(),
+            bucket_type=bucket_type,
+            bucket_start=bucket_start,
+            group_id=group_id,
+            provider=provider,
+            total_requests=1,
+            total_input_tokens=input_tokens,
+            total_output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            total_cache_write_tokens=cache_write_tokens,
+            total_cache_read_tokens=cache_read_tokens,
+            total_input_cost_usd=total_input_cost_usd,
+            total_output_cost_usd=total_output_cost_usd,
+            total_cache_write_cost_usd=total_cache_write_cost_usd,
+            total_cache_read_cost_usd=total_cache_read_cost_usd,
+            total_estimated_cost_usd=total_estimated_cost_usd,
+        ).on_conflict_do_update(
+            index_elements=["bucket_type", "bucket_start", "group_id", "provider"],
+            set_={
+                "total_requests": GroupUsageAggregateModel.total_requests + 1,
+                "total_input_tokens": GroupUsageAggregateModel.total_input_tokens + input_tokens,
+                "total_output_tokens": GroupUsageAggregateModel.total_output_tokens + output_tokens,
+                "total_tokens": GroupUsageAggregateModel.total_tokens + total_tokens,
+                "total_cache_write_tokens": GroupUsageAggregateModel.total_cache_write_tokens
+                + cache_write_tokens,
+                "total_cache_read_tokens": GroupUsageAggregateModel.total_cache_read_tokens
+                + cache_read_tokens,
+                "total_input_cost_usd": GroupUsageAggregateModel.total_input_cost_usd
+                + total_input_cost_usd,
+                "total_output_cost_usd": GroupUsageAggregateModel.total_output_cost_usd
+                + total_output_cost_usd,
+                "total_cache_write_cost_usd": GroupUsageAggregateModel.total_cache_write_cost_usd
+                + total_cache_write_cost_usd,
+                "total_cache_read_cost_usd": GroupUsageAggregateModel.total_cache_read_cost_usd
+                + total_cache_read_cost_usd,
+                "total_estimated_cost_usd": GroupUsageAggregateModel.total_estimated_cost_usd
+                + total_estimated_cost_usd,
+            },
+        )
+        await self.session.execute(stmt)
+
+    async def get_group_monthly_usage_total(
+        self,
+        group_id: UUID,
+        start_time: datetime,
+        end_time: datetime,
+        provider: Provider | None = None,
+    ) -> Decimal:
+        query = select(func.sum(GroupUsageAggregateModel.total_estimated_cost_usd)).where(
+            GroupUsageAggregateModel.bucket_type == "month",
+            GroupUsageAggregateModel.bucket_start >= start_time,
+            GroupUsageAggregateModel.bucket_start < end_time,
+            GroupUsageAggregateModel.group_id == group_id,
+        )
+        if provider:
+            query = query.where(GroupUsageAggregateModel.provider == provider)
+        result = await self.session.execute(query)
+        total = result.scalar_one_or_none()
+        return total or Decimal("0")
 
     def _to_entity(self, model: UsageAggregateModel) -> UsageAggregate:
         return UsageAggregate(

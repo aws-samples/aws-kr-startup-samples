@@ -422,11 +422,35 @@ class UsageRecorder:
                 total_cache_read_cost_usd=cost_breakdown.cache_read_cost,
             )
 
+        # Group-level aggregates
+        if ctx.group_id:
+            for bucket_type in ("minute", "hour", "day", "week", "month"):
+                bucket_start_kst = _get_bucket_start(now_kst, bucket_type, tz=self.KST)
+                bucket_start = bucket_start_kst.astimezone(timezone.utc)
+                await agg_repo.increment_group(
+                    bucket_type=bucket_type,
+                    bucket_start=bucket_start,
+                    group_id=ctx.group_id,
+                    provider=provider,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    total_tokens=total_tokens,
+                    cache_write_tokens=cache_write_tokens,
+                    cache_read_tokens=cache_read_tokens,
+                    total_estimated_cost_usd=cost_breakdown.total_cost,
+                    total_input_cost_usd=cost_breakdown.input_cost,
+                    total_output_cost_usd=cost_breakdown.output_cost,
+                    total_cache_write_cost_usd=cost_breakdown.cache_write_cost,
+                    total_cache_read_cost_usd=cost_breakdown.cache_read_cost,
+                )
+
+        aggregates_created = 10 if ctx.group_id else 5
         logger.info(
             "usage_persist_complete",
             request_id=ctx.request_id,
             user_id=ctx.user_id,
             access_key_id=ctx.access_key_id,
+            group_id=ctx.group_id,
             provider=provider,
-            aggregates_created=5,  # minute, hour, day, week, month
+            aggregates_created=aggregates_created,
         )

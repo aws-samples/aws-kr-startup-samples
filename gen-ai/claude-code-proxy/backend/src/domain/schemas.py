@@ -288,3 +288,52 @@ class UsageTopUserSeries(BaseModel):
     user_id: UUID
     name: str
     buckets: list[UsageTopUserSeriesBucket]
+
+
+# --- Group schemas ---
+
+
+class GroupCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    description: str | None = None
+    monthly_budget_usd: Decimal | None = Field(
+        default=None, ge=Decimal("0.01"), le=Decimal("999999.99")
+    )
+    allowed_models: str | None = None
+
+
+class GroupUpdate(BaseModel):
+    description: str | None = None
+    monthly_budget_usd: Decimal | None = Field(
+        default=None, ge=Decimal("0.01"), le=Decimal("999999.99")
+    )
+    allowed_models: str | None = None
+
+
+class GroupResponse(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    monthly_budget_usd: str | None
+    allowed_models: str | None
+    status: str
+    member_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+
+class GroupBudgetUpdate(BaseModel):
+    monthly_budget_usd: Decimal | None = Field(
+        default=None, ge=Decimal("0.01"), le=Decimal("999999.99")
+    )
+
+
+class GroupBudgetResponse(BaseModel):
+    group_id: UUID
+    group_name: str
+    monthly_budget_usd: str | None
+    current_usage_usd: str
+    remaining_usd: str | None
+    usage_percentage: float | None
+    period_start: datetime
+    period_end: datetime

@@ -20,6 +20,7 @@ class AccessKeyRepository:
         key_prefix: str,
         bedrock_region: str,
         bedrock_model: str,
+        expires_at: datetime | None = None,
     ) -> AccessKey:
         model = AccessKeyModel(
             user_id=user_id,
@@ -29,6 +30,7 @@ class AccessKeyRepository:
             bedrock_region=bedrock_region,
             bedrock_model=bedrock_model,
             created_at=datetime.utcnow(),
+            expires_at=expires_at,
         )
         self.session.add(model)
         await self.session.flush()
@@ -41,8 +43,10 @@ class AccessKeyRepository:
         model = result.scalar_one_or_none()
         return self._to_entity(model) if model else None
 
-    async def get_by_hash_with_user(self, key_hash: str) -> tuple[AccessKey, UUID, str, str] | None:
-        """Returns (access_key, user_id, routing_strategy, caching_strategy) or None."""
+    async def get_by_hash_with_user(
+        self, key_hash: str
+    ) -> tuple[AccessKey, UUID, str, str, UUID | None] | None:
+        """Returns (access_key, user_id, routing_strategy, caching_strategy, group_id) or None."""
         now = datetime.utcnow()
         result = await self.session.execute(
             select(AccessKeyModel)
@@ -63,11 +67,15 @@ class AccessKeyRepository:
         model = result.scalar_one_or_none()
         if not model or model.user.status != "active":
             return None
+        # Check token expiry
+        if model.expires_at is not None and model.expires_at <= now:
+            return None
         return (
             self._to_entity(model),
             model.user_id,
             model.user.routing_strategy,
             model.user.caching_strategy,
+            model.user.group_id,
         )
 
     async def get_by_id(self, key_id: UUID) -> AccessKey | None:
@@ -124,4 +132,5 @@ class AccessKeyRepository:
             created_at=model.created_at,
             revoked_at=model.revoked_at,
             rotation_expires_at=model.rotation_expires_at,
+            expires_at=model.expires_at,
         )

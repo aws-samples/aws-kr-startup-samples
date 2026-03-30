@@ -5,6 +5,7 @@ from .usage_repository import TokenUsageRepository, UsageAggregateRepository
 from .model_mapping_repository import ModelMappingRepository
 from .model_slot_repository import ModelSlotRepository
 from .model_pricing_catalog_repository import ModelPricingCatalogRepository
+from .group_repository import GroupRepository
 
 __all__ = [
     "UserRepository",
@@ -15,4 +16,5 @@ __all__ = [
     "ModelMappingRepository",
     "ModelSlotRepository",
     "ModelPricingCatalogRepository",
+    "GroupRepository",
 ]

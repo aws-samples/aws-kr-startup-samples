@@ -126,8 +126,11 @@ async def _handle_messages(
     method, path = _extract_request_info(raw_request)
     logger.info("api_request", request_id=ctx.request_id, method=method, path=path)
 
+    from ..repositories import GroupRepository
+
     usage_aggregate_repo = UsageAggregateRepository(session)
-    budget_service = BudgetService(UserRepository(session), usage_aggregate_repo)
+    group_repo = GroupRepository(session) if ctx.group_id else None
+    budget_service = BudgetService(UserRepository(session), usage_aggregate_repo, group_repo=group_repo)
 
     if request.stream:
         return await _stream_bedrock(ctx, request, session, budget_service, usage_aggregate_repo)
@@ -151,7 +154,7 @@ async def _invoke_bedrock(
     if not ctx.has_bedrock_key:
         return _bedrock_not_configured_error(ctx)
 
-    budget_result = await budget_service.check_budget(ctx.user_id, fail_open=False)
+    budget_result = await budget_service.check_budget(ctx.user_id, group_id=ctx.group_id, fail_open=False)
     if not budget_result.allowed:
         return _budget_exceeded_error(ctx, budget_result)
 
@@ -207,7 +210,7 @@ async def _stream_bedrock(
     if not ctx.has_bedrock_key:
         return _bedrock_not_configured_error(ctx)
 
-    budget_result = await budget_service.check_budget(ctx.user_id, fail_open=False)
+    budget_result = await budget_service.check_budget(ctx.user_id, group_id=ctx.group_id, fail_open=False)
     if not budget_result.allowed:
         return _budget_exceeded_error(ctx, budget_result)
 

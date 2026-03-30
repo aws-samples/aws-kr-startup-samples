@@ -12,15 +12,17 @@ without a valid ARN are rejected.
 """
 
 import re
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import get_settings
 from ..db import get_session
 from ..domain import CachingStrategy, KeyStatus, RoutingStrategy
 from ..logging import get_logger
 from ..proxy.model_mapping import get_effective_slot_model
-from ..repositories import AccessKeyRepository, UserRepository
+from ..repositories import AccessKeyRepository, GroupRepository, UserRepository
 from ..security import KeyGenerator, KeyHasher
 
 logger = get_logger(__name__)
@@ -61,7 +63,16 @@ async def sso_authenticate(
 
     user_repo = UserRepository(session)
     key_repo = AccessKeyRepository(session)
+    group_repo = GroupRepository(session)
     hasher = KeyHasher()
+
+    # Find or create group from Permission Set name
+    group, group_created = await group_repo.get_or_create(
+        name=role_name,
+        description=f"Auto-created from SSO Permission Set: {role_name}",
+    )
+    if group_created:
+        logger.info("sso_group_created", group_name=role_name, group_id=str(group.id))
 
     # Find or create user
     user = await user_repo.get_by_name(username)
@@ -71,8 +82,13 @@ async def sso_authenticate(
             description=f"SSO user (role={role_name}, account={account_id})",
             routing_strategy=RoutingStrategy.BEDROCK_ONLY,
             caching_strategy=CachingStrategy.FIVE_MINUTES,
+            group_id=group.id,
         )
         logger.info("sso_user_created", username=username, user_id=str(user.id))
+    elif user.group_id != group.id:
+        # Permission Set changed — update group assignment
+        await user_repo.update_group(user.id, group.id)
+        logger.info("sso_user_group_updated", username=username, group_name=role_name)
 
     # Find existing active key or create new one
     keys = await key_repo.list_by_user(user.id)
@@ -92,13 +108,22 @@ async def sso_authenticate(
     for k in active_keys:
         await key_repo.revoke(k.id)
 
+    settings = get_settings()
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.token_ttl_hours)
+
     await key_repo.create(
         user_id=user.id,
         key_hash=key_hash,
         key_prefix=key_prefix,
         bedrock_region="",
         bedrock_model=get_effective_slot_model("sonnet"),
+        expires_at=expires_at,
     )
     await session.commit()
 
-    return {"access_key": raw_key, "username": username}
+    return {
+        "access_key": raw_key,
+        "username": username,
+        "group": role_name,
+        "expires_at": expires_at.isoformat(),
+    }

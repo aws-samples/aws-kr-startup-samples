@@ -17,3 +17,4 @@ class RequestContext:
     has_bedrock_key: bool
     routing_strategy: RoutingStrategy = RoutingStrategy.BEDROCK_ONLY
     caching_strategy: CachingStrategy = CachingStrategy.FIVE_MINUTES
+    group_id: UUID | None = None

@@ -20,6 +20,7 @@ class UserRepository:
         routing_strategy: RoutingStrategy = RoutingStrategy.BEDROCK_ONLY,
         caching_strategy: CachingStrategy = CachingStrategy.FIVE_MINUTES,
         monthly_budget_usd: Decimal | None = None,
+        group_id: UUID | None = None,
     ) -> User:
         now = datetime.utcnow()
         model = UserModel(
@@ -29,6 +30,7 @@ class UserRepository:
             routing_strategy=routing_strategy.value,
             caching_strategy=caching_strategy.value,
             monthly_budget_usd=monthly_budget_usd,
+            group_id=group_id,
             created_at=now,
             updated_at=now,
         )
@@ -112,6 +114,14 @@ class UserRepository:
         )
         return result.rowcount > 0
 
+    async def update_group(self, user_id: UUID, group_id: UUID | None) -> bool:
+        result = await self.session.execute(
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(group_id=group_id, updated_at=datetime.utcnow())
+        )
+        return result.rowcount > 0
+
     def _to_entity(self, model: UserModel) -> User:
         return User(
             id=model.id,
@@ -121,6 +131,7 @@ class UserRepository:
             routing_strategy=RoutingStrategy(model.routing_strategy),
             caching_strategy=CachingStrategy(model.caching_strategy),
             monthly_budget_usd=model.monthly_budget_usd,
+            group_id=model.group_id,
             created_at=model.created_at,
             updated_at=model.updated_at,
             deleted_at=model.deleted_at,

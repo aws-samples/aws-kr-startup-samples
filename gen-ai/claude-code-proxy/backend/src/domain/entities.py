@@ -8,6 +8,18 @@ from .types import Provider
 
 
 @dataclass
+class Group:
+    id: UUID
+    name: str
+    description: str | None
+    monthly_budget_usd: Decimal | None
+    allowed_models: str | None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass
 class User:
     id: UUID
     name: str
@@ -18,6 +30,7 @@ class User:
     routing_strategy: RoutingStrategy = RoutingStrategy.PLAN_FIRST
     caching_strategy: CachingStrategy = CachingStrategy.FIVE_MINUTES
     monthly_budget_usd: Decimal | None = None
+    group_id: UUID | None = None
     deleted_at: datetime | None = None
 
 
@@ -33,6 +46,7 @@ class AccessKey:
     created_at: datetime
     revoked_at: datetime | None = None
     rotation_expires_at: datetime | None = None
+    expires_at: datetime | None = None
 
 
 @dataclass

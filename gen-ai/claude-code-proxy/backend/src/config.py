@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     kms_key_id: str = ""
     local_encryption_key: str = ""
 
+    # Token
+    token_ttl_hours: int = 12
+
     # Cache TTLs
     access_key_cache_ttl: int = 60
     bedrock_key_cache_ttl: int = 300
