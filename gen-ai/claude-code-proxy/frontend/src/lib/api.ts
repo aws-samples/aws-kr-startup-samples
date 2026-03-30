@@ -247,6 +247,8 @@ export interface User {
   routing_strategy: 'plan_first' | 'bedrock_only';
   caching_strategy: 'off' | '5m' | '1h';
   monthly_budget_usd?: string | null;
+  group_id?: string | null;
+  group_name?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -54,8 +54,6 @@ export default function UserDetailPage() {
   const [notice, setNotice] = useState('');
   const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
-  const [planUsage, setPlanUsage] = useState<UsageResponse | null>(null);
-  const [planUsageLoading, setPlanUsageLoading] = useState(false);
   const [rangePreset, setRangePreset] = useState<RangePreset>('month');
   const [customRange, setCustomRange] = useState({ start: '', end: '' });
   const [budgetStatus, setBudgetStatus] = useState<UserBudgetStatus | null>(null);
@@ -64,11 +62,8 @@ export default function UserDetailPage() {
   const [budgetSaving, setBudgetSaving] = useState(false);
   const [budgetError, setBudgetError] = useState('');
   const [budgetNotice, setBudgetNotice] = useState('');
-  const [routingStrategy, setRoutingStrategy] = useState<'plan_first' | 'bedrock_only'>('plan_first');
   const [cachingStrategy, setCachingStrategy] = useState<'off' | '5m' | '1h'>('5m');
-  const [routingSaving, setRoutingSaving] = useState(false);
   const [cachingSaving, setCachingSaving] = useState(false);
-  const [routingNotice, setRoutingNotice] = useState('');
   const [cachingNotice, setCachingNotice] = useState('');
 
   const showNotice = (message: string) => {
@@ -79,11 +74,6 @@ export default function UserDetailPage() {
   const showBudgetNotice = (message: string) => {
     setBudgetNotice(message);
     setTimeout(() => setBudgetNotice(''), 2500);
-  };
-
-  const showRoutingNotice = (message: string) => {
-    setRoutingNotice(message);
-    setTimeout(() => setRoutingNotice(''), 2500);
   };
 
   const showCachingNotice = (message: string) => {
@@ -97,7 +87,6 @@ export default function UserDetailPage() {
     api.getUser(id).then((response) => {
       if (!active) return;
       setUser(response);
-      setRoutingStrategy(response.routing_strategy || 'plan_first');
       setCachingStrategy(response.caching_strategy || '5m');
     });
     api.getAccessKeys(id).then((response) => {
@@ -165,31 +154,6 @@ export default function UserDetailPage() {
         if (active) setUsageLoading(false);
       });
 
-    // Fetch Plan usage
-    setPlanUsageLoading(true);
-    const planUsageParams = {
-      user_id: id,
-      bucket_type: bucketType,
-      provider: 'plan' as const,
-      ...(rangePreset === 'custom'
-        ? { start_date: usageRange.startDate, end_date: usageRange.endDate }
-        : { period: rangePreset }),
-    };
-
-    api
-      .getUsage(planUsageParams)
-      .then((response) => {
-        if (!active) return;
-        setPlanUsage(response);
-      })
-      .catch(() => {
-        if (!active) return;
-        setPlanUsage(null);
-      })
-      .finally(() => {
-        if (active) setPlanUsageLoading(false);
-      });
-
     return () => {
       active = false;
     };
@@ -227,29 +191,6 @@ export default function UserDetailPage() {
       .sort((a, b) => b.totalCost - a.totalCost);
   }, [usage]);
 
-  // Plan usage derived values
-  const planTotalCost = planUsage ? parseCost(planUsage.estimated_cost_usd) : 0;
-  const planInputCost = planUsage ? parseCost(planUsage.total_input_cost_usd) : 0;
-  const planOutputCost = planUsage ? parseCost(planUsage.total_output_cost_usd) : 0;
-  const planCacheWriteCost = planUsage ? parseCost(planUsage.total_cache_write_cost_usd) : 0;
-  const planCacheReadCost = planUsage ? parseCost(planUsage.total_cache_read_cost_usd) : 0;
-  const planCacheCost = planCacheWriteCost + planCacheReadCost;
-  const planCacheTokens = planUsage
-    ? planUsage.total_cache_write_tokens + planUsage.total_cache_read_tokens
-    : 0;
-  const planCostRows = useMemo(() => {
-    if (!planUsage) return [];
-    return [...planUsage.cost_breakdown]
-      .map((item) => ({
-        model: formatModelLabel(item.model_id),
-        inputCost: parseCost(item.input_cost_usd),
-        outputCost: parseCost(item.output_cost_usd),
-        cacheWriteCost: parseCost(item.cache_write_cost_usd),
-        cacheReadCost: parseCost(item.cache_read_cost_usd),
-        totalCost: parseCost(item.total_cost_usd),
-      }))
-      .sort((a, b) => b.totalCost - a.totalCost);
-  }, [planUsage]);
   const budgetUsagePercent = budgetStatus?.usage_percentage ?? null;
   const budgetProgress =
     budgetUsagePercent !== null ? Math.min(100, Math.max(0, budgetUsagePercent)) : 0;
@@ -335,28 +276,6 @@ export default function UserDetailPage() {
     }
   };
 
-  const handleRoutingStrategyChange = async (newStrategy: 'plan_first' | 'bedrock_only') => {
-    if (!id || routingSaving) return;
-    setRoutingSaving(true);
-    try {
-      const updated = await api.updateUserRoutingStrategy(id, newStrategy);
-      setRoutingStrategy(updated.routing_strategy);
-      setUser((prev) => (prev ? { ...prev, routing_strategy: updated.routing_strategy } : prev));
-      showRoutingNotice('Routing strategy updated.');
-    } catch (err: unknown) {
-      const detail = (err as { detail?: { code?: string; message?: string } | string })?.detail;
-      if (typeof detail === 'object' && detail?.message) {
-        showRoutingNotice(detail.message);
-      } else if (typeof detail === 'string') {
-        showRoutingNotice(detail);
-      } else {
-        showRoutingNotice('Failed to update routing strategy.');
-      }
-    } finally {
-      setRoutingSaving(false);
-    }
-  };
-
   const handleCachingStrategyChange = async (newStrategy: 'off' | '5m' | '1h') => {
     if (!id || cachingSaving) return;
     setCachingSaving(true);
@@ -433,8 +352,10 @@ export default function UserDetailPage() {
           <h2 className="text-lg font-semibold text-ink">Profile</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
             <Detail label="User ID" value={user.id} mono />
+            <Detail label="SSO Role" value={parseSsoField(user.description, 'role')} />
+            <Detail label="AWS Account" value={parseSsoField(user.description, 'account')} />
+            <Detail label="Group" value={user.group_name || 'None'} />
             <Detail label="Created" value={formatDate(user.created_at)} />
-            <Detail label="Updated" value={formatDate(user.updated_at)} />
             <Detail label="Status" value={user.status} />
           </div>
         </div>
@@ -446,78 +367,6 @@ export default function UserDetailPage() {
             <SummaryRow label="Revoked keys" value={revokedKeys} />
           </div>
         </div>
-      </div>
-
-      <div className="rounded-2xl border border-line bg-surface p-6 shadow-soft">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-ink">Routing Strategy</h2>
-            <p className="text-xs text-muted">
-              Control how requests are routed for this user.
-            </p>
-          </div>
-          <span className="inline-flex items-center rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
-            {routingStrategy === 'plan_first' ? 'Plan First' : 'Bedrock Only'}
-          </span>
-        </div>
-
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => handleRoutingStrategyChange('plan_first')}
-            disabled={routingSaving}
-            className={[
-              'rounded-2xl border p-4 text-left transition',
-              routingStrategy === 'plan_first'
-                ? 'border-accent bg-accent/5 ring-2 ring-accent/20'
-                : 'border-line hover:border-accent/50 hover:bg-surface-2',
-            ].join(' ')}
-          >
-            <div className="flex items-center gap-2">
-              <div
-                className={[
-                  'h-4 w-4 rounded-full border-2',
-                  routingStrategy === 'plan_first' ? 'border-accent bg-accent' : 'border-muted',
-                ].join(' ')}
-              />
-              <span className="font-semibold text-ink">Plan First</span>
-            </div>
-            <p className="mt-2 text-xs text-muted">
-              Try Anthropic Plan API first. Falls back to Bedrock if Plan fails or rate limited.
-            </p>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleRoutingStrategyChange('bedrock_only')}
-            disabled={routingSaving}
-            className={[
-              'rounded-2xl border p-4 text-left transition',
-              routingStrategy === 'bedrock_only'
-                ? 'border-accent bg-accent/5 ring-2 ring-accent/20'
-                : 'border-line hover:border-accent/50 hover:bg-surface-2',
-            ].join(' ')}
-          >
-            <div className="flex items-center gap-2">
-              <div
-                className={[
-                  'h-4 w-4 rounded-full border-2',
-                  routingStrategy === 'bedrock_only' ? 'border-accent bg-accent' : 'border-muted',
-                ].join(' ')}
-              />
-              <span className="font-semibold text-ink">Bedrock Only</span>
-            </div>
-            <p className="mt-2 text-xs text-muted">
-              Skip Plan API entirely. All requests go directly to AWS Bedrock.
-            </p>
-          </button>
-        </div>
-
-        {routingNotice && (
-          <div className="mt-4 text-sm text-success">{routingNotice}</div>
-        )}
-        {routingSaving && (
-          <div className="mt-4 text-sm text-muted">Saving...</div>
-        )}
       </div>
 
       <div className="rounded-2xl border border-line bg-surface p-6 shadow-soft">
@@ -856,83 +705,6 @@ export default function UserDetailPage() {
       <div className="rounded-2xl border border-line bg-surface p-6 shadow-soft">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-ink">Plan Cost & Usage</h2>
-            <p className="text-xs text-muted">Estimated cost if billed per token (same range as above).</p>
-          </div>
-        </div>
-
-        {planUsageLoading && (
-          <div className="mt-6 rounded-2xl border border-line bg-surface p-6 text-sm text-muted">
-            Loading usage data...
-          </div>
-        )}
-
-        {!planUsageLoading && (
-          <>
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                label="Estimated Cost"
-                value={formatCurrency(planTotalCost)}
-                note={`Requests ${formatNumber(planUsage?.total_requests ?? 0)}`}
-              />
-              <MetricCard label="Input Cost" value={formatCurrency(planInputCost)} />
-              <MetricCard label="Output Cost" value={formatCurrency(planOutputCost)} />
-              <MetricCard
-                label="Cache Cost"
-                value={formatCurrency(planCacheCost)}
-                note={`${formatNumber(planCacheTokens)} cache tokens`}
-              />
-            </div>
-
-            <div className="mt-6 overflow-hidden rounded-2xl border border-line">
-              {planCostRows.length === 0 ? (
-                <div className="px-6 py-10 text-center text-sm text-muted">
-                  No Plan usage recorded for this user.
-                </div>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs uppercase tracking-[0.2em] text-muted">
-                      <th className="px-6 py-3">Model</th>
-                      <th className="px-6 py-3">Input</th>
-                      <th className="px-6 py-3">Output</th>
-                      <th className="px-6 py-3">Cache Write</th>
-                      <th className="px-6 py-3">Cache Read</th>
-                      <th className="px-6 py-3 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {planCostRows.map((row) => (
-                      <tr key={row.model} className="border-t border-line/60">
-                        <td className="px-6 py-4 font-medium text-ink">{row.model}</td>
-                        <td className="px-6 py-4 text-muted">
-                          {formatCurrency(row.inputCost)}
-                        </td>
-                        <td className="px-6 py-4 text-muted">
-                          {formatCurrency(row.outputCost)}
-                        </td>
-                        <td className="px-6 py-4 text-muted">
-                          {formatCurrency(row.cacheWriteCost)}
-                        </td>
-                        <td className="px-6 py-4 text-muted">
-                          {formatCurrency(row.cacheReadCost)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-semibold text-ink">
-                          {formatCurrency(row.totalCost)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-line bg-surface p-6 shadow-soft">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
             <h2 className="text-lg font-semibold text-ink">Access Keys</h2>
             <p className="text-xs text-muted">Issue, revoke, and register Bedrock keys.</p>
           </div>
@@ -1203,6 +975,19 @@ function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function parseSsoField(description: string | null, field: 'role' | 'account'): string {
+  if (!description) return '-';
+  if (field === 'role') {
+    const match = description.match(/role=([^,)]+)/);
+    return match ? match[1] : '-';
+  }
+  if (field === 'account') {
+    const match = description.match(/account=([^,)]+)/);
+    return match ? match[1] : '-';
+  }
+  return '-';
 }
 
 async function copyToClipboard(value: string) {
