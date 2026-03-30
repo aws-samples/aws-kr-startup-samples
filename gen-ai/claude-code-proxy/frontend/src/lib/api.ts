@@ -159,6 +159,27 @@ class ApiClient {
     return this.fetch<UsageTopUserSeries[]>(`/admin/usage/top-users/series?${query}`);
   };
 
+  // Groups
+  getGroups = () => this.fetch<Group[]>('/admin/groups');
+  getGroup = (id: string) => this.fetch<Group>(`/admin/groups/${id}`);
+  createGroup = (data: { name: string; description?: string; monthly_budget_usd?: string | number | null }) =>
+    this.fetch<Group>('/admin/groups', { method: 'POST', body: JSON.stringify(data) });
+  updateGroup = (id: string, data: { description?: string; monthly_budget_usd?: string | number | null }) =>
+    this.fetch<Group>(`/admin/groups/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  deleteGroup = (id: string) =>
+    this.fetch<void>(`/admin/groups/${id}`, { method: 'DELETE' });
+  getGroupBudget = (id: string) =>
+    this.fetch<GroupBudgetStatus>(`/admin/groups/${id}/budget`);
+  updateGroupBudget = (id: string, monthly_budget_usd: string | number | null) =>
+    this.fetch<GroupBudgetStatus>(`/admin/groups/${id}/budget`, {
+      method: 'PUT',
+      body: JSON.stringify({ monthly_budget_usd }),
+    });
+  getGroupMembers = (id: string) =>
+    this.fetch<GroupMember[]>(`/admin/groups/${id}/members`);
+  getGroupUsage = (id: string) =>
+    this.fetch<GroupUsage>(`/admin/groups/${id}/usage`);
+
   // Pricing
   getModelPricing = (region: string = 'ap-northeast-2') => {
     const query = new URLSearchParams();
@@ -357,6 +378,43 @@ export interface ModelPricingCatalog {
   effective_date: string;
   is_active: boolean;
   updated_at: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  description: string | null;
+  monthly_budget_usd: string | null;
+  allowed_models: string | null;
+  status: string;
+  member_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GroupBudgetStatus {
+  group_id: string;
+  group_name: string;
+  monthly_budget_usd: string | null;
+  current_usage_usd: string;
+  remaining_usd: string | null;
+  usage_percentage: number | null;
+  period_start: string;
+  period_end: string;
+}
+
+export interface GroupMember {
+  user_id: string;
+  name: string;
+  status: string;
+}
+
+export interface GroupUsage {
+  group_id: string;
+  group_name: string;
+  period_start: string;
+  period_end: string;
+  total_estimated_cost_usd: string;
 }
 
 export interface CostBreakdownByModel {

@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import LoginPage from '@/pages/LoginPage';
 import UsersPage from '@/pages/UsersPage';
 import UserDetailPage from '@/pages/UserDetailPage';
+import GroupsPage from '@/pages/GroupsPage';
 import DashboardPage from '@/pages/DashboardPage';
 import ModelsPage from '@/pages/ModelsPage';
 import PricingPage from '@/pages/PricingPage';
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/users/:id" element={<UserDetailPage />} />
+          <Route path="/groups" element={<GroupsPage />} />
           <Route path="/models" element={<ModelsPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/usage" element={<Navigate to="/dashboard" replace />} />

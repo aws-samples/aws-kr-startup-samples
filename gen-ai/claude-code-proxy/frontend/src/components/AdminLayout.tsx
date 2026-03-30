@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 
 const navItems = [
   { to: '/users', label: 'Users' },
+  { to: '/groups', label: 'Groups' },
   { to: '/models', label: 'Models' },
   { to: '/pricing', label: 'Pricing' },
 ];
@@ -53,6 +54,9 @@ export default function AdminLayout() {
             <div className="flex gap-2">
               <NavLink to="/users" className={navLinkClass}>
                 Users
+              </NavLink>
+              <NavLink to="/groups" className={navLinkClass}>
+                Groups
               </NavLink>
               <NavLink to="/models" className={navLinkClass}>
                 Models
