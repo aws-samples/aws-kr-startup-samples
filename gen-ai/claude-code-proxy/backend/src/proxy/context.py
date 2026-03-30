@@ -14,7 +14,6 @@ class RequestContext:
     access_key_prefix: str
     bedrock_region: str
     bedrock_model: str
-    has_bedrock_key: bool
     routing_strategy: RoutingStrategy = RoutingStrategy.BEDROCK_ONLY
     caching_strategy: CachingStrategy = CachingStrategy.FIVE_MINUTES
     group_id: UUID | None = None

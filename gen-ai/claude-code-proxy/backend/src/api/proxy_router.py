@@ -30,7 +30,6 @@ from ..proxy.router import _map_error_type
 from ..proxy.streaming_usage import StreamingUsageCollector
 from ..proxy.thinking_normalizer import normalize_thinking_request
 from ..repositories import (
-    BedrockKeyRepository,
     TokenUsageRepository,
     UsageAggregateRepository,
     UserRepository,
@@ -66,10 +65,10 @@ def _extract_access_key(raw_request: Request) -> str | None:
     if auth := raw_request.headers.get("authorization"):
         if auth.lower().startswith("bearer "):
             token = auth[7:].strip()
-            if token.startswith("ak_"):
+            if token.startswith("sk-ant-") or token.startswith("ak_"):
                 return token
     if api_key := raw_request.headers.get("x-api-key"):
-        if api_key.startswith("ak_"):
+        if api_key.startswith("sk-ant-") or api_key.startswith("ak_"):
             return api_key
     return None
 
@@ -151,14 +150,11 @@ async def _invoke_bedrock(
     usage_aggregate_repo: UsageAggregateRepository,
     start_time: float,
 ):
-    if not ctx.has_bedrock_key:
-        return _bedrock_not_configured_error(ctx)
-
     budget_result = await budget_service.check_budget(ctx.user_id, group_id=ctx.group_id, fail_open=False)
     if not budget_result.allowed:
         return _budget_exceeded_error(ctx, budget_result)
 
-    bedrock_adapter = BedrockAdapter(BedrockKeyRepository(session))
+    bedrock_adapter = BedrockAdapter()
     token_usage_repo = TokenUsageRepository(session)
     usage_recorder = UsageRecorder(
         token_usage_repo, usage_aggregate_repo, session_factory=async_session_factory,
@@ -207,14 +203,11 @@ async def _stream_bedrock(
     budget_service: BudgetService,
     usage_aggregate_repo: UsageAggregateRepository,
 ):
-    if not ctx.has_bedrock_key:
-        return _bedrock_not_configured_error(ctx)
-
     budget_result = await budget_service.check_budget(ctx.user_id, group_id=ctx.group_id, fail_open=False)
     if not budget_result.allowed:
         return _budget_exceeded_error(ctx, budget_result)
 
-    bedrock_adapter = BedrockAdapter(BedrockKeyRepository(session))
+    bedrock_adapter = BedrockAdapter()
     streaming_started = False
     try:
         bedrock_result = await bedrock_adapter.stream(ctx, request)
@@ -284,14 +277,6 @@ def _build_streaming_response(
 # ---------------------------------------------------------------------------
 # Error helpers
 # ---------------------------------------------------------------------------
-
-def _bedrock_not_configured_error(ctx: RequestContext):
-    error_body = AnthropicError(
-        error={"type": "api_error", "message": "Bedrock key not configured"},
-        request_id=ctx.request_id,
-    ).model_dump()
-    return JSONResponse(content=error_body, status_code=503)
-
 
 def _budget_exceeded_error(ctx: RequestContext, budget_result):
     error_body = AnthropicError(

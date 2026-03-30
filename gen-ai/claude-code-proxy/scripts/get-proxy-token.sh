@@ -48,15 +48,22 @@ eval $(aws configure export-credentials --format env 2>/dev/null) || {
   exit 1
 }
 
-# 3. API Gateway /auth/sso 호출 (SigV4 서명)
+# 3. Caller ARN 조회
+CALLER_ARN=$(aws sts get-caller-identity --query Arn --output text 2>/dev/null) || {
+  echo "ERROR: Failed to get caller identity" >&2
+  exit 1
+}
+
+# 4. API Gateway /auth/sso 호출 (SigV4 서명)
 RESPONSE=$(curl -s -X POST "$TOKEN_SERVICE_URL" \
   --aws-sigv4 "aws:amz:${AWS_REGION}:execute-api" \
   --user "${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}" \
   -H "x-amz-security-token: ${AWS_SESSION_TOKEN:-}" \
+  -H "x-sso-arn: ${CALLER_ARN}" \
   -H "Content-Type: application/json" \
   -d '{}' 2>/dev/null)
 
-# 4. access_key 추출
+# 5. access_key 추출
 ACCESS_KEY=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_key',''))" 2>/dev/null)
 
 if [ -z "$ACCESS_KEY" ]; then
@@ -64,7 +71,7 @@ if [ -z "$ACCESS_KEY" ]; then
   exit 1
 fi
 
-# 5. 캐시 저장
+# 6. 캐시 저장
 mkdir -p "$(dirname "$CACHE_FILE")"
 echo "$RESPONSE" > "$CACHE_FILE"
 chmod 600 "$CACHE_FILE"

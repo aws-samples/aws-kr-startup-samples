@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..domain import AccessKeyCreate, AccessKeyResponse, BedrockKeyRegister, KeyStatus
-from ..proxy import invalidate_access_key_cache, invalidate_bedrock_key_cache
+from ..proxy import invalidate_access_key_cache
 from ..proxy.model_mapping import get_effective_slot_model
 from ..repositories import AccessKeyRepository, BedrockKeyRepository, UserRepository
 from ..security import KeyGenerator, KeyHasher, KMSEnvelopeEncryption
@@ -83,7 +83,6 @@ async def revoke_access_key(
     await session.commit()
 
     invalidate_access_key_cache(key.key_hash)
-    invalidate_bedrock_key_cache(key_id)
 
 
 @router.post("/access-keys/{key_id}/rotate", response_model=AccessKeyResponse)

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import or_, select, update
@@ -47,7 +47,7 @@ class AccessKeyRepository:
         self, key_hash: str
     ) -> tuple[AccessKey, UUID, str, str, UUID | None] | None:
         """Returns (access_key, user_id, routing_strategy, caching_strategy, group_id) or None."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         result = await self.session.execute(
             select(AccessKeyModel)
             .options(joinedload(AccessKeyModel.user))

@@ -60,14 +60,6 @@ class ProxyRouter:
         self._budget_checker = budget_checker
 
     async def route(self, ctx: RequestContext, request: AnthropicRequest) -> ProxyResponse:
-        if not ctx.has_bedrock_key:
-            return ProxyResponse(
-                success=False, response=None, usage=None, provider="bedrock",
-                is_fallback=False, status_code=503,
-                error_type="api_error",
-                error_message="Bedrock key not configured",
-            )
-
         if self._budget_checker:
             budget_result = await self._budget_checker(ctx)
             if not budget_result.allowed:

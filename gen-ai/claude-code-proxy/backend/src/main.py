@@ -67,6 +67,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.middleware("http")
+async def fix_redirect_scheme(request: Request, call_next):
+    response = await call_next(request)
+    if response.status_code in (307, 308):
+        location = response.headers.get("location", "")
+        if location.startswith("http://"):
+            response.headers["location"] = "https://" + location[7:]
+    return response
+
 _settings = get_settings()
 app.add_middleware(
     CORSMiddleware,

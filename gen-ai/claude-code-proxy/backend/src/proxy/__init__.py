@@ -1,7 +1,7 @@
 from .context import RequestContext
 from .auth import AuthService, get_auth_service, invalidate_access_key_cache
 from .router import ProxyRouter, ProxyResponse
-from .bedrock_adapter import BedrockAdapter, invalidate_bedrock_key_cache
+from .bedrock_adapter import BedrockAdapter
 from .circuit_breaker import CircuitBreaker
 from .budget import BudgetService, BudgetCheckResult, invalidate_budget_cache
 from .dependencies import ProxyDependencies, get_proxy_deps, set_proxy_deps, reset_proxy_deps
@@ -22,7 +22,6 @@ __all__ = [
     "ProxyRouter",
     "ProxyResponse",
     "BedrockAdapter",
-    "invalidate_bedrock_key_cache",
     "CircuitBreaker",
     "BudgetService",
     "BudgetCheckResult",

@@ -24,7 +24,7 @@ class KeyHasher:
 class KeyGenerator:
     """Secure access key generation."""
 
-    PREFIX = "ak_"
+    PREFIX = "sk-ant-api03-"
     KEY_BYTES = 32
 
     @classmethod
@@ -45,6 +45,7 @@ class KeyMasker:
     """Mask sensitive keys in logs."""
 
     PATTERNS = [
+        (re.compile(r"sk-ant-api03-[A-Za-z0-9_-]+"), "sk-ant-***"),
         (re.compile(r"ak_[A-Za-z0-9_-]+"), "ak_***"),
         (re.compile(r"Bearer\s+[A-Za-z0-9_-]+"), "Bearer ***"),
     ]

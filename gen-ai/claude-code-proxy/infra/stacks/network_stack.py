@@ -33,7 +33,7 @@ class NetworkStack(Stack):
             self, "VpcLinkSg", vpc=self.vpc, description="API Gateway VPC Link"
         )
         self.ecs_sg.add_ingress_rule(
-            self.vpclink_sg, ec2.Port.tcp(8000), "API Gateway VPC Link → ECS"
+            self.vpclink_sg, ec2.Port.tcp(8000), "API Gateway VPC Link to ECS"
         )
 
         # Database security group

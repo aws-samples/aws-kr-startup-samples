@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_session
 from ..domain import CachingStrategy, RoutingStrategy
-from ..repositories import AccessKeyRepository, BedrockKeyRepository
+from ..repositories import AccessKeyRepository
 from ..security import KeyHasher
 from .context import RequestContext
 from .dependencies import get_proxy_deps
@@ -20,7 +20,6 @@ class _CachedAccessKey:
     access_key_prefix: str
     bedrock_region: str
     bedrock_model: str
-    has_bedrock_key: bool
     routing_strategy: RoutingStrategy
     caching_strategy: CachingStrategy
     group_id: UUID | None = None
@@ -33,7 +32,6 @@ class AuthService:
         self._session = session
         self._hasher = KeyHasher()
         self._access_key_repo = AccessKeyRepository(session)
-        self._bedrock_key_repo = BedrockKeyRepository(session)
 
     async def authenticate(self, raw_key: str) -> RequestContext | None:
         request_id = f"req_{uuid.uuid4().hex[:16]}"
@@ -50,7 +48,6 @@ class AuthService:
                 access_key_prefix=cached.access_key_prefix,
                 bedrock_region=cached.bedrock_region,
                 bedrock_model=cached.bedrock_model,
-                has_bedrock_key=cached.has_bedrock_key,
                 routing_strategy=cached.routing_strategy,
                 caching_strategy=cached.caching_strategy,
                 group_id=cached.group_id,
@@ -62,9 +59,6 @@ class AuthService:
             return None
 
         access_key, user_id, routing_strategy_str, caching_strategy_str, group_id = result
-
-        bedrock_key = await self._bedrock_key_repo.get_by_access_key_id(access_key.id)
-        has_bedrock_key = bedrock_key is not None
         routing_strategy = RoutingStrategy(routing_strategy_str)
         caching_strategy = CachingStrategy(caching_strategy_str)
 
@@ -74,7 +68,6 @@ class AuthService:
             access_key_prefix=access_key.key_prefix,
             bedrock_region=access_key.bedrock_region,
             bedrock_model=access_key.bedrock_model,
-            has_bedrock_key=has_bedrock_key,
             routing_strategy=routing_strategy,
             caching_strategy=caching_strategy,
             group_id=group_id,
@@ -89,7 +82,6 @@ class AuthService:
             access_key_prefix=access_key.key_prefix,
             bedrock_region=access_key.bedrock_region,
             bedrock_model=access_key.bedrock_model,
-            has_bedrock_key=has_bedrock_key,
             routing_strategy=routing_strategy,
             caching_strategy=caching_strategy,
             group_id=group_id,

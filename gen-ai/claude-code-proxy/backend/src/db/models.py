@@ -68,7 +68,7 @@ class AccessKeyModel(Base):
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     key_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
-    key_prefix: Mapped[str] = mapped_column(String(12), nullable=False)
+    key_prefix: Mapped[str] = mapped_column(String(24), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
     bedrock_region: Mapped[str] = mapped_column(String(32), nullable=False)
     bedrock_model: Mapped[str] = mapped_column(String(128), nullable=False)
